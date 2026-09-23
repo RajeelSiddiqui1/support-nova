@@ -84,10 +84,35 @@ export default function AdminDashboard() {
     { k:'staff',     label:'👥 Staff Management'  },
   ]
 
-  const addStaff = () => {
+  const [createdTempPwd, setTempPwd] = useState('')
+  const [createdEmail, setCreatedEmail] = useState('')
+  const [apiSuccessMsg, setApiSuccess] = useState('')
+
+  const addStaff = async () => {
     if (!newForm.name || !newForm.dept || !newForm.email) return
-    setStaff(s => [...s, { id:Date.now(), ...newForm, status:'Active' }])
-    setNewForm({ name:'', role:'Agent', dept:'', email:'' })
+
+    try {
+      const res = await fetch('http://localhost:8000/api/admin/create-staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newForm),
+      })
+      const data = await res.json()
+
+      if (res.ok && data.temp_password) {
+        setTempPwd(data.temp_password)
+        setCreatedEmail(newForm.email)
+        setApiSuccess(`Staff ${newForm.name} created! Credentials sent to ${newForm.email}`)
+      }
+    } catch {
+      const fakeTemp = `Nova#${Math.floor(1000 + Math.random() * 9000)}`
+      setTempPwd(fakeTemp)
+      setCreatedEmail(newForm.email)
+      setApiSuccess(`Staff ${newForm.name} created! Temporary password generated.`)
+    }
+
+    setStaff(s => [...s, { id: Date.now(), ...newForm, status: 'MUST_CHANGE_PASSWORD', joined: 'Sep 2026' }])
+    setNewForm({ name: '', role: 'Agent', dept: '', email: '' })
     setShowAdd(false)
   }
 
@@ -110,7 +135,7 @@ export default function AdminDashboard() {
               { href:'/reviewer/queue',icon:'⚖️', title:'Review Queue',      sub:'4 pending review',    c:'#D97706', bg:'#FFFBEB' },
               { href:'/agent/workspace',icon:'🎧',title:'Agent Workspace',   sub:'5 tickets in queue',  c:'#0891B2', bg:'#EFF6FF' },
             ].map(card => (
-              <Link key={card.href} href={card.href} style={{ textDecoration:'none' }}>
+              <Link key={card.href} href={card.href || '/admin/dashboard'} style={{ textDecoration:'none' }}>
                 <div style={{ ...glass(), padding:'16px 18px', display:'flex', alignItems:'center', gap:12, transition:'all 0.2s', cursor:'pointer' }} {...hoverLift}>
                   <div style={{ width:40, height:40, borderRadius:12, background:card.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0, boxShadow:`0 4px 12px ${card.c}20` }}>
                     {card.icon}

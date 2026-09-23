@@ -40,14 +40,15 @@ const ROLE_META = {
   admin:    { label: 'Admin Center',       color: '#E11D48', bg: '#FFF1F2', emoji: '⚙️' },
 }
 
-export default function Sidebar({ role = 'customer', userName = 'Admin User', userEmail = 'user@gmail.com' }) {
+export default function Sidebar({ role = 'customer', userName = 'User', userEmail = 'user@company.com' }) {
   const pathname = usePathname()
-  const items = NAV[role] || NAV.customer
-  const meta  = ROLE_META[role] || ROLE_META.customer
+  const rKey = (role || 'customer').toLowerCase()
+  const items = NAV[rKey] || NAV.customer
+  const meta  = ROLE_META[rKey] || ROLE_META.customer
 
-  // group admin items by section
-  const sections = role === 'admin'
-    ? [...new Set(items.map(i => i.section))]
+  // group admin items by section safely
+  const sections = rKey === 'admin'
+    ? [...new Set(items.map(i => i.section).filter(Boolean))]
     : null
 
   return (
@@ -98,7 +99,7 @@ export default function Sidebar({ role = 'customer', userName = 'Admin User', us
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '10px 10px', overflowY: 'auto' }}>
-        {role === 'admin' && sections ? (
+        {rKey === 'admin' && sections && sections.length > 0 ? (
           sections.map(section => (
             <div key={section} style={{ marginBottom: 6 }}>
               <div style={{ fontSize: 9, color: '#CBD5E1', letterSpacing: '0.1em', fontWeight: 700, padding: '6px 8px 3px', textTransform: 'uppercase' }}>
@@ -107,8 +108,9 @@ export default function Sidebar({ role = 'customer', userName = 'Admin User', us
               {items.filter(i => i.section === section).map(item => {
                 const active = pathname === item.href
                 const Icon = item.icon
+                const targetHref = item.href || '/admin/dashboard'
                 return (
-                  <Link key={item.label} href={item.href} style={{
+                  <Link key={item.label} href={targetHref} style={{
                     display: 'flex', alignItems: 'center', gap: 9,
                     padding: '8px 10px', borderRadius: 9, marginBottom: 1,
                     textDecoration: 'none',
@@ -118,10 +120,7 @@ export default function Sidebar({ role = 'customer', userName = 'Admin User', us
                     fontSize: 13, fontWeight: active ? 600 : 400,
                     transition: 'all 0.15s ease',
                     boxShadow: active ? `0 2px 12px ${meta.color}15` : 'none',
-                  }}
-                    onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(100,116,139,0.06)'; e.currentTarget.style.color = '#0F172A' } }}
-                    onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748B' } }}
-                  >
+                  }}>
                     <Icon size={14} />
                     {item.label}
                   </Link>
@@ -137,8 +136,9 @@ export default function Sidebar({ role = 'customer', userName = 'Admin User', us
             {items.map(item => {
               const active = pathname === item.href
               const Icon = item.icon
+              const targetHref = item.href || '/customer/dashboard'
               return (
-                <Link key={item.label} href={item.href} style={{
+                <Link key={item.label} href={targetHref} style={{
                   display: 'flex', alignItems: 'center', gap: 9,
                   padding: '8px 10px', borderRadius: 9, marginBottom: 2,
                   textDecoration: 'none',
@@ -147,10 +147,7 @@ export default function Sidebar({ role = 'customer', userName = 'Admin User', us
                   color: active ? meta.color : '#64748B',
                   fontSize: 13, fontWeight: active ? 600 : 400,
                   transition: 'all 0.15s ease',
-                }}
-                  onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(100,116,139,0.06)'; e.currentTarget.style.color = '#0F172A' } }}
-                  onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748B' } }}
-                >
+                }}>
                   <Icon size={14} />
                   {item.label}
                 </Link>
@@ -164,23 +161,24 @@ export default function Sidebar({ role = 'customer', userName = 'Admin User', us
           <div style={{ fontSize: 9, color: '#CBD5E1', letterSpacing: '0.1em', fontWeight: 700, padding: '2px 8px 6px', textTransform: 'uppercase' }}>
             SWITCH ROLE
           </div>
-          {Object.entries(ROLE_META).map(([r, m]) => (
-            <Link key={r} href={r === 'customer' ? '/customer/dashboard' : r === 'agent' ? '/agent/workspace' : r === 'reviewer' ? '/reviewer/queue' : '/admin/dashboard'}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '7px 10px', borderRadius: 8, marginBottom: 1,
-                textDecoration: 'none',
-                background: r === role ? `${m.color}10` : 'transparent',
-                color: r === role ? m.color : '#94A3B8',
-                fontSize: 12, fontWeight: r === role ? 600 : 400,
-                transition: 'all 0.15s',
-              }}
-              onMouseEnter={e => { if (r !== role) { e.currentTarget.style.background = 'rgba(100,116,139,0.05)'; e.currentTarget.style.color = '#64748B' } }}
-              onMouseLeave={e => { if (r !== role) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94A3B8' } }}
-            >
-              <span>{m.emoji}</span> {m.label}
-            </Link>
-          ))}
+          {Object.entries(ROLE_META).map(([r, m]) => {
+            const rHref = r === 'customer' ? '/customer/dashboard' : r === 'agent' ? '/agent/workspace' : r === 'reviewer' ? '/reviewer/queue' : '/admin/dashboard'
+            return (
+              <Link key={r} href={rHref}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '7px 10px', borderRadius: 8, marginBottom: 1,
+                  textDecoration: 'none',
+                  background: r === rKey ? `${m.color}10` : 'transparent',
+                  color: r === rKey ? m.color : '#94A3B8',
+                  fontSize: 12, fontWeight: r === rKey ? 600 : 400,
+                  transition: 'all 0.15s',
+                }}
+              >
+                <span>{m.emoji}</span> {m.label}
+              </Link>
+            )
+          })}
         </div>
       </nav>
 
@@ -191,10 +189,7 @@ export default function Sidebar({ role = 'customer', userName = 'Admin User', us
           padding: '9px 11px', borderRadius: 11,
           background: 'rgba(248,250,252,0.9)', border: '1px solid rgba(226,232,240,0.6)',
           transition: 'all 0.2s',
-        }}
-          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(148,163,184,0.1)'; e.currentTarget.style.borderColor = 'rgba(124,58,237,0.2)' }}
-          onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'rgba(226,232,240,0.6)' }}
-        >
+        }}>
           <div style={{
             width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
             background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
@@ -208,10 +203,7 @@ export default function Sidebar({ role = 'customer', userName = 'Admin User', us
             <div style={{ fontSize: 12, fontWeight: 700, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</div>
             <div style={{ fontSize: 10, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail}</div>
           </div>
-          <Link href="/login" style={{ color: '#94A3B8', display: 'flex', padding: 4, borderRadius: 6, transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(225,29,72,0.08)'; e.currentTarget.style.color = '#E11D48' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94A3B8' }}
-          >
+          <Link href="/login" style={{ color: '#94A3B8', display: 'flex', padding: 4, borderRadius: 6, transition: 'all 0.15s' }}>
             <LogOut size={13} />
           </Link>
         </div>
