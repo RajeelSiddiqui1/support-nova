@@ -2,34 +2,51 @@
 # SupportNova Unified .gitignore
 # ==========================================
 
-# ── Frontend / Node.js (client/) ──
-client/node_modules/
+# ── Node Modules & Dependencies ──
+**/node_modules/
+**/node_modules/**
 node_modules/
-client/.next/
+client/node_modules/
+client/node_modules/**
+.pnp
+.pnp.js
+
+# ── Next.js Build Outputs ──
+**/.next/
+**/.next/**
 .next/
-client/out/
+client/.next/
+client/.next/**
 out/
-client/build/
+client/out/
 build/
+client/build/
+*.tsbuildinfo
+
+# ── Debug Logs ──
+*.log
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 
-# ── Backend / Python (server/) ──
+# ── Python Virtual Environments ──
+**/.venv/
+**/.venv/**
+**/venv/
+**/env/
+.venv/
+venv/
+env/
 server/.venv/
+server/.venv/**
 server/venv/
 server/env/
-server/ENV/
-.venv/
-env/
-venv/
-ENV/
 
-# Python Cache & Compiled Files
-server/__pycache__/
-server/*/__pycache__/
-server/*/*/__pycache__/
+# ── Python Cache & Binaries ──
+**/__pycache__/
+**/__pycache__/**
 __pycache__/
+server/__pycache__/
 *.py[cod]
 *$py.class
 *.so
@@ -39,15 +56,16 @@ __pycache__/
 *.egg-info/
 .hatch/
 
-# Uploads & Temporary Server Storage
+# ── Uploads & Server Storage ──
 server/uploads/
 server/temp/
 server/storage/
 server/logs/
-*.log
 
-# ── Environment Variables & Secrets ──
+# ── Environment Secrets ──
 .env
+.env*
+.env.local
 .env*.local
 client/.env
 client/.env.local
@@ -56,7 +74,7 @@ server/.env
 server/.env.local
 server/.env*.local
 
-# ── IDEs, OS & Editor Junk ──
+# ── OS & IDE Files ──
 .DS_Store
 Thumbs.db
 .vscode/
