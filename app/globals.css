@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: linear-gradient(135deg, #F8FAFC 0%, #EEF2FF 60%, #F0FDF4 100%);
+  min-height: 100vh;
+  color: #0F172A;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #F1F5F9; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+input, textarea, select { font-family: 'Inter', system-ui, sans-serif; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideRight {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideLeft {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes spin     { to { transform: rotate(360deg); } }
+@keyframes pulseDot {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%     { opacity:0.5; transform:scale(0.75); }
+}
+@keyframes floatY {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-6px); }
+}
+@keyframes glowPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(124,58,237,0.25); }
+  50%     { box-shadow: 0 0 0 8px rgba(124,58,237,0); }
+}
+
+.animate-fade-up     { animation: fadeUp     0.45s cubic-bezier(0.22,1,0.36,1) both; }
+.animate-fade-in     { animation: fadeIn     0.3s ease both; }
+.animate-slide-right { animation: slideRight 0.38s cubic-bezier(0.22,1,0.36,1) both; }
+.animate-slide-left  { animation: slideLeft  0.38s cubic-bezier(0.22,1,0.36,1) both; }
+.animate-scale-in    { animation: scaleIn    0.32s cubic-bezier(0.22,1,0.36,1) both; }
+.animate-spin        { animation: spin       0.8s linear infinite; }
+.animate-float       { animation: floatY     3s ease-in-out infinite; }
+.animate-glow        { animation: glowPulse  2s ease-in-out infinite; }
+.pulse-dot           { animation: pulseDot   2s ease-in-out infinite; }
+
+.d50  { animation-delay: 0.05s; }
+.d100 { animation-delay: 0.1s;  }
+.d150 { animation-delay: 0.15s; }
+.d200 { animation-delay: 0.2s;  }
+.d250 { animation-delay: 0.25s; }
+.d300 { animation-delay: 0.3s;  }
+.d350 { animation-delay: 0.35s; }
+.d400 { animation-delay: 0.4s;  }
+.d500 { animation-delay: 0.5s;  }
+.d600 { animation-delay: 0.6s;  }
