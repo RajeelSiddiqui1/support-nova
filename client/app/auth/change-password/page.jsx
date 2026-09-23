@@ -1,12 +1,12 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Lock, ShieldAlert, CheckCircle, RefreshCw, ArrowRight } from 'lucide-react'
 
-export default function ChangePasswordPage() {
+function ChangePasswordContent() {
   const searchParams = useSearchParams()
-  const emailParam = searchParams.get('email') || ''
+  const emailParam = searchParams ? searchParams.get('email') || '' : ''
 
   const [email, setEmail]         = useState(emailParam)
   const [tempPassword, setTempPass] = useState('')
@@ -193,5 +193,13 @@ export default function ChangePasswordPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ChangePasswordPage() {
+  return (
+    <Suspense fallback={<div style={{ textAlign: 'center', padding: 40, color: '#7C3AED' }}>Loading...</div>}>
+      <ChangePasswordContent />
+    </Suspense>
   )
 }

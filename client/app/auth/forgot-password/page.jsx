@@ -1,12 +1,12 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, KeyRound, CheckCircle, RefreshCw, ArrowRight, Clock } from 'lucide-react'
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordContent() {
   const searchParams = useSearchParams()
-  const initialEmail = searchParams.get('email') || ''
+  const initialEmail = searchParams ? searchParams.get('email') || '' : ''
 
   const [step, setStep]           = useState(1) // 1: Request OTP, 2: Verify OTP, 3: Reset Password
   const [email, setEmail]         = useState(initialEmail)
@@ -257,5 +257,13 @@ export default function ForgotPasswordPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={<div style={{ textAlign: 'center', padding: 40, color: '#7C3AED' }}>Loading...</div>}>
+      <ForgotPasswordContent />
+    </Suspense>
   )
 }
