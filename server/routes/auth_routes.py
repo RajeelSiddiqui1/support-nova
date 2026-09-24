@@ -125,11 +125,19 @@ async def login(req: LoginRequest):
             "redirect_url": f"/auth/change-password?email={urllib.parse.quote(user['email'])}"
         }
 
+    user_id = user.get("user_id")
+    if not user_id:
+        user_id = f"USR-{int(datetime.utcnow().timestamp())}"
+        await db.users.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"user_id": user_id}}
+        )
+
     return {
         "status": "success",
         "must_change_password": False,
         "user": {
-            "user_id": user.get("user_id"),
+            "user_id": user_id,
             "email": user["email"],
             "name": user["name"],
             "role": user.get("role", "CUSTOMER"),
@@ -211,9 +219,21 @@ async def google_auth_callback(code: Optional[str] = None, error: Optional[str] 
             reason = urllib.parse.quote(user.get("deactivation_reason", "Account deactivated by Admin."))
             return RedirectResponse(url=f"{FRONTEND_LOGIN_PAGE}?error=account_deactivated&reason={reason}")
 
-        response = RedirectResponse(url=FRONTEND_CUSTOMER_DASHBOARD)
-        response.set_cookie(key="user_role", value="CUSTOMER", path="/")
-        response.set_cookie(key="user_status", value="ACTIVE", path="/")
+        user_payload = urllib.parse.quote(json.dumps({
+            "user_id": user.get("user_id"),
+            "name": user.get("name", "Google Customer"),
+            "email": user.get("email"),
+            "role": user.get("role", "CUSTOMER"),
+            "status": user.get("status", "ACTIVE")
+        }))
+
+        redirect_url = f"{FRONTEND_CUSTOMER_DASHBOARD}?auth_user={user_payload}"
+        response = RedirectResponse(url=redirect_url)
+        response.set_cookie(key="user_role", value=user.get("role", "CUSTOMER"), path="/")
+        response.set_cookie(key="user_status", value=user.get("status", "ACTIVE"), path="/")
+        response.set_cookie(key="user_id", value=user.get("user_id", ""), path="/")
+        response.set_cookie(key="user_email", value=user.get("email", ""), path="/")
+        response.set_cookie(key="user_name", value=user.get("name", "Google Customer"), path="/")
         return response
 
     except Exception as e:

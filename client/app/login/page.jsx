@@ -91,6 +91,12 @@ export default function LoginPage() {
       }
 
       const role = data.user?.role || 'CUSTOMER'
+      const loggedInUser = data.user || { email, role }
+      localStorage.setItem('user', JSON.stringify(loggedInUser))
+      sessionStorage.setItem('user', JSON.stringify(loggedInUser))
+      if (loggedInUser.user_id) document.cookie = `user_id=${encodeURIComponent(loggedInUser.user_id)}; path=/`
+      if (loggedInUser.email) document.cookie = `user_email=${encodeURIComponent(loggedInUser.email)}; path=/`
+      if (loggedInUser.name) document.cookie = `user_name=${encodeURIComponent(loggedInUser.name)}; path=/`
       document.cookie = `user_role=${role}; path=/`
       document.cookie = `user_status=ACTIVE; path=/`
 

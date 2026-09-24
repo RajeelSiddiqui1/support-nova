@@ -53,9 +53,15 @@ class TicketBase(BaseModel):
     category: str
     sub_category: Optional[str] = None
     department: Optional[str] = "Logistics"
+    department_id: Optional[str] = None
     priority: PriorityLevel = PriorityLevel.P2
     status: TicketStatus = TicketStatus.IN_TRIAGE
     assigned_agent_id: Optional[str] = None
+    assigned_agent: Optional[str] = None
+    assigned_agent_email: Optional[str] = None
+    assigned_agent_history: List[Dict[str, Any]] = []
+    assignedAgentId: Optional[str] = None
+    assignedAgentHistory: Optional[List[Dict[str, Any]]] = None
     sla_hours_remaining: Optional[float] = 24.0
     sla_risk_percentage: float = 0.0
     

@@ -114,3 +114,159 @@ class EmailService:
         </div>
         """
         return EmailService.send_email(to_email, subject, html)
+
+    @staticmethod
+    def send_ticket_created_notification(to_email: str, ticket_id: str, title: str, department: str):
+        subject = f"📨 Complaint Registered [{ticket_id}] — SupportNova"
+        html = f"""
+        <div style="font-family: Arial, sans-serif; background: #F8FAFC; padding: 30px; border-radius: 12px; max-width: 540px; color: #0F172A; border: 1px solid #E2E8F0;">
+            <h2 style="color: #7C3AED; margin-top: 0;">Complaint Registered Successfully 🎉</h2>
+            <p>Dear Customer,</p>
+            <p>Your complaint has been successfully registered and assigned to our <strong>{department}</strong> team for AI analysis and resolution.</p>
+            
+            <div style="background: #FFF; padding: 18px; border-radius: 10px; border: 1px solid #CBD5E1; margin: 20px 0;">
+                <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">Ticket Reference ID</p>
+                <p style="font-family: monospace; font-size: 22px; font-weight: bold; color: #7C3AED; margin: 0 0 12px 0;">{ticket_id}</p>
+
+                <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">Subject / Title</p>
+                <p style="font-size: 14px; font-weight: bold; color: #0F172A; margin: 0;">{title}</p>
+            </div>
+
+            <p style="font-size: 13px; color: #64748B;">Our AI pipeline has analyzed your complaint against company SLA guidelines. An agent will contact you shortly.</p>
+            <p><a href="http://localhost:3000/customer/dashboard" style="background: #7C3AED; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">View Ticket Status</a></p>
+        </div>
+        """
+        return EmailService.send_email(to_email, subject, html)
+
+    @staticmethod
+    def send_ticket_status_update(to_email: str, ticket_id: str, title: str, status: str, agent_notes: str = ""):
+        status_color = "#059669" if status in ["Resolved", "RESOLVED"] else "#2563EB" if status in ["In Progress", "IN_PROGRESS"] else "#64748B"
+        subject = f"🔔 Ticket Status Update [{ticket_id}] → {status}"
+        html = f"""
+        <div style="font-family: Arial, sans-serif; background: #F8FAFC; padding: 30px; border-radius: 12px; max-width: 540px; color: #0F172A; border: 1px solid #E2E8F0;">
+            <h2 style="color: {status_color}; margin-top: 0;">Ticket Status Updated to '{status}'</h2>
+            <p>Dear Customer,</p>
+            <p>The status of your complaint <strong>[{ticket_id}] {title}</strong> has been updated.</p>
+            
+            <div style="background: #FFF; padding: 18px; border-radius: 10px; border: 1px solid #CBD5E1; margin: 20px 0;">
+                <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">New Status</p>
+                <p style="font-size: 18px; font-weight: bold; color: {status_color}; margin: 0 0 14px 0;">{status}</p>
+
+                {f'<p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">Agent Resolution Notes</p><p style="font-size: 13px; color: #334155; margin: 0; line-height: 1.5;">{agent_notes}</p>' if agent_notes else ''}
+            </div>
+
+            <p style="font-size: 12px; color: #64748B;">Thank you for your patience while we resolve your issue.</p>
+            <p><a href="http://localhost:3000/customer/dashboard" style="background: {status_color}; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Check Dashboard</a></p>
+        </div>
+        """
+        return EmailService.send_email(to_email, subject, html)
+
+    @staticmethod
+    def send_ticket_reassigned_notification(
+        to_email: str,
+        previous_agent_name: str,
+        new_agent_name: str,
+        ticket_id: str,
+        title: str,
+        reason: str = "Manager reassignment"
+    ):
+        """Notifies previous agent that ticket was reassigned/transferred away."""
+        subject = f"🔄 Ticket Reassigned [{ticket_id}] — Transferred to {new_agent_name}"
+        html = f"""
+        <div style="font-family: Arial, sans-serif; background: #F8FAFC; padding: 30px; border-radius: 12px; max-width: 540px; color: #0F172A; border: 1px solid #E2E8F0;">
+            <h2 style="color: #D97706; margin-top: 0;">Ticket Transferred to Another Agent 🔄</h2>
+            <p>Hello <strong>{previous_agent_name}</strong>,</p>
+            <p>Ticket <strong>[{ticket_id}]</strong> has been reassigned and transferred from your active queue to <strong>{new_agent_name}</strong>.</p>
+            
+            <div style="background: #FFF; padding: 18px; border-radius: 10px; border: 1px solid #CBD5E1; margin: 20px 0;">
+                <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">Ticket Reference ID</p>
+                <p style="font-family: monospace; font-size: 20px; font-weight: bold; color: #7C3AED; margin: 0 0 10px 0;">{ticket_id}</p>
+
+                <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">Title</p>
+                <p style="font-size: 14px; font-weight: bold; color: #0F172A; margin: 0 0 10px 0;">{title}</p>
+
+                <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">Reassignment Reason</p>
+                <p style="font-size: 13px; color: #334155; margin: 0;">{reason}</p>
+            </div>
+
+            <p style="font-size: 12px; color: #64748B;">This ticket has been removed from your active queue. No further action is required on your part.</p>
+            <p><a href="http://localhost:3000/agent/workspace" style="background: #D97706; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">View Agent Workspace</a></p>
+        </div>
+        """
+        return EmailService.send_email(to_email, subject, html)
+
+    @staticmethod
+    def send_ticket_assigned_notification(
+        to_email: str,
+        new_agent_name: str,
+        ticket_id: str,
+        title: str,
+        description: str,
+        priority: str,
+        department: str,
+        assigned_by_name: str = "Manager"
+    ):
+        """Notifies newly assigned agent with ticket details and urgency context."""
+        prio_color = "#E11D48" if priority == "P0" else "#D97706" if priority == "P1" else "#2563EB"
+        subject = f"🚨 New Ticket Assigned to You [{ticket_id}] — Priority: {priority}"
+        html = f"""
+        <div style="font-family: Arial, sans-serif; background: #F8FAFC; padding: 30px; border-radius: 12px; max-width: 540px; color: #0F172A; border: 1px solid #E2E8F0;">
+            <h2 style="color: #7C3AED; margin-top: 0;">New Ticket Assigned to You! 🎯</h2>
+            <p>Hello <strong>{new_agent_name}</strong>,</p>
+            <p>A ticket has been assigned to your active queue by <strong>{assigned_by_name}</strong> for urgent attention.</p>
+            
+            <div style="background: #FFF; padding: 18px; border-radius: 10px; border: 1px solid #CBD5E1; margin: 20px 0;">
+                <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                    <span style="font-family: monospace; font-size: 16px; font-weight: bold; color: #7C3AED;">{ticket_id}</span>
+                    <span style="font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 6px; background: {prio_color}15; color: {prio_color};">Priority: {priority}</span>
+                    <span style="font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 6px; background: #EFF6FF; color: #2563EB;">{department}</span>
+                </div>
+
+                <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">Subject / Title</p>
+                <p style="font-size: 14px; font-weight: bold; color: #0F172A; margin: 0 0 10px 0;">{title}</p>
+
+                <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">Customer Complaint Description</p>
+                <p style="font-size: 13px; color: #334155; margin: 0; line-height: 1.5; background: #F8FAFC; padding: 10px; border-radius: 8px;">{description[:300]}{'...' if len(description) > 300 else ''}</p>
+            </div>
+
+            <p style="font-size: 12px; color: #64748B;">Please review this ticket promptly in your Agent Workspace and begin resolution.</p>
+            <p><a href="http://localhost:3000/agent/workspace" style="background: #7C3AED; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Open in Agent Workspace</a></p>
+        </div>
+        """
+        return EmailService.send_email(to_email, subject, html)
+
+    @staticmethod
+    def send_department_manager_override_notification(
+        to_email: str,
+        manager_name: str,
+        ticket_id: str,
+        title: str,
+        old_department: str,
+        new_department: str,
+        changed_by_name: str = "Admin Nova"
+    ):
+        """Notifies Department Manager when Admin overrides and moves a ticket into their department."""
+        subject = f"🏢 Department Routing Update [{ticket_id}] — Moved to {new_department}"
+        html = f"""
+        <div style="font-family: Arial, sans-serif; background: #F8FAFC; padding: 30px; border-radius: 12px; max-width: 540px; color: #0F172A; border: 1px solid #E2E8F0;">
+            <h2 style="color: #7C3AED; margin-top: 0;">Department Routing Alert 🏢</h2>
+            <p>Hello Manager <strong>{manager_name}</strong>,</p>
+            <p>An administrator (<strong>{changed_by_name}</strong>) has re-routed ticket <strong>[{ticket_id}]</strong> to your department (<strong>{new_department}</strong>).</p>
+            
+            <div style="background: #FFF; padding: 18px; border-radius: 10px; border: 1px solid #CBD5E1; margin: 20px 0;">
+                <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">Ticket Reference</p>
+                <p style="font-family: monospace; font-size: 20px; font-weight: bold; color: #7C3AED; margin: 0 0 10px 0;">{ticket_id}</p>
+
+                <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">Title</p>
+                <p style="font-size: 14px; font-weight: bold; color: #0F172A; margin: 0 0 10px 0;">{title}</p>
+
+                <div style="background: #EFF6FF; padding: 10px; border-radius: 8px; font-size: 12px; color: #1E40AF;">
+                    Previous Department: <strong>{old_department}</strong> ➔ New Department: <strong>{new_department}</strong>
+                </div>
+            </div>
+
+            <p style="font-size: 12px; color: #64748B;">Previous agent assignment has been cleared. The ticket is now available in your department's shared pool for agent claim or manager assignment.</p>
+            <p><a href="http://localhost:3000/reviewer/queue" style="background: #7C3AED; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">View Department Queue</a></p>
+        </div>
+        """
+        return EmailService.send_email(to_email, subject, html)

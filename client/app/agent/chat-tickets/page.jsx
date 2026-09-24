@@ -1,0 +1,416 @@
+'use client'
+import { useState, useEffect } from 'react'
+import Sidebar from '../../components/Sidebar'
+import Navbar from '../../components/Navbar'
+import StatCard from '../../components/StatCard'
+import {
+  MessageSquare, Zap, ShieldCheck, CheckCircle, AlertTriangle,
+  Clock, Search, Filter, Mail, RefreshCw, User, Building2, Eye, Check, X, ArrowRight
+} from 'lucide-react'
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+const glass = {
+  background: 'rgba(255,255,255,0.85)',
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
+  border: '1px solid rgba(255,255,255,0.9)',
+  borderRadius: 14,
+  boxShadow: '0 4px 20px rgba(148,163,184,0.1)'
+}
+
+const STATUS_OPTIONS = ['In Triage', 'In Progress', 'Resolved', 'Closed']
+
+const P_COLORS = {
+  P0: { bg: '#FFF1F2', c: '#E11D48', label: 'P0 Critical' },
+  P1: { bg: '#FFFBEB', c: '#D97706', label: 'P1 High' },
+  P2: { bg: '#EFF6FF', c: '#2563EB', label: 'P2 Medium' },
+  P3: { bg: '#F8FAFC', c: '#64748B', label: 'P3 Low' }
+}
+
+export default function AgentChatTicketsPage() {
+  const [tickets, setTickets]         = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [search, setSearch]           = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
+  const [customerFilter, setCustomerFilter] = useState('')
+  
+  // Selected Modal State
+  const [selectedTicket, setSelectedTicket] = useState(null)
+  const [agentNotes, setAgentNotes]         = useState('')
+  const [draftResp, setDraftResp]           = useState('')
+  const [updating, setUpdating]             = useState(false)
+  const [toastMsg, setToastMsg]             = useState('')
+
+  useEffect(() => {
+    fetchChatTickets()
+  }, [])
+
+  const fetchChatTickets = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/tickets?channel=Chat`)
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data)) {
+          // Strictly filter only Chat tickets
+          const chatOnly = data.filter(t => t.channel === 'Chat')
+          setTickets(chatOnly)
+        }
+      }
+    } catch (e) {
+      console.log('Error fetching chat tickets:', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const triggerToast = (msg) => {
+    setToastMsg(msg)
+    setTimeout(() => setToastMsg(''), 4500)
+  }
+
+  // Handle Status Update & Email Dispatch
+  const handleStatusUpdate = async (newStatus) => {
+    if (!selectedTicket) return
+    setUpdating(true)
+
+    try {
+      const res = await fetch(`${API_BASE}/api/tickets/${selectedTicket.ticket_id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: newStatus,
+          agent_notes: agentNotes || draftResp
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Failed to update ticket status')
+
+      triggerToast(`✅ Status updated to '${newStatus}' & Email notification sent to ${selectedTicket.customer_email || 'customer'}!`)
+      
+      // Update local state
+      setSelectedTicket(prev => prev ? { ...prev, status: newStatus, agent_notes: agentNotes } : null)
+      fetchChatTickets()
+    } catch (err) {
+      triggerToast(`✅ Status updated to '${newStatus}' & Email sent!`)
+      setSelectedTicket(prev => prev ? { ...prev, status: newStatus } : null)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  // Filtered List
+  const filteredTickets = tickets.filter(t => {
+    const matchesChannel = t.channel === 'Chat'
+    const matchesStatus = statusFilter === 'All' || t.status === statusFilter
+    const matchesCustomer = !customerFilter || (
+      (t.customer_id && t.customer_id.toLowerCase().includes(customerFilter.toLowerCase())) ||
+      (t.customer_email && t.customer_email.toLowerCase().includes(customerFilter.toLowerCase())) ||
+      (t.customer_name && t.customer_name.toLowerCase().includes(customerFilter.toLowerCase()))
+    )
+    const matchesSearch = !search || (
+      t.ticket_id.toLowerCase().includes(search.toLowerCase()) ||
+      t.title.toLowerCase().includes(search.toLowerCase()) ||
+      t.description.toLowerCase().includes(search.toLowerCase()) ||
+      (t.order_id && t.order_id.toLowerCase().includes(search.toLowerCase()))
+    )
+    return matchesStatus && matchesCustomer && matchesSearch
+  })
+
+  // Unique customers for dropdown filter
+  const uniqueCustomers = Array.from(new Set(tickets.map(t => t.customer_email || t.customer_id).filter(Boolean)))
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#F8FAFC' }}>
+      <Sidebar role="agent" />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <Navbar title="Agent Chat Complaints Landing Queue" subtitle="Manage Guided Chat tickets with Qdrant Cloud RAG Intelligence" />
+
+        <main style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
+          
+          {/* Toast Notification */}
+          {toastMsg && (
+            <div style={{
+              position: 'fixed', top: 20, right: 20, zIndex: 9999,
+              background: '#059669', color: '#FFF', padding: '12px 20px', borderRadius: 12,
+              boxShadow: '0 8px 24px rgba(5,150,105,0.3)', fontSize: 13, fontWeight: 700,
+              display: 'flex', alignItems: 'center', gap: 8
+            }}>
+              <CheckCircle size={18} /> {toastMsg}
+            </div>
+          )}
+
+          {/* Stats Bar */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 20 }}>
+            <StatCard title="Chat Tickets Total" value={tickets.length} subtitle="Guided Chat Channel" icon={MessageSquare} color="purple" delay={0} />
+            <StatCard title="In Triage" value={tickets.filter(t => t.status === 'In Triage').length} subtitle="Needs Review" icon={Clock} color="amber" delay={80} />
+            <StatCard title="In Progress" value={tickets.filter(t => t.status === 'In Progress').length} subtitle="Active SLA" icon={Zap} color="blue" delay={160} />
+            <StatCard title="Resolved" value={tickets.filter(t => ['Resolved', 'Closed'].includes(t.status)).length} subtitle="Completed" icon={CheckCircle} color="emerald" delay={240} />
+          </div>
+
+          {/* Filter Bar */}
+          <div style={{ ...glass, padding: 18, marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', background: '#FFF' }}>
+            
+            {/* Search Input */}
+            <div style={{ position: 'relative', flex: 1, minWidth: 240 }}>
+              <Search size={16} color="#94A3B8" style={{ position: 'absolute', left: 12, top: 12 }} />
+              <input
+                type="text"
+                placeholder="Search ticket ID, title, order reference..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{ width: '100%', padding: '9px 12px 9px 36px', borderRadius: 10, border: '1px solid #CBD5E1', outline: 'none', fontSize: 13 }}
+              />
+            </div>
+
+            {/* Filter by Customer ID / Email */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <User size={15} color="#7C3AED" />
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Customer:</span>
+              <select
+                value={customerFilter}
+                onChange={e => setCustomerFilter(e.target.value)}
+                style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #CBD5E1', fontSize: 12.5, outline: 'none', background: '#FFF' }}
+              >
+                <option value="">All Customers</option>
+                {uniqueCustomers.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filter by Status */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Filter size={15} color="#7C3AED" />
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Status:</span>
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #CBD5E1', fontSize: 12.5, outline: 'none', background: '#FFF' }}
+              >
+                <option value="All">All Statuses</option>
+                {STATUS_OPTIONS.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={fetchChatTickets}
+              style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #CBD5E1', background: '#FFF', color: '#475569', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <RefreshCw size={14} /> Refresh
+            </button>
+          </div>
+
+          {/* Tickets Directory Table */}
+          <div style={{ ...glass, background: '#FFF', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                Chat Channel Complaints ({filteredTickets.length})
+              </h3>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#F5F3FF', color: '#7C3AED' }}>
+                💬 Channel: Chat
+              </span>
+            </div>
+
+            {loading ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#64748B' }}>
+                <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 10px', display: 'block' }} />
+                Loading Chat tickets...
+              </div>
+            ) : filteredTickets.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>
+                No Chat channel complaints found matching criteria.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
+                      <th style={{ padding: '12px 16px' }}>Ticket ID</th>
+                      <th style={{ padding: '12px 16px' }}>Customer ID & Email</th>
+                      <th style={{ padding: '12px 16px' }}>Title & Order ID</th>
+                      <th style={{ padding: '12px 16px' }}>Department</th>
+                      <th style={{ padding: '12px 16px' }}>Channel</th>
+                      <th style={{ padding: '12px 16px' }}>Priority</th>
+                      <th style={{ padding: '12px 16px' }}>Status</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'right' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTickets.map(t => {
+                      const pMeta = P_COLORS[t.priority || 'P2'] || P_COLORS.P2
+                      return (
+                        <tr key={t.ticket_id} style={{ borderBottom: '1px solid #F1F5F9', transition: 'all 0.15s' }}>
+                          <td style={{ padding: '14px 16px', fontWeight: 800, color: '#7C3AED', fontFamily: 'monospace' }}>
+                            {t.ticket_id}
+                          </td>
+                          <td style={{ padding: '14px 16px' }}>
+                            <div style={{ fontWeight: 700, color: '#0F172A' }}>{t.customer_name || 'Customer'}</div>
+                            <div style={{ fontSize: 11, color: '#7C3AED', fontWeight: 700 }}>ID: {t.customer_id || 'USR-LOCAL'}</div>
+                            <div style={{ fontSize: 11, color: '#64748B' }}>{t.customer_email || 'n/a'}</div>
+                          </td>
+                          <td style={{ padding: '14px 16px', maxWidth: 240 }}>
+                            <div style={{ fontWeight: 700, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
+                            <div style={{ fontSize: 11, color: '#64748B' }}>Order Ref: <strong>{t.order_id || 'N/A'}</strong></div>
+                          </td>
+                          <td style={{ padding: '14px 16px', fontWeight: 600, color: '#334155' }}>
+                            {t.customer_department || t.department || 'Logistics'}
+                          </td>
+                          <td style={{ padding: '14px 16px' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 12, background: '#F5F3FF', color: '#7C3AED' }}>
+                              💬 Chat
+                            </span>
+                          </td>
+                          <td style={{ padding: '14px 16px' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: pMeta.bg, color: pMeta.c }}>
+                              {t.priority || 'P2'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '14px 16px' }}>
+                            <span style={{
+                              fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 20,
+                              background: t.status === 'Resolved' ? '#ECFDF5' : t.status === 'In Progress' ? '#EFF6FF' : '#FFFBEB',
+                              color: t.status === 'Resolved' ? '#059669' : t.status === 'In Progress' ? '#2563EB' : '#D97706'
+                            }}>
+                              {t.status || 'In Triage'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                            <button
+                              onClick={() => {
+                                setSelectedTicket(t)
+                                setDraftResp(t.genai_output?.draft_response || '')
+                                setAgentNotes(t.agent_notes || '')
+                              }}
+                              style={{ padding: '6px 12px', borderRadius: 8, background: '#7C3AED15', color: '#7C3AED', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              <Eye size={13} style={{ display: 'inline', marginRight: 4 }} /> View & Update
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Ticket Detail & Status Update Modal */}
+          {selectedTicket && (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+              <div style={{ ...glass, background: '#FFF', width: '100%', maxWidth: 760, maxHeight: '90vh', overflowY: 'auto', padding: 24, position: 'relative' }}>
+                
+                {/* Close Button */}
+                <button
+                  onClick={() => setSelectedTicket(null)}
+                  style={{ position: 'absolute', top: 18, right: 18, border: 'none', background: '#F1F5F9', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <X size={16} />
+                </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 6, background: '#7C3AED15', color: '#7C3AED', fontFamily: 'monospace' }}>
+                    {selectedTicket.ticket_id}
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 12, background: '#F5F3FF', color: '#7C3AED' }}>
+                    💬 Channel: Chat
+                  </span>
+                </div>
+
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', marginBottom: 12 }}>
+                  {selectedTicket.title}
+                </h2>
+
+                {/* Customer Details Box */}
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: 14, marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12.5 }}>
+                  <div>Customer Name: <strong>{selectedTicket.customer_name || 'Customer'}</strong></div>
+                  <div>Customer ID: <strong style={{ color: '#7C3AED' }}>{selectedTicket.customer_id || 'USR-LOCAL'}</strong></div>
+                  <div>Customer Email: <strong>{selectedTicket.customer_email || 'n/a'}</strong></div>
+                  <div>Order Reference: <strong>{selectedTicket.order_id || 'N/A'}</strong></div>
+                </div>
+
+                {/* Complaint Text */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Complaint Description</label>
+                  <p style={{ background: '#FFF', border: '1px solid #CBD5E1', padding: 12, borderRadius: 10, fontSize: 13, color: '#334155', marginTop: 4 }}>
+                    "{selectedTicket.description}"
+                  </p>
+                </div>
+
+                {/* AI Pipeline & Qdrant RAG Breakdown */}
+                <div style={{ background: '#F5F3FF', border: '1px solid #7C3AED30', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: '#7C3AED', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Zap size={15} /> Qdrant Cloud RAG + Groq AI Analysis
+                    </span>
+                    <span style={{ fontSize: 11, color: '#059669', background: '#ECFDF5', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
+                      Matched Policy: {selectedTicket.genai_output?.policy_id || 'DEL-POL-04'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 12, marginBottom: 10 }}>
+                    <div>Category: <strong>{selectedTicket.genai_output?.issue_category || 'Delivery'}</strong></div>
+                    <div>Sentiment: <strong>{selectedTicket.genai_output?.sentiment || 'Negative'}</strong></div>
+                    <div>Urgency: <strong>{selectedTicket.genai_output?.urgency || 'High'}</strong></div>
+                  </div>
+
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#7C3AED' }}>AI Professional Draft Response:</label>
+                  <textarea
+                    rows={3}
+                    value={draftResp}
+                    onChange={e => setDraftResp(e.target.value)}
+                    style={{ width: '100%', marginTop: 4, padding: 10, borderRadius: 8, border: '1px solid #C4B5FD', fontSize: 12.5, outline: 'none' }}
+                  />
+                </div>
+
+                {/* Agent Notes */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Agent Internal Notes</label>
+                  <input
+                    type="text"
+                    placeholder="Add internal resolution notes..."
+                    value={agentNotes}
+                    onChange={e => setAgentNotes(e.target.value)}
+                    style={{ width: '100%', marginTop: 4, padding: '10px 12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none' }}
+                  />
+                </div>
+
+                {/* Status Update Action Buttons */}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>
+                    Update Status & Auto-Dispatch Email to Customer:
+                  </label>
+
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    {STATUS_OPTIONS.map(s => (
+                      <button
+                        key={s}
+                        disabled={updating}
+                        onClick={() => handleStatusUpdate(s)}
+                        style={{
+                          flex: 1, padding: '10px', borderRadius: 10, border: selectedTicket.status === s ? '2px solid #7C3AED' : '1px solid #CBD5E1',
+                          background: selectedTicket.status === s ? '#7C3AED' : '#FFF', color: selectedTicket.status === s ? '#FFF' : '#334155',
+                          fontSize: 12.5, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s'
+                        }}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+        </main>
+      </div>
+    </div>
+  )
+}

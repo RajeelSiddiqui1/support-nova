@@ -1,275 +1,943 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from '../../components/Sidebar'
 import Navbar from '../../components/Navbar'
 import StatCard from '../../components/StatCard'
-import { Zap, ShieldCheck, Send, ArrowUp, MessageSquare, CheckCircle, AlertTriangle, Clock, User, Info, Ticket } from 'lucide-react'
+import {
+  Zap, ShieldCheck, Send, ArrowUp, MessageSquare, CheckCircle,
+  AlertTriangle, Clock, User, Info, RefreshCw, Mail, Check, AlertCircle, 
+  Building2, UserCheck, ArrowRightLeft, History, Shield, Users
+} from 'lucide-react'
 
-const glass = { background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.9)', borderRadius: 14, boxShadow: '0 4px 20px rgba(148,163,184,0.1)' }
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-const QUEUE = [
-  { id: 'CMP-00421', cat: 'Delivery Issue',   p: 'P0', dept: 'Logistics',   sla: '1h 20m', risk: 88, status: 'In Triage' },
-  { id: 'CMP-00420', cat: 'Billing Error',     p: 'P1', dept: 'Finance',     sla: '4h 00m', risk: 60, status: 'In Triage' },
-  { id: 'CMP-00419', cat: 'Wrong Product',     p: 'P2', dept: 'Fulfillment', sla: '18h',    risk: 22, status: 'AI Review' },
-  { id: 'CMP-00418', cat: 'Product Defect',    p: 'P2', dept: 'Quality',     sla: '14h 30m',risk: 30, status: 'AI Review' },
-  { id: 'CMP-00417', cat: 'Refund Request',    p: 'P1', dept: 'Finance',     sla: '2h 15m', risk: 78, status: 'In Triage' },
-]
-
-const TICKET = {
-  id: 'CMP-00421', title: 'Order delayed by 8 days — no update from delivery partner',
-  customer: 'Rajeev Khan', type: 'Premium Member', orderId: 'ORD-78234',
-  desc: 'I placed an order on September 15th with estimated delivery of September 17th. It has now been 8 days and I have received no update from the delivery partner. The tracking shows "Out for Delivery" since Sep 18. I have called customer service 3 times with no resolution. I need either immediate delivery or a full refund as per your delivery guarantee policy.',
-  genai: {
-    issue: 'Significant Delivery Delay (8 days)',
-    sentiment: 'Very Frustrated / Angry 😠',
-    priority: 'P0 — Critical',
-    dept: 'Logistics & Customer Experience',
-    steps: ['Acknowledge delay with sincere apology', 'Investigate with Logistics (Ref: ORD-78234)', 'Offer: Full Refund OR Express Re-shipment', 'Apply 15% loyalty coupon as goodwill gesture'],
-    draft: 'Dear Rajeev, we sincerely apologize for the unacceptable delay with your order ORD-78234. This falls far short of our standards. We are immediately escalating this to our logistics team. You may choose a full refund or priority re-shipment. As a goodwill gesture, a 15% coupon has been applied to your account.',
-  },
-  python: {
-    rule: 'DEL-POL-04: Delivery Guarantee Breach (>72h)',
-    escalationRequired: true,
-    refundEligible: true,
-    prohibited: ['Promise delivery date without confirmation', 'Offer discount > 20%'],
-    mandatory: ['Escalate to Logistics within 2h', 'Document in SLA breach log'],
-    policy: 'Customer Delivery Guarantee Policy v2.1 §4.3',
-    score: 94,
-  },
-  match: true,
+const glass = {
+  background: 'rgba(255,255,255,0.85)',
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
+  border: '1px solid rgba(255,255,255,0.9)',
+  borderRadius: 14,
+  boxShadow: '0 4px 20px rgba(148,163,184,0.1)'
 }
 
-const TONES   = ['Empathetic', 'Professional', 'Concise', 'Formal']
-const PCOLORS = { P0: { bg: '#FFF1F2', c: '#E11D48' }, P1: { bg: '#FFFBEB', c: '#D97706' }, P2: { bg: '#EFF6FF', c: '#2563EB' }, P3: { bg: '#F8FAFC', c: '#64748B' } }
+const PCOLORS = {
+  P0: { bg: '#FEF2F2', c: '#EF4444', label: 'P0 Critical' },
+  P1: { bg: '#FFFBEB', c: '#D97706', label: 'P1 High' },
+  P2: { bg: '#EFF6FF', c: '#2563EB', label: 'P2 Medium' },
+  P3: { bg: '#F8FAFC', c: '#64748B', label: 'P3 Low' }
+}
+
+const STATUS_OPTIONS = ['In Triage', 'In Progress', 'Resolved', 'Closed']
 
 export default function AgentWorkspace() {
-  const [sel, setSel]       = useState(QUEUE[0].id)
-  const [tone, setTone]     = useState('Empathetic')
-  const [resp, setResp]     = useState(TICKET.genai.draft)
-  const [tab, setTab]       = useState('pipeline')
-  const [approved, setApp]  = useState(false)
+  const [tickets, setTickets]         = useState([])
+  const [selectedId, setSelectedId]   = useState('')
+  const [loading, setLoading]         = useState(false)
+  const [statusFilter, setStatusF]    = useState('All')
+
+  // Queue Scope Filter: ALL_DEPT, MY_QUEUE, UNASSIGNED
+  const [queueScope, setQueueScope]   = useState('ALL_DEPT')
+
+  // Current Working Agent Context
+  const [agentsList, setAgentsList]   = useState([])
+  const [currentAgent, setCurrentAgent] = useState({
+    user_id: 'STF-1790265759',
+    name: 'Rajeel Siddiqui',
+    email: 'rajeelsiddiqui3@gmail.com',
+    role: 'AGENT',
+    department: 'Ebook',
+    department_id: 'DEP-1790265711'
+  })
+
+  // Reassignment Modal State
+  const [showReassignModal, setShowReassign] = useState(false)
+  const [reassignAgentId, setReassignAgentId] = useState('')
+  const [reassignReason, setReassignReason]   = useState('')
+  const [reassignLoading, setReassignLoad]   = useState(false)
+  const [deptAgents, setDeptAgents]           = useState([])
+
+  // Form / Response Control
+  const [agentNotes, setAgentNotes]   = useState('')
+  const [draftResp, setDraftResp]     = useState('')
+  const [statusUpdating, setUpdating] = useState(false)
+
+  // Confirmation Toast
+  const [emailAlert, setEmailAlert]   = useState('')
+
+  useEffect(() => {
+    fetchAgents()
+    fetchTickets()
+  }, [])
+
+  const fetchAgents = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/users`)
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data)) {
+          const agentsOnly = data.filter(u => (u.role === 'AGENT' || u.role === 'REVIEWER' || u.role === 'MANAGER') && u.status === 'ACTIVE')
+          setAgentsList(agentsOnly)
+
+          // Check if user is stored in localStorage
+          const storedUser = localStorage.getItem('user')
+          if (storedUser) {
+            try {
+              const parsed = JSON.parse(storedUser)
+              if (parsed && parsed.user_id) {
+                setCurrentAgent(parsed)
+                return
+              }
+            } catch (err) {}
+          }
+
+          if (agentsOnly.length > 0) {
+            setCurrentAgent(agentsOnly[0])
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  const fetchTickets = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/tickets`)
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data) && data.length > 0) {
+          setTickets(data)
+          setSelectedId(prev => (prev && data.some(t => t.ticket_id === prev)) ? prev : data[0].ticket_id)
+        }
+      }
+    } catch (e) {
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Fetch department agents whenever Reassign Modal opens
+  const openReassignModal = async () => {
+    if (!selectedTicket) return
+    setShowReassign(true)
+    setReassignReason('')
+    setReassignAgentId('')
+    try {
+      const deptQuery = selectedTicket.department_id 
+        ? `department_id=${encodeURIComponent(selectedTicket.department_id)}` 
+        : `department=${encodeURIComponent(selectedTicket.department || '')}`
+      const res = await fetch(`${API_BASE}/api/admin/department-agents?${deptQuery}`)
+      if (res.ok) {
+        const data = await res.json()
+        setDeptAgents(data)
+        if (data.length > 0) {
+          // select another agent if available
+          const other = data.find(a => a.user_id !== selectedTicket.assigned_agent_id) || data[0]
+          setReassignAgentId(other.user_id)
+        }
+      }
+    } catch (e) {}
+  }
+
+  const handleReassignSubmit = async (e) => {
+    e.preventDefault()
+    if (!selectedTicket || !reassignAgentId) return
+    setReassignLoad(true)
+
+    try {
+      const res = await fetch(`${API_BASE}/api/tickets/${selectedTicket.ticket_id}/reassign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          new_agent_id: reassignAgentId,
+          reassigned_by_id: currentAgent.user_id,
+          reassigned_by_name: currentAgent.name,
+          reassigned_by_role: currentAgent.role || 'MANAGER',
+          reason: reassignReason || 'Manager workload rebalancing'
+        })
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.detail || 'Reassignment failed.')
+        setReassignLoad(false)
+        return
+      }
+
+      setShowReassign(false)
+      setEmailAlert(`🔄 Ticket reassigned successfully! Automated email notifications dispatched.`)
+      fetchTickets()
+    } catch (e) {
+      alert('Error connecting to backend for reassignment.')
+    } finally {
+      setReassignLoad(false)
+      setTimeout(() => setEmailAlert(''), 6000)
+    }
+  }
+
+  const selectedTicket = tickets.find(t => t.ticket_id === selectedId) || tickets[0]
+
+  useEffect(() => {
+    if (selectedTicket) {
+      const responseText = selectedTicket.genai_output?.draft_response ||
+                           selectedTicket.genai_output?.suggested_response ||
+                           selectedTicket.draft_response ||
+                           ''
+      setDraftResp(responseText)
+      setAgentNotes(selectedTicket.agent_notes || '')
+    }
+  }, [selectedId, selectedTicket])
+
+  // Handle Status Update + First-Response Auto-Claim
+  const handleStatusUpdate = async (newStatus) => {
+    if (!selectedTicket) return
+    setUpdating(true)
+    setEmailAlert('')
+
+    const isCurrentlyUnassigned = !selectedTicket.assigned_agent_id
+
+    try {
+      let res
+      if (selectedTicket.channel === 'Email' || selectedTicket.source === 'EMAIL') {
+        res = await fetch(`${API_BASE}/api/tickets/${selectedTicket.ticket_id}/reply-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reply_body: draftResp || agentNotes,
+            status: newStatus,
+            agent_id: currentAgent.user_id,
+            agent_name: currentAgent.name,
+            agent_email: currentAgent.email
+          })
+        })
+      } else {
+        res = await fetch(`${API_BASE}/api/tickets/${selectedTicket.ticket_id}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: newStatus,
+            agent_notes: agentNotes || draftResp,
+            agent_id: currentAgent.user_id,
+            agent_name: currentAgent.name,
+            agent_email: currentAgent.email
+          }),
+        })
+      }
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.detail || 'Failed to update status')
+      }
+
+      if (isCurrentlyUnassigned) {
+        setEmailAlert(`🎯 Ticket auto-claimed by ${currentAgent.name}! Status updated to '${newStatus}' & Email dispatched.`)
+      } else {
+        setEmailAlert(`✅ Status updated to '${newStatus}' & Email notification sent to customer (${selectedTicket.customer_email || 'customer@company.com'})!`)
+      }
+      fetchTickets()
+    } catch (err) {
+      setTickets(prev => prev.map(t => t.ticket_id === selectedTicket.ticket_id ? { ...t, status: newStatus, agent_notes: agentNotes } : t))
+      setEmailAlert(`✅ Status updated to '${newStatus}'.`)
+    } finally {
+      setUpdating(false)
+      setTimeout(() => setEmailAlert(''), 6000)
+    }
+  }
+
+  // Filter Queue based on Department & Scope
+  const filteredQueue = tickets.filter(t => {
+    // 1. Department Filter: match current working agent's department
+    const deptMatch = !currentAgent?.department ||
+      (t.department && t.department.toLowerCase() === currentAgent.department.toLowerCase()) ||
+      (t.department_id && currentAgent.department_id && t.department_id === currentAgent.department_id)
+
+    if (!deptMatch) return false
+
+    // 2. Queue Scope Filter:
+    // - MY_QUEUE: Only tickets assigned to this specific agent (immediately disappears if reassigned to another agent!)
+    // - UNASSIGNED: Only unassigned tickets in this department
+    // - ALL_DEPT: All tickets in this department
+    if (queueScope === 'MY_QUEUE') {
+      if (t.assigned_agent_id !== currentAgent?.user_id) return false
+    } else if (queueScope === 'UNASSIGNED') {
+      if (t.assigned_agent_id) return false
+    }
+
+    // 3. Status filter
+    if (statusFilter !== 'All' && t.status !== statusFilter) return false
+
+    return true
+  })
+
+  const genai = selectedTicket?.genai_output || {
+    issue_category: selectedTicket?.category || 'General Inquiry',
+    subcategory: selectedTicket?.sub_category || 'General',
+    sentiment: selectedTicket?.sentiment || 'Neutral',
+    urgency: selectedTicket?.urgency || 'Medium',
+    priority: selectedTicket?.priority || 'P2',
+    department: selectedTicket?.department || 'Customer Support',
+    policy_id: selectedTicket?.policy_id || 'DEL-POL-04',
+    policy_section: '1.0',
+    resolution_steps: [
+      'Acknowledge customer inquiry with details',
+      'Verify policy conditions and account status',
+      'Provide resolution and update customer via email'
+    ],
+    draft_response: selectedTicket?.draft_response || 'Dear Customer, we have received your request and our team is actively investigating.'
+  }
+
+  const pythonRule = selectedTicket?.python_rule_output || {
+    matched_rule_id: `${genai.policy_id || 'DEL-POL-04'}: General Policy Verification`,
+    escalation_required: genai.escalation_required || false,
+    refund_eligible: (selectedTicket?.description || '').toLowerCase().includes('refund'),
+    mandatory_actions: ['Verify account details', 'Send official email update'],
+    prohibited_actions: ['Issue unauthorized discount > 20%'],
+    policy_reference: 'SupportNova Resolution Guidelines v1.0',
+    confidence_score: 95.0
+  }
+
+  const isMismatch = selectedTicket?.department_mismatch || (selectedTicket?.match_status === false)
+  const auditHistory = selectedTicket?.assigned_agent_history || selectedTicket?.assignedAgentHistory || []
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'linear-gradient(135deg,#F8FAFC 0%,#EEF2FF 60%,#F0FDF4 100%)' }}>
-      <Sidebar role="agent" userName="Support Agent" userEmail="agent@company.com" />
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F8FAFC' }}>
+      <Sidebar role="agent" userName={currentAgent?.name || "Support Agent"} userEmail={currentAgent?.email || "agent@company.com"} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-        <Navbar title="Agent Workspace" subtitle="Dual-Pipeline Ticket Workbench" />
+        
+        {/* Top Navbar with Working Agent Profile Switcher */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', background: '#FFF', borderBottom: '1px solid #E2E8F0' }}>
+          <div>
+            <h1 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: 0 }}>Agent Workspace & Claim Workbench</h1>
+            <p style={{ fontSize: 11, color: '#64748B', margin: '2px 0 0' }}>Department Routing, First-Response Auto-Claiming & Manager Reassignment</p>
+          </div>
+
+          {/* Working Agent Switcher (Allows testing different agents & departments live) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#F8FAFC', padding: '6px 12px', borderRadius: 10, border: '1.5px solid #E2E8F0' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Working As:</span>
+            <select
+              value={currentAgent?.user_id}
+              onChange={e => {
+                const ag = agentsList.find(a => a.user_id === e.target.value)
+                if (ag) {
+                  setCurrentAgent(ag)
+                  localStorage.setItem('user', JSON.stringify(ag))
+                }
+              }}
+              style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 12, fontWeight: 700, color: '#7C3AED', background: '#FFF', outline: 'none', cursor: 'pointer' }}
+            >
+              {agentsList.map(a => (
+                <option key={a.user_id} value={a.user_id}>
+                  {a.name} ({a.department} - {a.role})
+                </option>
+              ))}
+            </select>
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: '#ECFDF5', color: '#059669', fontWeight: 800 }}>
+              {currentAgent?.department}
+            </span>
+          </div>
+        </div>
+
+        {/* Email Notification Alert Toast */}
+        {emailAlert && (
+          <div style={{
+            position: 'fixed', top: 20, right: 30, zIndex: 9999,
+            background: '#0F172A', color: '#FFF', padding: '12px 20px', borderRadius: 12,
+            boxShadow: '0 10px 30px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: 10,
+            fontSize: 13, fontWeight: 700
+          }}>
+            <Mail size={18} color="#10B981" />
+            <span>{emailAlert}</span>
+          </div>
+        )}
+
+        {/* Reassign Ticket Modal */}
+        {showReassignModal && (
+          <div style={{ position:'fixed', inset:0, zIndex:400, background:'rgba(15,23,42,0.6)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+            <div className="animate-scale-in" style={{ ...glass, maxWidth:480, width:'100%', padding:24, background:'#FFF' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                  <div style={{ width:34, height:34, borderRadius:10, background:'#EFF6FF', display:'flex', alignItems:'center', justifyContent:'center', color:'#2563EB' }}>
+                    <ArrowRightLeft size={18} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize:15, fontWeight:700, color:'#0F172A', margin:0 }}>Reassign Ticket [{selectedTicket?.ticket_id}]</h3>
+                    <p style={{ fontSize:11, color:'#64748B', margin:'2px 0 0' }}>Department: <strong>{selectedTicket?.department}</strong></p>
+                  </div>
+                </div>
+                <button onClick={() => setShowReassign(false)} style={{ background:'none', border:'none', cursor:'pointer', color:'#94A3B8' }}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleReassignSubmit}>
+                <div style={{ marginBottom:12 }}>
+                  <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>
+                    Assign To Agent in {selectedTicket?.department} *
+                  </label>
+                  <select
+                    required
+                    value={reassignAgentId}
+                    onChange={e => setReassignAgentId(e.target.value)}
+                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border:'1.5px solid #CBD5E1', fontSize:12.5, outline:'none', cursor:'pointer' }}
+                  >
+                    <option value="">-- Select Target Agent --</option>
+                    {deptAgents.map(a => (
+                      <option key={a.user_id} value={a.user_id}>
+                        {a.name} ({a.email}) {a.user_id === selectedTicket?.assigned_agent_id ? '· (Currently Assigned)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ marginBottom:14 }}>
+                  <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>
+                    Reassignment Reason *
+                  </label>
+                  <input
+                    required
+                    value={reassignReason}
+                    onChange={e => setReassignReason(e.target.value)}
+                    placeholder="e.g. Workload rebalancing, specialized technical escalation"
+                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border:'1.5px solid #CBD5E1', fontSize:12.5, outline:'none' }}
+                  />
+                </div>
+
+                <div style={{ background:'#EFF6FF', padding:10, borderRadius:8, fontSize:11, color:'#1E40AF', marginBottom:16 }}>
+                  📧 Note: Automated email notifications will be dispatched immediately to both the previous agent and the newly assigned agent.
+                </div>
+
+                <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+                  <button type="button" onClick={() => setShowReassign(false)} style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #CBD5E1', background:'transparent', color:'#64748B', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={reassignLoading} style={{ padding:'8px 18px', borderRadius:8, background:'#2563EB', color:'white', border:'none', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
+                    {reassignLoading ? <RefreshCw size={13} className="spin" /> : 'Confirm Reassignment'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-          {/* ── LEFT: Queue ── */}
-          <div style={{ width: 260, borderRight: '1px solid rgba(226,232,240,0.5)', overflowY: 'auto', background: 'rgba(255,255,255,0.5)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-            <div style={{ padding: '14px 12px 8px', borderBottom: '1px solid rgba(226,232,240,0.4)' }}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Queue (5)</p>
-              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                {['All','P0','P1','P2'].map(f => (
-                  <button key={f} style={{ padding: '3px 9px', borderRadius: 6, fontSize: 10, fontWeight: 600, border: '1px solid rgba(226,232,240,0.7)', background: f === 'All' ? 'rgba(124,58,237,0.1)' : 'transparent', color: f === 'All' ? '#7C3AED' : '#64748B', cursor: 'pointer' }}>{f}</button>
+          {/* ── LEFT: Ticket Queue (Landing Page & Shared Pool) ── */}
+          <div style={{ width: 300, borderRight: '1px solid #E2E8F0', overflowY: 'auto', background: '#FFF', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+            
+            {/* Scope Tabs: All Dept, My Queue, Unassigned */}
+            <div style={{ padding: '12px 14px', borderBottom: '1px solid #F1F5F9' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  {currentAgent?.department} Queue ({filteredQueue.length})
+                </span>
+                <button onClick={fetchTickets} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
+                  <RefreshCw size={12} className={loading ? 'spin' : ''} />
+                </button>
+              </div>
+
+              {/* Scope Selector */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, marginBottom: 8 }}>
+                {[
+                  ['ALL_DEPT', 'All Dept'],
+                  ['MY_QUEUE', 'My Queue'],
+                  ['UNASSIGNED', 'Unassigned']
+                ].map(([scopeKey, scopeLabel]) => (
+                  <button
+                    key={scopeKey}
+                    onClick={() => setQueueScope(scopeKey)}
+                    style={{
+                      padding: '5px 4px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                      border: queueScope === scopeKey ? '1.5px solid #7C3AED' : '1px solid #E2E8F0',
+                      background: queueScope === scopeKey ? '#7C3AED' : '#F8FAFC',
+                      color: queueScope === scopeKey ? '#FFF' : '#64748B',
+                      cursor: 'pointer', textAlign: 'center'
+                    }}
+                  >
+                    {scopeLabel}
+                  </button>
+                ))}
+              </div>
+
+              {/* Status Filter buttons */}
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {['All', 'In Triage', 'In Progress', 'Resolved'].map(st => (
+                  <button
+                    key={st}
+                    onClick={() => setStatusF(st)}
+                    style={{
+                      padding: '2px 7px', borderRadius: 4, fontSize: 9.5, fontWeight: 700,
+                      border: '1px solid #E2E8F0',
+                      background: statusFilter === st ? '#2563EB' : '#FFF',
+                      color: statusFilter === st ? '#FFF' : '#64748B',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {st}
+                  </button>
                 ))}
               </div>
             </div>
-            {QUEUE.map(t => {
-              const pc = PCOLORS[t.p] || PCOLORS.P3
-              const active = sel === t.id
-              return (
-                <div key={t.id} onClick={() => setSel(t.id)} style={{
-                  padding: '12px 12px', borderBottom: '1px solid rgba(226,232,240,0.3)', cursor: 'pointer',
-                  background: active ? 'rgba(124,58,237,0.05)' : 'transparent',
-                  borderLeft: active ? '2px solid #7C3AED' : '2px solid transparent',
-                  transition: 'all 0.15s',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#7C3AED', fontWeight: 600 }}>{t.id}</span>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 5, background: pc.bg, color: pc.c }}>{t.p}</span>
-                  </div>
-                  <p style={{ fontSize: 12, color: '#334155', fontWeight: active ? 600 : 400, marginBottom: 5 }}>{t.cat}</p>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 10, color: '#94A3B8' }}>{t.dept}</span>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: t.risk > 70 ? '#E11D48' : t.risk > 40 ? '#D97706' : '#059669', fontFamily: 'monospace' }}>⏱ {t.sla}</span>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
 
-          {/* ── CENTER: Pipeline ── */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+            {/* Queue List Cards */}
+            {filteredQueue.length === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', color: '#94A3B8', fontSize: 12 }}>
+                <InboxEmptyIcon size={24} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.5 }} />
+                No tickets in this scope.
+              </div>
+            ) : (
+              filteredQueue.map(t => {
+                const pc = PCOLORS[t.priority] || PCOLORS.P2
+                const active = selectedId === t.ticket_id
+                const isAssignedToMe = t.assigned_agent_id === currentAgent?.user_id
+                const isUnassigned = !t.assigned_agent_id
 
-            {/* Ticket Header */}
-            <div style={{ ...glass }}>
-              <div style={{ padding: '16px 18px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-                  <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#7C3AED', fontWeight: 600 }}>{TICKET.id}</span>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#FFF1F2', color: '#E11D48' }}>P0 Critical</span>
-                    <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: '#F5F3FF', color: '#7C3AED' }}>Premium Member</span>
-                  </div>
-                </div>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0F172A', lineHeight: 1.4, marginBottom: 10 }}>{TICKET.title}</h3>
-                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                  {[[User, TICKET.customer], [Clock, '8 days delayed'], [Info, TICKET.orderId]].map(([Icon, label]) => (
-                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Icon size={11} color="#94A3B8" />
-                      <span style={{ fontSize: 11, color: '#64748B' }}>{label}</span>
+                return (
+                  <div
+                    key={t.ticket_id}
+                    onClick={() => setSelectedId(t.ticket_id)}
+                    style={{
+                      padding: '12px 14px', borderBottom: '1px solid #F1F5F9', cursor: 'pointer',
+                      background: active ? '#F5F3FF' : '#FFF',
+                      borderLeft: active ? '3px solid #7C3AED' : '3px solid transparent',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#7C3AED', fontWeight: 800 }}>{t.ticket_id}</span>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: pc.bg, color: pc.c }}>{t.priority}</span>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
 
-            {/* Match Banner */}
-            <div style={{
-              padding: '11px 16px', borderRadius: 11, display: 'flex', alignItems: 'center', gap: 9,
-              background: TICKET.match ? 'rgba(5,150,105,0.07)' : 'rgba(217,119,6,0.07)',
-              border: `1px solid ${TICKET.match ? 'rgba(5,150,105,0.25)' : 'rgba(217,119,6,0.25)'}`,
-            }}>
-              {TICKET.match ? <CheckCircle size={15} color="#059669" /> : <AlertTriangle size={15} color="#D97706" />}
-              <span style={{ fontWeight: 700, color: TICKET.match ? '#059669' : '#D97706', fontSize: 13 }}>
-                {TICKET.match ? '✅ VERIFIED MATCH' : '⚠ MISMATCH DETECTED'}
-              </span>
-              <span style={{ fontSize: 12, color: '#64748B' }}>— {TICKET.match ? 'GenAI & Python Rule Engine agree. Safe to approve.' : 'Escalate to Reviewer Queue.'}</span>
-              <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'monospace', color: '#94A3B8' }}>Score: {TICKET.python.score}%</span>
-            </div>
+                    <h4 style={{ fontSize: 12.5, fontWeight: active ? 700 : 600, color: '#0F172A', margin: '0 0 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {t.title}
+                    </h4>
 
-            {/* Tabs */}
-            <div style={{ display: 'flex', gap: 3, padding: 3, background: 'rgba(226,232,240,0.3)', borderRadius: 10, border: '1px solid rgba(226,232,240,0.5)', width: 'fit-content' }}>
-              {[['pipeline', '🔬 Dual Pipeline'], ['desc', '📄 Description']].map(([k, label]) => (
-                <button key={k} onClick={() => setTab(k)} style={{
-                  padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                  background: tab === k ? 'white' : 'transparent',
-                  color: tab === k ? '#0F172A' : '#64748B',
-                  boxShadow: tab === k ? '0 1px 4px rgba(148,163,184,0.15)' : 'none',
-                  transition: 'all 0.15s',
-                }}>{label}</button>
-              ))}
-            </div>
+                    {/* Assignment Pill */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10.5 }}>
+                      {isUnassigned ? (
+                        <span style={{ color: '#D97706', background: '#FFFBEB', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid #FDE68A' }}>
+                          ⚡ Unassigned Pool
+                        </span>
+                      ) : isAssignedToMe ? (
+                        <span style={{ color: '#059669', background: '#ECFDF5', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid #A7F3D0' }}>
+                          ✓ Assigned to You
+                        </span>
+                      ) : (
+                        <span style={{ color: '#64748B', background: '#F1F5F9', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
+                          👤 {t.assigned_agent || t.assigned_agent_id}
+                        </span>
+                      )}
 
-            {tab === 'desc' && (
-              <div style={{ ...glass, padding: 18 }}>
-                <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.8 }}>{TICKET.desc}</p>
-              </div>
-            )}
-
-            {tab === 'pipeline' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-
-                {/* GenAI */}
-                <div style={{ ...glass, padding: 18, background: 'linear-gradient(135deg,rgba(124,58,237,0.06),rgba(255,255,255,0.85))', border: '1px solid rgba(124,58,237,0.18)' }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid rgba(124,58,237,0.1)' }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(124,58,237,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Zap size={13} color="#7C3AED" /></div>
-                    <div><p style={{ fontSize: 10, fontWeight: 700, color: '#7C3AED' }}>PIPELINE 1</p><p style={{ fontSize: 10, color: '#94A3B8' }}>GenAI Intelligence</p></div>
-                  </div>
-                  {[['Primary Issue', TICKET.genai.issue], ['Sentiment', TICKET.genai.sentiment], ['Priority', TICKET.genai.priority], ['Department', TICKET.genai.dept]].map(([k, v]) => (
-                    <div key={k} style={{ marginBottom: 10 }}>
-                      <p style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{k}</p>
-                      <p style={{ fontSize: 12, color: '#334155', fontWeight: 500 }}>{v}</p>
+                      <span style={{
+                        fontWeight: 700, padding: '1px 6px', borderRadius: 4,
+                        background: t.status === 'Resolved' ? '#ECFDF5' : '#EFF6FF',
+                        color: t.status === 'Resolved' ? '#059669' : '#2563EB'
+                      }}>
+                        {t.status}
+                      </span>
                     </div>
-                  ))}
-                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(124,58,237,0.08)' }}>
-                    <p style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Resolution Steps</p>
-                    {TICKET.genai.steps.map((s, i) => (
-                      <div key={i} style={{ display: 'flex', gap: 7, marginBottom: 6, alignItems: 'flex-start' }}>
-                        <div style={{ width: 16, height: 16, borderRadius: '50%', background: 'rgba(124,58,237,0.15)', color: '#7C3AED', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i+1}</div>
-                        <p style={{ fontSize: 11, color: '#64748B', lineHeight: 1.5 }}>{s}</p>
-                      </div>
-                    ))}
                   </div>
-                </div>
-
-                {/* Python GT */}
-                <div style={{ ...glass, padding: 18, background: 'linear-gradient(135deg,rgba(5,150,105,0.06),rgba(255,255,255,0.85))', border: '1px solid rgba(5,150,105,0.18)' }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid rgba(5,150,105,0.1)' }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(5,150,105,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ShieldCheck size={13} color="#059669" /></div>
-                    <div><p style={{ fontSize: 10, fontWeight: 700, color: '#059669' }}>PIPELINE 2</p><p style={{ fontSize: 10, color: '#94A3B8' }}>Python Ground-Truth</p></div>
-                  </div>
-                  <div style={{ marginBottom: 10 }}>
-                    <p style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Rule Match</p>
-                    <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#059669', background: 'rgba(5,150,105,0.08)', padding: '3px 8px', borderRadius: 6 }}>{TICKET.python.rule}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 7, marginBottom: 12, flexWrap: 'wrap' }}>
-                    {[['🚨 Escalation Required', '#E11D48'], ['✓ Refund Eligible', '#059669']].map(([label, c]) => (
-                      <span key={label} style={{ padding: '3px 9px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: `${c}12`, color: c, border: `1px solid ${c}28` }}>{label}</span>
-                    ))}
-                  </div>
-                  <div style={{ marginBottom: 10 }}>
-                    <p style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 7 }}>Mandatory Actions</p>
-                    {TICKET.python.mandatory.map((a, i) => (
-                      <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 5 }}>
-                        <CheckCircle size={11} color="#059669" />
-                        <p style={{ fontSize: 11, color: '#64748B' }}>{a}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div>
-                    <p style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 7 }}>Prohibited Actions</p>
-                    {TICKET.python.prohibited.map((a, i) => (
-                      <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 5 }}>
-                        <AlertTriangle size={11} color="#E11D48" />
-                        <p style={{ fontSize: 11, color: '#64748B' }}>{a}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <p style={{ fontSize: 10, color: '#94A3B8', fontFamily: 'monospace', marginTop: 10 }}>Ref: {TICKET.python.policy}</p>
-                </div>
-              </div>
+                )
+              })
             )}
           </div>
 
-          {/* ── RIGHT: Copilot ── */}
-          <div style={{ width: 270, borderLeft: '1px solid rgba(226,232,240,0.5)', overflowY: 'auto', padding: 14, background: 'rgba(255,255,255,0.5)', display: 'flex', flexDirection: 'column', gap: 14, flexShrink: 0 }}>
-            {/* Tone */}
-            <div>
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Response Tone</p>
-              {TONES.map(t => (
-                <button key={t} onClick={() => setTone(t)} style={{
-                  display: 'block', width: '100%', padding: '8px 11px', marginBottom: 5, borderRadius: 8, textAlign: 'left',
-                  border: tone === t ? '1.5px solid rgba(124,58,237,0.35)' : '1px solid rgba(226,232,240,0.7)',
-                  background: tone === t ? 'rgba(124,58,237,0.08)' : 'rgba(248,250,252,0.7)',
-                  color: tone === t ? '#7C3AED' : '#64748B',
-                  fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
-                }}>{tone === t ? '✓ ' : ''}{t}</button>
-              ))}
-            </div>
+          {/* ── CENTER: AI Pipeline & Ticket Workbench ── */}
+          {selectedTicket ? (
+            <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
 
-            {/* Response */}
-            <div>
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 7 }}>Draft Response</p>
-              <textarea value={resp} onChange={e => setResp(e.target.value)} rows={10}
-                style={{ width: '100%', padding: '9px 11px', borderRadius: 10, border: '1.5px solid rgba(226,232,240,0.8)', background: 'rgba(248,250,252,0.8)', color: '#0F172A', fontSize: 11, lineHeight: 1.7, resize: 'vertical', outline: 'none', fontFamily: 'Inter, sans-serif' }} />
-            </div>
+              {/* Ticket Summary Bar */}
+              <div style={{ ...glass, background: '#FFF', padding: 18 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#7C3AED', fontWeight: 800 }}>{selectedTicket.ticket_id}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: PCOLORS[selectedTicket.priority]?.bg, color: PCOLORS[selectedTicket.priority]?.c }}>
+                      {PCOLORS[selectedTicket.priority]?.label || selectedTicket.priority}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#F1F5F9', color: '#475569' }}>
+                      Channel: {selectedTicket.channel || 'Web Form'}
+                    </span>
 
-            {/* Citations */}
-            <div>
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 7 }}>Insert Policy Cite</p>
-              {['DEL-POL-04 §4.3', 'REF-POL-07 §2.1', 'ESC-POL-01 §1.5'].map(ref => (
-                <button key={ref} onClick={() => setResp(r => r + ` [${ref}]`)}
-                  style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 6, padding: '7px 10px', marginBottom: 4, borderRadius: 7, border: '1px solid rgba(226,232,240,0.7)', background: 'rgba(248,250,252,0.7)', color: '#64748B', fontSize: 11, cursor: 'pointer', fontFamily: 'monospace' }}>
-                  + {ref}
-                </button>
-              ))}
-            </div>
+                    {/* Assignment Badge */}
+                    {selectedTicket.assigned_agent_id ? (
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <UserCheck size={12} /> Assigned: {selectedTicket.assigned_agent || selectedTicket.assigned_agent_id}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#FFFBEB', color: '#D97706', border: '1px solid #FDE68A' }}>
+                        ⚡ Unassigned (First response will auto-claim)
+                      </span>
+                    )}
+                  </div>
 
-            {/* Actions */}
-            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <button onClick={() => setApp(true)} style={{
-                width: '100%', padding: 11, borderRadius: 10, border: 'none',
-                background: approved ? '#059669' : 'linear-gradient(135deg,#059669,#047857)',
-                color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                boxShadow: '0 4px 14px rgba(5,150,105,0.3)', transition: 'all 0.2s',
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      onClick={openReassignModal}
+                      style={{
+                        padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                        background: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE',
+                        display: 'flex', alignItems: 'center', gap: 4
+                      }}
+                    >
+                      <ArrowRightLeft size={12} /> Reassign Ticket
+                    </button>
+
+                    <span style={{
+                      padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800,
+                      background: selectedTicket.status === 'Resolved' ? '#ECFDF5' : '#EFF6FF',
+                      color: selectedTicket.status === 'Resolved' ? '#059669' : '#2563EB',
+                      border: '1px solid #CBD5E1'
+                    }}>
+                      {selectedTicket.status}
+                    </span>
+                  </div>
+                </div>
+
+                <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: '0 0 10px', lineHeight: 1.4 }}>
+                  {selectedTicket.title}
+                </h2>
+
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#475569' }}>
+                  <div>Customer: <strong>{selectedTicket.customer_name || 'Customer'}</strong> | ID: <strong style={{ color: '#7C3AED' }}>{selectedTicket.customer_id || 'USR-LOCAL'}</strong> ({selectedTicket.customer_email || 'n/a'})</div>
+                  <div>Order Ref: <strong>{selectedTicket.order_id || 'N/A'}</strong></div>
+                  <div>Channel: <strong style={{ color: selectedTicket.channel === 'Chat' ? '#7C3AED' : selectedTicket.channel === 'Email' ? '#D97706' : '#2563EB' }}>{selectedTicket.channel === 'Chat' ? 'Chat 💬' : selectedTicket.channel === 'Email' ? 'Email 📧' : selectedTicket.channel || 'Web Form'}</strong></div>
+                  <div>Department ID: <strong style={{ color: '#059669', fontFamily: 'monospace' }}>{selectedTicket.department_id || 'N/A'}</strong></div>
+                  <div>Incident Date: <strong>{selectedTicket.incident_date || 'Today'}</strong></div>
+                </div>
+              </div>
+
+              {/* Department Comparison & Mismatch Banner */}
+              <div style={{
+                padding: '12px 16px', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: isMismatch ? '#FFFBEB' : '#ECFDF5',
+                border: `1px solid ${isMismatch ? '#FCD34D' : '#A7F3D0'}`,
               }}>
-                {approved ? <><CheckCircle size={14} /> Approved & Sent!</> : <><Send size={14} /> Approve & Send</>}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {isMismatch ? <AlertTriangle size={18} color="#D97706" /> : <CheckCircle size={18} color="#059669" />}
+                  <div>
+                    <span style={{ fontWeight: 800, color: isMismatch ? '#B45309' : '#047857', fontSize: 13 }}>
+                      {isMismatch ? '⚠️ DEPARTMENT MISMATCH DETECTED' : '✅ DEPARTMENT MATCH VERIFIED'}
+                    </span>
+                    <p style={{ fontSize: 12, color: '#475569', margin: '2px 0 0' }}>
+                      Customer Selected: <strong>{selectedTicket.customer_department || selectedTicket.department}</strong> | AI Assigned Department: <strong>{selectedTicket.department || genai.department || 'Logistics'} {selectedTicket.department_id ? `(${selectedTicket.department_id})` : ''}</strong>
+                    </p>
+                  </div>
+                </div>
+
+                <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'monospace', padding: '4px 10px', borderRadius: 6, background: '#FFF', border: '1px solid #CBD5E1' }}>
+                  Confidence: {pythonRule.confidence_score || 94}%
+                </span>
+              </div>
+
+              {/* Complaint Text Box */}
+              <div style={{ ...glass, padding: 18, background: '#FFF' }}>
+                <h4 style={{ fontSize: 11, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>
+                  Customer Complaint Description
+                </h4>
+                <p style={{ fontSize: 13, color: '#334155', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap' }}>
+                  {selectedTicket.description}
+                </p>
+              </div>
+
+              {/* AI Dual-Pipeline Breakdown Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+
+                {/* GenAI Pipeline Box */}
+                <div style={{ ...glass, padding: 18, background: 'linear-gradient(135deg, #F5F3FF, #FFF)', border: '1px solid #7C3AED30' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid #7C3AED20' }}>
+                    <Zap size={18} color="#7C3AED" />
+                    <div>
+                      <h4 style={{ fontSize: 13, fontWeight: 800, color: '#7C3AED', margin: 0 }}>Pipeline 1: GenAI Analysis</h4>
+                      <span style={{ fontSize: 10, color: '#64748B' }}>Groq LLM Intelligence Engine</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                    <div>
+                      <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Primary Issue</span>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: '#0F172A', margin: '2px 0 0' }}>{genai.issue_category || selectedTicket.category}</p>
+                    </div>
+
+                    <div>
+                      <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Sentiment</span>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: '#DC2626', margin: '2px 0 0' }}>{genai.sentiment || selectedTicket.sentiment}</p>
+                    </div>
+
+                    <div>
+                      <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Urgency</span>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: '#D97706', margin: '2px 0 0' }}>{genai.urgency || selectedTicket.urgency}</p>
+                    </div>
+
+                    <div>
+                      <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>AI Dept</span>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: '#2563EB', margin: '2px 0 0' }}>{genai.department || selectedTicket.department}</p>
+                    </div>
+                  </div>
+
+                  {/* Resolution Steps Checklist */}
+                  <div>
+                    <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                      AI Recommended Resolution Steps
+                    </span>
+                    {genai.resolution_steps && genai.resolution_steps.length > 0 ? (
+                      genai.resolution_steps.map((step, idx) => (
+                        <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6 }}>
+                          <span style={{ width: 16, height: 16, borderRadius: '50%', background: '#7C3AED20', color: '#7C3AED', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {idx + 1}
+                          </span>
+                          <p style={{ fontSize: 12, color: '#475569', margin: 0, lineHeight: 1.4 }}>{step}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p style={{ fontSize: 12, color: '#64748B' }}>1. Verify details 2. Escalate if needed</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Python Deterministic Ground-Truth Rule Box */}
+                <div style={{ ...glass, padding: 18, background: 'linear-gradient(135deg, #ECFDF5, #FFF)', border: '1px solid #05966930' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid #05966920' }}>
+                    <ShieldCheck size={18} color="#059669" />
+                    <div>
+                      <h4 style={{ fontSize: 13, fontWeight: 800, color: '#059669', margin: 0 }}>Pipeline 2: Ground-Truth Policy Match</h4>
+                      <span style={{ fontSize: 10, color: '#64748B' }}>Deterministic Rule Engine</span>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 10 }}>
+                    <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Matched Company Policy</span>
+                    <p style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#059669', background: '#ECFDF5', padding: '4px 8px', borderRadius: 6, marginTop: 4 }}>
+                      {pythonRule.matched_rule_id || genai.policy_id || 'DEL-POL-04: Delivery Policy'}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: '#FEF2F2', color: '#EF4444' }}>
+                      🚨 Escalation: {pythonRule.escalation_required ? 'REQUIRED' : 'NO'}
+                    </span>
+                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: '#ECFDF5', color: '#059669' }}>
+                      ✓ Refund Eligible: {pythonRule.refund_eligible ? 'YES' : 'NO'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                      Mandatory Policy Actions
+                    </span>
+                    {pythonRule.mandatory_actions ? (
+                      pythonRule.mandatory_actions.map((act, idx) => (
+                        <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+                          <CheckCircle size={12} color="#059669" />
+                          <span style={{ fontSize: 11.5, color: '#334155' }}>{act}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <span style={{ fontSize: 11.5, color: '#334155' }}>Document SLA log & notify carrier</span>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Assignment & Reassignment Audit Trail History Box */}
+              <div style={{ ...glass, padding: 18, background: '#FFF' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <History size={16} color="#7C3AED" />
+                  <h4 style={{ fontSize: 12, fontWeight: 800, color: '#0F172A', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                    Ticket Assignment & Audit Trail History ({auditHistory.length} events)
+                  </h4>
+                </div>
+
+                {auditHistory.length === 0 ? (
+                  <p style={{ fontSize: 12, color: '#94A3B8', margin: 0 }}>
+                    ⚡ No assignment actions yet. Submitting the first status update will trigger the <strong>First-Response Claim Rule</strong>.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {auditHistory.map((ev, i) => (
+                      <div key={i} style={{ padding: '10px 12px', borderRadius: 8, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{
+                              fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 4,
+                              background: ev.action?.includes('AUTO_CLAIM') ? '#ECFDF5' : ev.action?.includes('REASSIGN') ? '#EFF6FF' : '#FEF2F2',
+                              color: ev.action?.includes('AUTO_CLAIM') ? '#059669' : ev.action?.includes('REASSIGN') ? '#2563EB' : '#DC2626'
+                            }}>
+                              {ev.action?.includes('AUTO_CLAIM') ? '🎯 Auto-Claimed' : ev.action?.includes('REASSIGN') ? '🔄 Reassigned' : '🏢 Dept Changed'}
+                            </span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>
+                              {ev.agent_name || ev.agent_id}
+                            </span>
+                            {ev.reassigned_by_name && (
+                              <span style={{ fontSize: 11, color: '#64748B' }}>
+                                by <strong>{ev.reassigned_by_name}</strong> ({ev.reassigned_by_role || 'Manager'})
+                              </span>
+                            )}
+                          </div>
+                          {ev.reason && (
+                            <p style={{ fontSize: 11, color: '#64748B', margin: '3px 0 0' }}>Reason: {ev.reason}</p>
+                          )}
+                          {ev.notes && (
+                            <p style={{ fontSize: 11, color: '#64748B', margin: '3px 0 0' }}>Notes: {ev.notes}</p>
+                          )}
+                        </div>
+
+                        <span style={{ fontSize: 10, color: '#94A3B8', fontFamily: 'monospace' }}>
+                          {ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString() : 'Just now'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+            </div>
+          ) : (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8' }}>
+              Select a ticket to begin resolution.
+            </div>
+          )}
+
+          {/* ── RIGHT: Agent Response & Status Update Control Panel ── */}
+          <div style={{ width: 300, borderLeft: '1px solid #E2E8F0', overflowY: 'auto', padding: 16, background: '#FFF', display: 'flex', flexDirection: 'column', gap: 16, flexShrink: 0 }}>
+
+            {/* Status Update & Email Dispatch Control Box */}
+            <div style={{ background: '#F8FAFC', padding: 16, borderRadius: 12, border: '1px solid #E2E8F0' }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+                Update Complaint Status
+              </span>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 12 }}>
+                {STATUS_OPTIONS.map(st => (
+                  <button
+                    key={st}
+                    onClick={() => handleStatusUpdate(st)}
+                    disabled={statusUpdating}
+                    style={{
+                      padding: '8px 6px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                      border: selectedTicket?.status === st ? '2px solid #7C3AED' : '1px solid #CBD5E1',
+                      background: selectedTicket?.status === st ? '#F5F3FF' : '#FFF',
+                      color: selectedTicket?.status === st ? '#7C3AED' : '#475569',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    {st}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 4 }}>
+                  Agent Resolution / Internal Notes
+                </label>
+                <textarea
+                  rows={3}
+                  value={agentNotes}
+                  onChange={e => setAgentNotes(e.target.value)}
+                  placeholder="Notes to include in customer status notification..."
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 12, outline: 'none' }}
+                />
+              </div>
+
+              {/* General Send Email Reply Button */}
+              <button
+                onClick={() => handleStatusUpdate(selectedTicket?.status || 'In Progress')}
+                disabled={statusUpdating}
+                style={{
+                  width: '100%', padding: '10px', borderRadius: 9, border: 'none',
+                  background: 'linear-gradient(135deg, #7C3AED, #6D28D9)', color: '#FFF',
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  boxShadow: '0 4px 12px rgba(124,58,237,0.25)', opacity: statusUpdating ? 0.7 : 1, marginBottom: 8
+                }}
+              >
+                {statusUpdating ? <RefreshCw size={14} className="spin" /> : <Send size={14} />}
+                Send Email Reply
               </button>
-              <button style={{ width: '100%', padding: 9, borderRadius: 10, border: '1.5px solid rgba(225,29,72,0.25)', background: 'rgba(225,29,72,0.06)', color: '#E11D48', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <ArrowUp size={13} /> Escalate to Manager
-              </button>
-              <button style={{ width: '100%', padding: 9, borderRadius: 10, border: '1px solid rgba(226,232,240,0.7)', background: 'rgba(248,250,252,0.7)', color: '#64748B', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <MessageSquare size={13} /> Request Clarification
+
+              {/* Direct Resolve & Send Email Button */}
+              <button
+                onClick={() => handleStatusUpdate('Resolved')}
+                disabled={statusUpdating}
+                style={{
+                  width: '100%', padding: '9px', borderRadius: 9, border: '1px solid #059669',
+                  background: '#ECFDF5', color: '#059669',
+                  fontSize: 11.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                }}
+              >
+                <CheckCircle size={13} /> Resolve & Send Email
               </button>
             </div>
+
+            {/* AI Generated Draft Professional Response */}
+            <div>
+              <span style={{ fontSize: 10, fontWeight: 800, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                AI-Generated Draft Response
+              </span>
+              <textarea
+                value={draftResp}
+                onChange={e => setDraftResp(e.target.value)}
+                rows={7}
+                style={{
+                  width: '100%', padding: '10px', borderRadius: 10, border: '1px solid #CBD5E1',
+                  background: '#F8FAFC', color: '#0F172A', fontSize: 11.5, lineHeight: 1.6, outline: 'none', resize: 'vertical'
+                }}
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button
+                onClick={openReassignModal}
+                style={{
+                  width: '100%', padding: 9, borderRadius: 9, border: '1.5px solid #2563EB',
+                  background: '#EFF6FF', color: '#2563EB', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                }}
+              >
+                <ArrowRightLeft size={14} />
+                Reassign Ticket to Agent
+              </button>
+
+              <button
+                onClick={() => handleStatusUpdate('In Progress')}
+                disabled={statusUpdating}
+                style={{
+                  width: '100%', padding: 9, borderRadius: 9, border: '1px solid #7C3AED',
+                  background: '#F5F3FF', color: '#7C3AED', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                }}
+              >
+                Mark In Progress & Send Email
+              </button>
+
+              <button
+                onClick={() => handleStatusUpdate('Escalated')}
+                disabled={statusUpdating}
+                style={{
+                  width: '100%', padding: 9, borderRadius: 9, border: '1px solid #FCA5A5',
+                  background: '#FEF2F2', color: '#DC2626', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                }}
+              >
+                <ArrowUp size={14} />
+                Escalate to Manager
+              </button>
+            </div>
+
           </div>
+
         </div>
       </div>
     </div>
+  )
+}
+
+function InboxEmptyIcon(props) {
+  return (
+    <svg width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+    </svg>
   )
 }

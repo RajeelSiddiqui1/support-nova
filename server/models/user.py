@@ -20,7 +20,11 @@ class UserBase(BaseModel):
     email: EmailStr
     name: str
     role: UserRole = UserRole.CUSTOMER
+    department_id: Optional[str] = None
     department: Optional[str] = "Customer Support"
+    reporting_manager_id: Optional[str] = None
+    reporting_manager_name: Optional[str] = None
+    reporting_manager_email: Optional[str] = None
     status: UserStatus = UserStatus.ACTIVE
     deactivation_reason: Optional[str] = None
     is_temp_password: bool = False
@@ -33,7 +37,11 @@ class UserCreate(BaseModel):
     email: EmailStr
     name: str
     role: UserRole
+    department_id: Optional[str] = None
     department: Optional[str] = "Customer Support"
+    reporting_manager_id: Optional[str] = None
+    reporting_manager_name: Optional[str] = None
+    reporting_manager_email: Optional[str] = None
 
 class UserInDB(UserBase):
     hashed_password: Optional[str] = None

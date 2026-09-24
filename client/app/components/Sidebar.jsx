@@ -2,19 +2,21 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Zap, LayoutDashboard, PlusCircle, Ticket,
+  Zap, LayoutDashboard, PlusCircle, MessageSquare, Ticket,
   Settings, LogOut, Database, BarChart3, Users,
-  Scale, ShieldCheck, FileText, UserCheck, Eye,
+  Scale, ShieldCheck, FileText, UserCheck, Eye, Building2, FolderTree
 } from 'lucide-react'
 
 const NAV = {
   customer: [
     { icon: LayoutDashboard, label: 'Dashboard',         href: '/customer/dashboard' },
-    { icon: PlusCircle,      label: 'Submit Complaint',   href: '/customer/submit'    },
+    { icon: PlusCircle,      label: 'Submit Webform',     href: '/customer/submit'    },
+    { icon: MessageSquare,   label: 'Guided Chat Intake', href: '/customer/chat'      },
     { icon: Ticket,          label: 'My Tickets',         href: '/customer/dashboard' },
   ],
   agent: [
     { icon: LayoutDashboard, label: 'Workspace',          href: '/agent/workspace' },
+    { icon: MessageSquare,   label: 'Chat Queue',         href: '/agent/chat-tickets' },
     { icon: Ticket,          label: 'Ticket Queue',        href: '/agent/workspace' },
     { icon: Zap,             label: 'AI Pipeline',         href: '/agent/workspace' },
   ],
@@ -27,8 +29,10 @@ const NAV = {
     { icon: BarChart3,   label: 'Analytics',        href: '/admin/dashboard',  section: 'OVERVIEW'    },
     { icon: FileText,    label: 'All Tickets',       href: '/admin/tickets',    section: 'TICKETS'     },
     { icon: Users,       label: 'Users',             href: '/admin/users',      section: 'PEOPLE'      },
+    { icon: Building2,   label: 'Departments',       href: '/admin/departments', section: 'PEOPLE'     },
+    { icon: FolderTree,  label: 'Categories',        href: '/admin/categories', section: 'PEOPLE'      },
     { icon: UserCheck,   label: 'Staff Management',  href: '/admin/dashboard',  section: 'PEOPLE'      },
-    { icon: Database,    label: 'Knowledge Base',    href: '/admin/dashboard',  section: 'SYSTEM'      },
+    { icon: Database,    label: 'Knowledge Base',    href: '/admin/policies',   section: 'SYSTEM'      },
     { icon: Settings,    label: 'Rule Matrix',       href: '/admin/dashboard',  section: 'SYSTEM'      },
   ],
 }
@@ -40,11 +44,86 @@ const ROLE_META = {
   admin:    { label: 'Admin Center',       color: '#E11D48', bg: '#FFF1F2', emoji: '⚙️' },
 }
 
-export default function Sidebar({ role = 'customer', userName = 'User', userEmail = 'user@company.com' }) {
+import { useState, useEffect } from 'react'
+
+export default function Sidebar({ role = 'customer', userName, userEmail }) {
   const pathname = usePathname()
   const rKey = (role || 'customer').toLowerCase()
   const items = NAV[rKey] || NAV.customer
   const meta  = ROLE_META[rKey] || ROLE_META.customer
+
+  const [profile, setProfile] = useState({
+    name: userName || 'User',
+    email: userEmail || 'user@company.com'
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    try {
+      let resolvedUser = null
+
+      // 1. Check URL query string for auth_user parameter (from Google OAuth redirect)
+      const params = new URLSearchParams(window.location.search)
+      const authUserParam = params.get('auth_user')
+
+      if (authUserParam) {
+        try {
+          const decoded = JSON.parse(decodeURIComponent(authUserParam))
+          if (decoded && (decoded.email || decoded.name)) {
+            resolvedUser = decoded
+            localStorage.setItem('user', JSON.stringify(decoded))
+            // Clean URL query without page reload
+            const cleanUrl = window.location.pathname
+            window.history.replaceState({}, document.title, cleanUrl)
+          }
+        } catch (err) {
+          console.log('Error parsing auth_user:', err)
+        }
+      }
+
+      // 2. Check document cookies
+      if (!resolvedUser) {
+        const cookiePairs = document.cookie ? document.cookie.split('; ') : []
+        const cookies = {}
+        const clean = (s) => (s || '').replace(/^["']|["']$/g, '').trim()
+        cookiePairs.forEach(pair => {
+          const [k, v] = pair.split('=')
+          if (k) cookies[k] = clean(decodeURIComponent(v || ''))
+        })
+
+        if (cookies.user_email || cookies.user_name) {
+          resolvedUser = {
+            name: cookies.user_name,
+            email: cookies.user_email,
+            role: cookies.user_role || 'CUSTOMER',
+            status: cookies.user_status || 'ACTIVE'
+          }
+          localStorage.setItem('user', JSON.stringify(resolvedUser))
+        }
+      }
+
+      // 3. Check localStorage / sessionStorage
+      if (!resolvedUser) {
+        const stored = localStorage.getItem('user') || sessionStorage.getItem('user')
+        if (stored) {
+          resolvedUser = JSON.parse(stored)
+        }
+      }
+
+      const cleanName = (s) => (s || '').replace(/^["']|["']$/g, '').trim()
+      if (resolvedUser) {
+        setProfile({
+          name: cleanName(resolvedUser.name || resolvedUser.full_name) || userName || 'User',
+          email: cleanName(resolvedUser.email) || userEmail || 'user@company.com'
+        })
+      } else if (userName && userEmail) {
+        setProfile({ name: cleanName(userName), email: cleanName(userEmail) })
+      }
+    } catch (e) {
+      console.log('Sidebar session error:', e)
+    }
+  }, [userName, userEmail])
 
   // group admin items by section safely
   const sections = rKey === 'admin'
@@ -197,11 +276,11 @@ export default function Sidebar({ role = 'customer', userName = 'User', userEmai
             fontSize: 12, fontWeight: 700, color: 'white',
             boxShadow: '0 4px 10px rgba(124,58,237,0.3)',
           }}>
-            {userName.charAt(0)}
+            {(profile.name || 'U').charAt(0).toUpperCase()}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</div>
-            <div style={{ fontSize: 10, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.name}</div>
+            <div style={{ fontSize: 10, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.email}</div>
           </div>
           <Link href="/login" style={{ color: '#94A3B8', display: 'flex', padding: 4, borderRadius: 6, transition: 'all 0.15s' }}>
             <LogOut size={13} />

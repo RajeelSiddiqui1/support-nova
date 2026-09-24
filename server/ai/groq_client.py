@@ -1,12 +1,12 @@
 import os
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dotenv import load_dotenv
 
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 
 class GroqAIClient:
     """Groq API Client for Pipeline 1 (GenAI Complaint Intelligence)."""
@@ -21,7 +21,7 @@ class GroqAIClient:
                 from groq import Groq
                 self.client = Groq(api_key=self.api_key)
             except Exception as e:
-                print(f"⚠️ Groq client initialization warning: {e}")
+                print(f"[WARNING] Groq client initialization warning: {e}")
 
     def analyze_complaint(
         self,
@@ -29,22 +29,29 @@ class GroqAIClient:
         title: str,
         description: str,
         order_id: Optional[str] = None,
-        policy_context: str = ""
+        policy_context: str = "",
+        available_departments: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """Executes Pipeline 1 GenAI analysis and returns structured JSON output matching SRS format."""
 
-        system_prompt = """You are SupportNova GenAI Complaint Intelligence Engine (Pipeline 1).
+        dept_options = " | ".join(available_departments) if available_departments else "Ebook | Cloud | Logistics | Billing | Technical Support"
+
+        system_prompt = f"""You are SupportNova GenAI Complaint Intelligence Engine (Pipeline 1).
 Analyze the customer complaint and return ONLY a valid structured JSON object matching the exact schema below.
 
+IMPORTANT INSTRUCTION FOR DEPARTMENT CLASSIFICATION:
+You MUST classify the complaint into the single most appropriate department from this list:
+{dept_options}
+
 JSON SCHEMA:
-{
-  "complaint_id": "CMP-XXXXX",
+{{
+  "complaint_id": "{complaint_id}",
   "issue_category": "Delivery | Refund | Wrong Product | Billing | Product Defect | Technical Support | Other",
   "subcategory": "string",
   "sentiment": "Positive | Neutral | Negative | Extremely Angry",
   "urgency": "Low | Medium | High | Critical",
   "priority": "P0 | P1 | P2 | P3",
-  "department": "Logistics | Finance | Quality | Fulfillment | Tech | Management",
+  "department": "{dept_options}",
   "policy_id": "DEL-POL-04 | REF-POL-07 | WP-POL-02 | BIL-POL-03 | ESC-POL-01",
   "policy_section": "string",
   "resolution_steps": ["step 1", "step 2", "step 3"],
@@ -52,7 +59,7 @@ JSON SCHEMA:
   "response_type": "string",
   "follow_up_required": boolean,
   "draft_response": "Professional, empathetic response string to customer"
-}
+}}
 """
 
         user_prompt = f"""COMPLAINT DATA:
@@ -60,6 +67,7 @@ ID: {complaint_id}
 Title: {title}
 Order ID: {order_id or 'N/A'}
 Description: {description}
+AVAILABLE DEPARTMENTS: {dept_options}
 
 APPROVED POLICY KNOWLEDGE CONTEXT:
 {policy_context}
@@ -77,30 +85,41 @@ APPROVED POLICY KNOWLEDGE CONTEXT:
                     temperature=0.2,
                 )
                 response_text = chat_completion.choices[0].message.content
-                return json.loads(response_text)
+                parsed = json.loads(response_text)
+                return parsed
             except Exception as e:
-                print(f"⚠️ Groq API Call Failed: {e}. Falling back to structured stub.")
+                print(f"[WARNING] Groq API Call Failed: {e}. Falling back to structured stub.")
 
-        # Structured Fallback Stub (matching SRS Page 7 schema)
+        # Structured Fallback Stub (matching real departments)
+        desc_lower = f"{title} {description}".lower()
+        if "ebook" in desc_lower or "book" in desc_lower:
+            fallback_dept = "Ebook"
+        elif "cloud" in desc_lower or "server" in desc_lower or "instance" in desc_lower:
+            fallback_dept = "Cloud"
+        elif available_departments and len(available_departments) > 0:
+            fallback_dept = available_departments[0]
+        else:
+            fallback_dept = "Ebook"
+
         return {
             "complaint_id": complaint_id,
-            "issue_category": "Delivery",
-            "subcategory": "Delayed Delivery",
+            "issue_category": "Delivery" if "delivery" in desc_lower else "Digital Product",
+            "subcategory": "Access / Download Issue" if "download" in desc_lower or "404" in desc_lower else "Inquiry",
             "sentiment": "Negative",
             "urgency": "High",
             "priority": "P1",
-            "department": "Logistics Support",
+            "department": fallback_dept,
             "policy_id": "DEL-POL-04",
-            "policy_section": "5.2",
+            "policy_section": "1.0",
             "resolution_steps": [
-                "Verify shipment status with carrier",
-                "Confirm expected delivery date",
-                "Offer approved compensation if eligibility conditions are met"
+                "Verify customer purchase & order reference",
+                "Restore download link access or provide alternate copy",
+                "Send resolution confirmation email to customer"
             ],
             "escalation_required": False,
-            "response_type": "Apology and Resolution Update",
+            "response_type": "Apology and Access Restoration",
             "follow_up_required": True,
-            "draft_response": f"Dear Customer, we sincerely apologize for the delay with order {order_id or 'your order'}. Our logistics team is actively tracking your shipment."
+            "draft_response": f"Dear Customer,\n\nThank you for reaching out regarding your order {order_id or ''}. We have escalated this to the {fallback_dept} team to resolve your access immediately."
         }
 
 # Global Groq Client Instance
