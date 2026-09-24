@@ -168,29 +168,41 @@ class EmailService:
         new_agent_name: str,
         ticket_id: str,
         title: str,
-        reason: str = "Manager reassignment"
+        reason: str = "Manager reassignment / policy non-compliance",
+        manager_name: str = "Department Manager"
     ):
-        """Notifies previous agent that ticket was reassigned/transferred away."""
-        subject = f"🔄 Ticket Reassigned [{ticket_id}] — Transferred to {new_agent_name}"
+        """Notifies previous agent that their access to the ticket has been revoked and reassigned."""
+        subject = f"⚠️ Ticket Access Revoked & Reassigned [{ticket_id}] — By {manager_name}"
         html = f"""
         <div style="font-family: Arial, sans-serif; background: #F8FAFC; padding: 30px; border-radius: 12px; max-width: 540px; color: #0F172A; border: 1px solid #E2E8F0;">
-            <h2 style="color: #D97706; margin-top: 0;">Ticket Transferred to Another Agent 🔄</h2>
+            <div style="background: #FEF2F2; border-left: 4px solid #EF4444; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px;">
+                <h3 style="color: #DC2626; margin: 0 0 4px 0; font-size: 16px;">Ticket Access Revoked & Transferred</h3>
+                <p style="margin: 0; font-size: 12px; color: #991B1B;">You have been removed from this ticket by your Department Manager.</p>
+            </div>
+
             <p>Hello <strong>{previous_agent_name}</strong>,</p>
-            <p>Ticket <strong>[{ticket_id}]</strong> has been reassigned and transferred from your active queue to <strong>{new_agent_name}</strong>.</p>
+            <p>Your access to Ticket <strong>[{ticket_id}]</strong> has been revoked by <strong>{manager_name}</strong>, and the ticket has been reassigned to <strong>{new_agent_name}</strong>.</p>
             
             <div style="background: #FFF; padding: 18px; border-radius: 10px; border: 1px solid #CBD5E1; margin: 20px 0;">
                 <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">Ticket Reference ID</p>
                 <p style="font-family: monospace; font-size: 20px; font-weight: bold; color: #7C3AED; margin: 0 0 10px 0;">{ticket_id}</p>
 
-                <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">Title</p>
+                <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">Ticket Title</p>
                 <p style="font-size: 14px; font-weight: bold; color: #0F172A; margin: 0 0 10px 0;">{title}</p>
 
-                <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #64748B; text-transform: uppercase;">Reassignment Reason</p>
-                <p style="font-size: 13px; color: #334155; margin: 0;">{reason}</p>
+                <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #DC2626; text-transform: uppercase;">Reason for Revocation / Reassignment</p>
+                <div style="font-size: 13px; color: #991B1B; background: #FEF2F2; padding: 10px 14px; border-radius: 8px; border: 1px solid #FCA5A5; font-weight: 600;">
+                    {reason}
+                </div>
             </div>
 
-            <p style="font-size: 12px; color: #64748B;">This ticket has been removed from your active queue. No further action is required on your part.</p>
-            <p><a href="http://localhost:3000/agent/workspace" style="background: #D97706; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">View Agent Workspace</a></p>
+            <div style="background: #F1F5F9; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+                <p style="margin: 0; font-size: 12px; color: #475569; line-height: 1.5;">
+                    🔒 <strong>Access Notice:</strong> You can no longer update status, take actions, or send customer replies on this ticket. Your previous actions remain logged in the ticket's permanent audit history.
+                </p>
+            </div>
+
+            <p><a href="http://localhost:3000/agent/workspace" style="background: #64748B; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">View Workspace Queue</a></p>
         </div>
         """
         return EmailService.send_email(to_email, subject, html)

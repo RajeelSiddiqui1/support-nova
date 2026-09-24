@@ -19,7 +19,7 @@ class GroqAIClient:
         if self.api_key and self.api_key != "gsk_your_groq_api_key_here":
             try:
                 from groq import Groq
-                self.client = Groq(api_key=self.api_key)
+                self.client = Groq(api_key=self.api_key, max_retries=0)
             except Exception as e:
                 print(f"[WARNING] Groq client initialization warning: {e}")
 
@@ -83,6 +83,7 @@ APPROVED POLICY KNOWLEDGE CONTEXT:
                     model=self.model,
                     response_format={"type": "json_object"},
                     temperature=0.2,
+                    timeout=5.0,
                 )
                 response_text = chat_completion.choices[0].message.content
                 parsed = json.loads(response_text)

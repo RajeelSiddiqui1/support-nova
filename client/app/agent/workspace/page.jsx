@@ -69,7 +69,7 @@ export default function AgentWorkspace() {
     fetchTickets()
   }, [])
 
-  const fetchAgents = async () => {
+    const fetchAgents = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/users`)
       if (res.ok) {
@@ -78,20 +78,61 @@ export default function AgentWorkspace() {
           const agentsOnly = data.filter(u => (u.role === 'AGENT' || u.role === 'REVIEWER' || u.role === 'MANAGER') && u.status === 'ACTIVE')
           setAgentsList(agentsOnly)
 
-          // Check if user is stored in localStorage
-          const storedUser = localStorage.getItem('user')
-          if (storedUser) {
-            try {
-              const parsed = JSON.parse(storedUser)
-              if (parsed && parsed.user_id) {
-                setCurrentAgent(parsed)
-                return
+          // Resolve logged-in user from Cookie -> LocalStorage -> SessionStorage
+          let loggedIn = null
+
+          // 1. Check cookies
+          if (typeof document !== 'undefined') {
+            const cookiePairs = document.cookie ? document.cookie.split('; ') : []
+            const cookies = {}
+            const clean = s => (s || '').replace(/^["']|["']$/g, '').trim()
+            cookiePairs.forEach(pair => {
+              const [k, v] = pair.split('=')
+              if (k) cookies[k] = clean(decodeURIComponent(v || ''))
+            })
+
+            if (cookies.user_email || cookies.user_name || cookies.user_id) {
+              loggedIn = {
+                user_id: cookies.user_id,
+                name: cookies.user_name,
+                email: cookies.user_email,
+                role: cookies.user_role || 'AGENT'
               }
-            } catch (err) {}
+            }
           }
 
-          if (agentsOnly.length > 0) {
-            setCurrentAgent(agentsOnly[0])
+          // 2. Check localStorage / sessionStorage
+          if (!loggedIn && typeof window !== 'undefined') {
+            const stored = localStorage.getItem('user') || sessionStorage.getItem('user')
+            if (stored) {
+              try { loggedIn = JSON.parse(stored) } catch (e) {}
+            }
+          }
+
+          // 3. Match against staff database to get department & details
+          let activeAgent = null
+          if (loggedIn) {
+            activeAgent = agentsOnly.find(a =>
+              (loggedIn.user_id && a.user_id === loggedIn.user_id) ||
+              (loggedIn.email && a.email?.toLowerCase() === loggedIn.email?.toLowerCase())
+            )
+            if (!activeAgent) {
+              activeAgent = loggedIn
+            }
+          }
+
+          // 4. Default fallback: Rajeel Siddiqui or first staff in Ebook/Cloud
+          if (!activeAgent) {
+            activeAgent = agentsOnly.find(a => a.email === 'rajeelsiddiqui3@gmail.com') ||
+                          agentsOnly.find(a => a.department === 'Ebook' || a.department === 'Cloud') ||
+                          agentsOnly[0]
+          }
+
+          if (activeAgent) {
+            setCurrentAgent(activeAgent)
+            if (activeAgent.department) {
+              setDeptFilter(activeAgent.department)
+            }
           }
         }
       }
@@ -112,6 +153,28 @@ export default function AgentWorkspace() {
     } catch (e) {
     } finally {
       setLoading(false)
+    }
+  }
+
+  const [syncingEmails, setSyncingEmails] = useState(false)
+
+  const handleSyncEmails = async () => {
+    setSyncingEmails(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/tickets/fetch-emails`, { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        const newCount = data.new_tickets || 0
+        setEmailAlert(`📧 Synced with Gmail! ${newCount > 0 ? `${newCount} new email ticket(s) imported & routed.` : 'Inbox is up to date.'}`)
+        fetchTickets()
+      } else {
+        setEmailAlert('⚠️ Email sync failed.')
+      }
+    } catch (e) {
+      setEmailAlert('⚠️ Could not connect to email sync endpoint.')
+    } finally {
+      setSyncingEmails(false)
+      setTimeout(() => setEmailAlert(''), 6000)
     }
   }
 
@@ -297,6 +360,9 @@ export default function AgentWorkspace() {
 
   const isMismatch = selectedTicket?.department_mismatch || (selectedTicket?.match_status === false)
   const auditHistory = selectedTicket?.assigned_agent_history || selectedTicket?.assignedAgentHistory || []
+  const isRevoked = selectedTicket?.revoked_agent_ids?.includes(currentAgent?.user_id) && selectedTicket?.assigned_agent_id !== currentAgent?.user_id
+  const revokedDetail = selectedTicket?.revoked_agents?.slice().reverse().find(r => r.agent_id === currentAgent?.user_id)
+  const isOtherAssigned = selectedTicket?.assigned_agent_id && (selectedTicket?.assigned_agent_id !== currentAgent?.user_id) && (currentAgent?.role !== 'MANAGER' && currentAgent?.role !== 'ADMIN')
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F8FAFC' }}>
@@ -311,28 +377,19 @@ export default function AgentWorkspace() {
             <p style={{ fontSize: 11, color: '#64748B', margin: '2px 0 0' }}>Department Routing, First-Response Auto-Claiming & Manager Reassignment</p>
           </div>
 
-          {/* Working Agent Switcher (Allows testing different agents & departments live) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#F8FAFC', padding: '6px 12px', borderRadius: 10, border: '1.5px solid #E2E8F0' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Working As:</span>
-            <select
-              value={currentAgent?.user_id}
-              onChange={e => {
-                const ag = agentsList.find(a => a.user_id === e.target.value)
-                if (ag) {
-                  setCurrentAgent(ag)
-                  localStorage.setItem('user', JSON.stringify(ag))
-                }
-              }}
-              style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 12, fontWeight: 700, color: '#7C3AED', background: '#FFF', outline: 'none', cursor: 'pointer' }}
-            >
-              {agentsList.map(a => (
-                <option key={a.user_id} value={a.user_id}>
-                  {a.name} ({a.department} - {a.role})
-                </option>
-              ))}
-            </select>
-            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: '#ECFDF5', color: '#059669', fontWeight: 800 }}>
-              {currentAgent?.department}
+          {/* Currently Logged In Agent Profile Display */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#F8FAFC', padding: '6px 14px', borderRadius: 10, border: '1.5px solid #E2E8F0' }}>
+            <UserCheck size={16} color="#7C3AED" />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#0F172A' }}>
+                {currentAgent?.name || 'Logged In Agent'}
+              </span>
+              <span style={{ fontSize: 10, color: '#64748B', fontWeight: 600 }}>
+                {currentAgent?.email || 'agent@company.com'} · {currentAgent?.role || 'AGENT'}
+              </span>
+            </div>
+            <span style={{ fontSize: 11, padding: '2px 10px', borderRadius: 6, background: '#ECFDF5', color: '#059669', fontWeight: 800, marginLeft: 6 }}>
+              {currentAgent?.department || 'Department'}
             </span>
           </div>
         </div>
@@ -430,9 +487,24 @@ export default function AgentWorkspace() {
                 <span style={{ fontSize: 11, fontWeight: 800, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   {currentAgent?.department} Queue ({filteredQueue.length})
                 </span>
-                <button onClick={fetchTickets} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
-                  <RefreshCw size={12} className={loading ? 'spin' : ''} />
-                </button>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <button
+                    onClick={handleSyncEmails}
+                    disabled={syncingEmails}
+                    title="Fetch new customer emails from IMAP inbox"
+                    style={{
+                      padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                      background: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE',
+                      display: 'flex', alignItems: 'center', gap: 4
+                    }}
+                  >
+                    <Mail size={11} className={syncingEmails ? 'spin' : ''} />
+                    {syncingEmails ? 'Syncing...' : 'Sync Emails'}
+                  </button>
+                  <button onClick={fetchTickets} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }} title="Refresh list">
+                    <RefreshCw size={12} className={loading ? 'spin' : ''} />
+                  </button>
+                </div>
               </div>
 
               {/* Scope Selector */}
@@ -489,6 +561,7 @@ export default function AgentWorkspace() {
                 const pc = PCOLORS[t.priority] || PCOLORS.P2
                 const active = selectedId === t.ticket_id
                 const isAssignedToMe = t.assigned_agent_id === currentAgent?.user_id
+                const isRevokedForMe = t.revoked_agent_ids?.includes(currentAgent?.user_id) && !isAssignedToMe
                 const isUnassigned = !t.assigned_agent_id
 
                 return (
@@ -515,7 +588,11 @@ export default function AgentWorkspace() {
 
                     {/* Assignment Pill */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10.5 }}>
-                      {isUnassigned ? (
+                      {isRevokedForMe ? (
+                        <span style={{ color: '#DC2626', background: '#FEF2F2', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid #FCA5A5' }}>
+                          ⛔ Access Revoked (In History)
+                        </span>
+                      ) : isUnassigned ? (
                         <span style={{ color: '#D97706', background: '#FFFBEB', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid #FDE68A' }}>
                           ⚡ Unassigned Pool
                         </span>
@@ -546,6 +623,22 @@ export default function AgentWorkspace() {
           {/* ── CENTER: AI Pipeline & Ticket Workbench ── */}
           {selectedTicket ? (
             <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+
+              {/* Access Revocation Banner */}
+              {isRevoked && (
+                <div style={{ background: '#FEF2F2', border: '1.5px solid #F87171', padding: '14px 18px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 14, color: '#991B1B', boxShadow: '0 2px 10px rgba(220,38,38,0.1)' }}>
+                  <ShieldAlert size={26} color="#DC2626" style={{ flexShrink: 0 }} />
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#DC2626' }}>⛔ ACCESS REVOKED BY MANAGEMENT</h4>
+                    <p style={{ margin: '4px 0 0', fontSize: 12, color: '#7F1D1D', lineHeight: 1.5 }}>
+                      Your access to Ticket <strong>[{selectedTicket.ticket_id}]</strong> was revoked by <strong>{revokedDetail?.revoked_by_name || 'Department Manager'}</strong>.
+                      {revokedDetail?.reason && <span> Reason: <em>"{revokedDetail.reason}"</em>.</span>}
+                      <br />
+                      This ticket has been reassigned to <strong>{selectedTicket.assigned_agent}</strong>. Your previous activity remains preserved in the audit log, but your edit and customer reply permissions have been revoked.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Ticket Summary Bar */}
               <div style={{ ...glass, background: '#FFF', padding: 18 }}>
@@ -813,12 +906,14 @@ export default function AgentWorkspace() {
                   <button
                     key={st}
                     onClick={() => handleStatusUpdate(st)}
-                    disabled={statusUpdating}
+                    disabled={statusUpdating || isRevoked || isOtherAssigned}
                     style={{
-                      padding: '8px 6px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                      padding: '8px 6px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                      cursor: (isRevoked || isOtherAssigned) ? 'not-allowed' : 'pointer',
                       border: selectedTicket?.status === st ? '2px solid #7C3AED' : '1px solid #CBD5E1',
                       background: selectedTicket?.status === st ? '#F5F3FF' : '#FFF',
                       color: selectedTicket?.status === st ? '#7C3AED' : '#475569',
+                      opacity: (isRevoked || isOtherAssigned) ? 0.5 : 1,
                       transition: 'all 0.15s'
                     }}
                   >
@@ -826,6 +921,21 @@ export default function AgentWorkspace() {
                   </button>
                 ))}
               </div>
+
+              {/* Permission & Revocation Notice */}
+              {isRevoked ? (
+                <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', padding: '8px 10px', borderRadius: 8, marginBottom: 10 }}>
+                  <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: '#B91C1C' }}>
+                    ⛔ ACCESS REVOKED: You cannot update status or send replies on this ticket.
+                  </p>
+                </div>
+              ) : isOtherAssigned ? (
+                <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '8px 10px', borderRadius: 8, marginBottom: 10 }}>
+                  <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#1E40AF' }}>
+                    🔒 Assigned to {selectedTicket.assigned_agent}. Read-only mode.
+                  </p>
+                </div>
+              ) : null}
 
               <div style={{ marginBottom: 10 }}>
                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 4 }}>
@@ -835,20 +945,21 @@ export default function AgentWorkspace() {
                   rows={3}
                   value={agentNotes}
                   onChange={e => setAgentNotes(e.target.value)}
+                  disabled={isRevoked || isOtherAssigned}
                   placeholder="Notes to include in customer status notification..."
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 12, outline: 'none' }}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 12, outline: 'none', background: (isRevoked || isOtherAssigned) ? '#F1F5F9' : '#FFF' }}
                 />
               </div>
 
               {/* General Send Email Reply Button */}
               <button
                 onClick={() => handleStatusUpdate(selectedTicket?.status || 'In Progress')}
-                disabled={statusUpdating}
+                disabled={statusUpdating || isRevoked || isOtherAssigned}
                 style={{
                   width: '100%', padding: '10px', borderRadius: 9, border: 'none',
-                  background: 'linear-gradient(135deg, #7C3AED, #6D28D9)', color: '#FFF',
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  boxShadow: '0 4px 12px rgba(124,58,237,0.25)', opacity: statusUpdating ? 0.7 : 1, marginBottom: 8
+                  background: (isRevoked || isOtherAssigned) ? '#94A3B8' : 'linear-gradient(135deg, #7C3AED, #6D28D9)', color: '#FFF',
+                  fontSize: 12, fontWeight: 700, cursor: (isRevoked || isOtherAssigned) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  boxShadow: (isRevoked || isOtherAssigned) ? 'none' : '0 4px 12px rgba(124,58,237,0.25)', opacity: statusUpdating ? 0.7 : 1, marginBottom: 8
                 }}
               >
                 {statusUpdating ? <RefreshCw size={14} className="spin" /> : <Send size={14} />}
@@ -858,11 +969,12 @@ export default function AgentWorkspace() {
               {/* Direct Resolve & Send Email Button */}
               <button
                 onClick={() => handleStatusUpdate('Resolved')}
-                disabled={statusUpdating}
+                disabled={statusUpdating || isRevoked || isOtherAssigned}
                 style={{
                   width: '100%', padding: '9px', borderRadius: 9, border: '1px solid #059669',
-                  background: '#ECFDF5', color: '#059669',
-                  fontSize: 11.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                  background: (isRevoked || isOtherAssigned) ? '#F1F5F9' : '#ECFDF5',
+                  color: (isRevoked || isOtherAssigned) ? '#94A3B8' : '#059669',
+                  fontSize: 11.5, fontWeight: 700, cursor: (isRevoked || isOtherAssigned) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
                 }}
               >
                 <CheckCircle size={13} /> Resolve & Send Email

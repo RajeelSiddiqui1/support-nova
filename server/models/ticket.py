@@ -62,6 +62,8 @@ class TicketBase(BaseModel):
     assigned_agent_history: List[Dict[str, Any]] = []
     assignedAgentId: Optional[str] = None
     assignedAgentHistory: Optional[List[Dict[str, Any]]] = None
+    revoked_agent_ids: List[str] = []
+    revoked_agents: List[Dict[str, Any]] = []
     sla_hours_remaining: Optional[float] = 24.0
     sla_risk_percentage: float = 0.0
     

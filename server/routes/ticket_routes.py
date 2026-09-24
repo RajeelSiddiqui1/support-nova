@@ -154,6 +154,129 @@ async def list_tickets(
 
     return tickets
 
+def evaluate_policy_compliance(ticket: dict) -> dict:
+    """Evaluates whether the assigned agent's action and notes adhere to the Python rule policy."""
+    python_out = ticket.get("python_rule_output") or {}
+    matched_rule = python_out.get("matched_rule_id", "General Policy Verification")
+    mandatory_actions = python_out.get("mandatory_actions", [])
+    prohibited_actions = python_out.get("prohibited_actions", [])
+    refund_eligible = python_out.get("refund_eligible", False)
+    escalation_required = python_out.get("escalation_required", False)
+    agent_notes = (ticket.get("agent_notes") or "").lower()
+    draft_response = (ticket.get("draft_response") or ticket.get("genai_output", {}).get("draft_response", "")).lower()
+    combined_text = f"{agent_notes} {draft_response}".strip()
+
+    violations = []
+    warnings = []
+
+    # 1. Non-eligible refund check
+    if not refund_eligible and any(kw in combined_text for kw in ["full refund", "issued refund", "approved refund", "processed refund"]):
+        violations.append(f"Agent initiated refund, but Policy rule ({matched_rule}) strictly designates ticket as non-refundable.")
+
+    # 2. Prohibited actions violation check
+    for p in prohibited_actions:
+        p_lower = p.lower()
+        if "discount" in p_lower and any(w in combined_text for w in ["30%", "40%", "50%", "special discount"]):
+            violations.append(f"Prohibited Action: {p}")
+        elif "promise" in p_lower and ("guarantee" in combined_text or "48h guarantee" in combined_text):
+            violations.append(f"Prohibited Policy Promise: {p}")
+
+    # 3. Escalation required check
+    if escalation_required and ticket.get("status") in ["Resolved", "Closed"]:
+        violations.append(f"Policy Breach: Escalation was required under {matched_rule}, but ticket was resolved directly without manager sign-off.")
+
+    # 4. Mandatory actions check
+    for m in mandatory_actions:
+        m_lower = m.lower()
+        if "evidence" in m_lower and not any(k in combined_text for k in ["evidence", "photo", "document", "verified", "attached"]):
+            warnings.append(f"Missing documentation: {m}")
+
+    status = "COMPLIANT"
+    if violations:
+        status = "VIOLATION"
+    elif warnings:
+        status = "RISK_WARNING"
+
+    return {
+        "status": status,
+        "is_compliant": len(violations) == 0,
+        "violations": violations,
+        "warnings": warnings,
+        "matched_rule_id": matched_rule,
+        "mandatory_actions": mandatory_actions,
+        "prohibited_actions": prohibited_actions,
+        "escalation_required": escalation_required,
+        "refund_eligible": refund_eligible,
+        "policy_reference": python_out.get("policy_reference", "SupportNova Resolution Guidelines v1.0")
+    }
+
+@router.get("/department/agent-activity")
+async def get_department_agent_activity(
+    department_id: Optional[str] = None,
+    department: Optional[str] = None
+):
+    """
+    Supervisor Audit API for Department Managers.
+    Returns:
+    - All tickets in the manager's department
+    - Current agent assignment & agent notes
+    - Policy compliance evaluation (Compliant, Risk, Violation)
+    - Full assignment history & revoked agents audit trail
+    """
+    db = get_database()
+    query = {}
+    if department_id and department_id.strip():
+        query["$or"] = [
+            {"department_id": department_id.strip()},
+            {"department": {"$regex": f"^{department_id.strip()}$", "$options": "i"}}
+        ]
+    elif department and department.strip():
+        query["department"] = {"$regex": f"^{department.strip()}$", "$options": "i"}
+
+    cursor = db.tickets.find(query).sort("created_at", -1)
+    tickets = await cursor.to_list(length=300)
+
+    evaluated_tickets = []
+    agent_workload = {}
+    total_violations = 0
+    total_warnings = 0
+
+    for t in tickets:
+        t["_id"] = str(t["_id"])
+        comp = evaluate_policy_compliance(t)
+        t["policy_compliance"] = comp
+
+        if comp["status"] == "VIOLATION":
+            total_violations += 1
+        elif comp["status"] == "RISK_WARNING":
+            total_warnings += 1
+
+        agent_id = t.get("assigned_agent_id")
+        agent_name = t.get("assigned_agent") or "Unassigned"
+        if agent_id:
+            if agent_id not in agent_workload:
+                agent_workload[agent_id] = {
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "agent_email": t.get("assigned_agent_email"),
+                    "ticket_count": 0,
+                    "violations": 0
+                }
+            agent_workload[agent_id]["ticket_count"] += 1
+            if comp["status"] == "VIOLATION":
+                agent_workload[agent_id]["violations"] += 1
+
+        evaluated_tickets.append(t)
+
+    return {
+        "department": department or department_id or "All",
+        "total_tickets": len(evaluated_tickets),
+        "total_violations": total_violations,
+        "total_warnings": total_warnings,
+        "agent_workload": list(agent_workload.values()),
+        "tickets": evaluated_tickets
+    }
+
 @router.get("/{ticket_id}")
 async def get_ticket(ticket_id: str):
     """Retrieve single complaint details with complete AI pipeline breakdown."""
@@ -283,7 +406,10 @@ async def submit_complaint(data: TicketSubmission):
         "customer_department_id": department.get("dept_id") if department else ai_dept_id,
         "customer_department": user_selected_dept,
         "department": ai_dept,
+        "department_name": ai_dept,
         "recommended_department": ai_dept,
+        "assigned_agent_id": None,
+        "assignedAgentId": None,
         "department_mismatch": department_mismatch,
         "incident_date": data.incident_date or datetime.utcnow().strftime("%Y-%m-%d"),
         "category_id": category_id,
@@ -370,17 +496,36 @@ async def submit_chat_complaint(data: ChatSubmission):
 
     policy_context = rag_engine.format_context_for_prompt(relevant_chunks)
 
-    # 2. AI Pipeline 1: Groq GenAI Analysis with Active Departments
+    # 2. AI Pipeline 1: Groq GenAI Analysis with Active Departments (with Rate-Limit Fallback)
     available_depts = await get_active_department_names(db)
     title_text = data.title.strip() if data.title else "Chat Complaint"
-    genai_output = groq_client.analyze_complaint(
-        complaint_id=ticket_id,
-        title=title_text,
-        description=data.description,
-        order_id=data.order_id or "N/A",
-        policy_context=policy_context,
-        available_departments=available_depts
-    )
+    genai_output = None
+    try:
+        genai_output = groq_client.analyze_complaint(
+            complaint_id=ticket_id,
+            title=title_text,
+            description=data.description,
+            order_id=data.order_id or "N/A",
+            policy_context=policy_context,
+            available_departments=available_depts
+        )
+    except Exception as ai_err:
+        desc_lower = data.description.lower()
+        is_cloud_hint = "cloud" in desc_lower or "instance" in desc_lower or "vm" in desc_lower
+        is_ebook_hint = "ebook" in desc_lower or "book" in desc_lower or "pdf" in desc_lower
+        fallback_dept = "Cloud" if is_cloud_hint else "Ebook" if is_ebook_hint else user_selected_dept
+        genai_output = {
+            "issue_category": "Billing Issue" if "billing" in user_selected_dept.lower() or "charge" in desc_lower else "Digital Support",
+            "subcategory": "Double Charge" if "charge" in desc_lower or "twice" in desc_lower else "General Inquiry",
+            "sentiment": "Frustrated 😠" if "refund" in desc_lower or "charge" in desc_lower else "Neutral",
+            "urgency": "High" if "refund" in desc_lower or "charge" in desc_lower else "Medium",
+            "priority": "P1" if "refund" in desc_lower or "charge" in desc_lower else "P2",
+            "department": fallback_dept,
+            "policy_id": "BIL-POL-01" if "billing" in user_selected_dept.lower() else "GEN-POL-01",
+            "resolution_steps": ["Verify customer transaction details", "Review department policy guidelines", "Issue confirmation / refund if eligible"],
+            "escalation_required": False,
+            "draft_response": f"Dear Customer,\n\nThank you for reaching out via Chat regarding '{title_text}'. Reference Ticket ID: {ticket_id}. Our {fallback_dept} support team is reviewing your request and will follow up shortly.\n\nBest regards,\nSupport Team"
+        }
 
     ai_raw_dept = genai_output.get("department", user_selected_dept)
 
@@ -418,7 +563,10 @@ async def submit_chat_complaint(data: ChatSubmission):
         "customer_department_id": dept_id,
         "customer_department": user_selected_dept,
         "department": ai_dept,
+        "department_name": ai_dept,
         "recommended_department": ai_dept,
+        "assigned_agent_id": None,
+        "assignedAgentId": None,
         "department_mismatch": department_mismatch,
         "incident_date": data.incident_date or datetime.utcnow().strftime("%Y-%m-%d"),
         "category_id": None,
@@ -492,6 +640,25 @@ async def update_ticket_status(ticket_id: str, req: StatusUpdateRequest):
 
     current_assigned = ticket.get("assigned_agent_id")
     push_history = None
+
+    # Access Revocation & Assigned Agent Authorization
+    if acting_agent_id:
+        revoked_ids = ticket.get("revoked_agent_ids", [])
+        if acting_agent_id in revoked_ids and acting_agent_id != current_assigned:
+            rev_entry = next((r for r in ticket.get("revoked_agents", []) if r.get("agent_id") == acting_agent_id), None)
+            rev_reason = rev_entry.get("reason", "policy non-compliance") if rev_entry else "policy non-compliance"
+            raise HTTPException(
+                status_code=403,
+                detail=f"Access Revoked: Your access to ticket {ticket_id} was revoked by your manager (Reason: {rev_reason}). This ticket is now in read-only audit mode for you."
+            )
+        if current_assigned and acting_agent_id != current_assigned:
+            user_doc = await db.users.find_one({"user_id": acting_agent_id})
+            user_role = (user_doc.get("role") if user_doc else "AGENT").upper()
+            if user_role not in ["MANAGER", "ADMIN"]:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Access Denied: Ticket {ticket_id} is currently assigned to another agent ({ticket.get('assigned_agent') or current_assigned}). You cannot modify it."
+                )
 
     # First-Response Auto-Claim Rule:
     if not current_assigned and acting_agent_id:
@@ -605,17 +772,32 @@ async def reassign_ticket(ticket_id: str, req: ReassignTicketRequest):
             prev_agent_name = prev_user.get("name", prev_agent_name)
             prev_agent_email = prev_user.get("email", prev_agent_email)
 
+    is_revocation = bool(prev_agent_id and prev_agent_id != new_agent["user_id"])
+    revocation_entry = None
+    if is_revocation:
+        revocation_entry = {
+            "agent_id": prev_agent_id,
+            "agent_name": prev_agent_name,
+            "agent_email": prev_agent_email,
+            "revoked_by_id": req.reassigned_by_id,
+            "revoked_by_name": req.reassigned_by_name or "Department Manager",
+            "revoked_by_role": caller_role,
+            "reason": req.reason or "Manager reassignment / policy non-compliance",
+            "revoked_at": datetime.utcnow().isoformat()
+        }
+
     reassign_audit = {
         "agent_id": new_agent["user_id"],
         "agent_name": new_agent["name"],
         "agent_email": new_agent["email"],
         "previous_agent_id": prev_agent_id,
         "previous_agent_name": prev_agent_name,
-        "action": "MANUAL_REASSIGNMENT",
+        "action": "REVOKED_AND_REASSIGNED" if is_revocation else "MANUAL_REASSIGNMENT",
         "reassigned_by_id": req.reassigned_by_id,
         "reassigned_by_name": req.reassigned_by_name or "Manager",
         "reassigned_by_role": caller_role,
         "reason": req.reason or "Manager workload rebalancing",
+        "access_revoked": is_revocation,
         "timestamp": datetime.utcnow().isoformat()
     }
 
@@ -627,16 +809,21 @@ async def reassign_ticket(ticket_id: str, req: ReassignTicketRequest):
         "updated_at": datetime.utcnow()
     }
 
-    await db.tickets.update_one(
-        {"ticket_id": ticket_id},
-        {
-            "$set": update_fields,
-            "$push": {
-                "assigned_agent_history": reassign_audit,
-                "assignedAgentHistory": reassign_audit
-            }
-        }
-    )
+    push_payload = {
+        "assigned_agent_history": reassign_audit,
+        "assignedAgentHistory": reassign_audit
+    }
+    if is_revocation and revocation_entry:
+        push_payload["revoked_agents"] = revocation_entry
+
+    mongo_update = {
+        "$set": update_fields,
+        "$push": push_payload
+    }
+    if is_revocation and prev_agent_id:
+        mongo_update["$addToSet"] = {"revoked_agent_ids": prev_agent_id}
+
+    await db.tickets.update_one({"ticket_id": ticket_id}, mongo_update)
 
     # Automated Emails to Previous and New Agent
     if prev_agent_email and prev_agent_email != new_agent.get("email"):
@@ -646,7 +833,8 @@ async def reassign_ticket(ticket_id: str, req: ReassignTicketRequest):
             new_agent_name=new_agent["name"],
             ticket_id=ticket_id,
             title=ticket.get("title", "Complaint Ticket"),
-            reason=req.reason or "Workload rebalancing"
+            reason=req.reason or "Manager reassignment / policy non-compliance",
+            manager_name=req.reassigned_by_name or "Department Manager"
         )
 
     if new_agent.get("email"):
@@ -774,9 +962,9 @@ class EmailReplyRequest(BaseModel):
 
 @router.post("/fetch-emails")
 async def trigger_fetch_emails():
-    """Trigger fetching unseen incoming emails from IMAP INBOX & create/update tickets in DB."""
+    """Trigger fetching incoming emails from IMAP INBOX & create/update tickets in DB."""
     from email_ingestion import fetch_and_create_email_tickets
-    res = await fetch_and_create_email_tickets()
+    res = await fetch_and_create_email_tickets(only_recent_days=14)
     return res
 
 @router.post("/{ticket_id}/reply-email")
@@ -809,7 +997,27 @@ async def dispatch_email_reply(ticket_id: str, req: EmailReplyRequest):
             acting_agent_name = acting_agent_name or user_doc.get("name", "Support Agent")
             acting_agent_email = acting_agent_email or user_doc.get("email")
 
-    if not ticket.get("assigned_agent_id") and acting_agent_id:
+    current_assigned = ticket.get("assigned_agent_id")
+    # Access Revocation & Assigned Agent Authorization for Email Replies
+    if acting_agent_id:
+        revoked_ids = ticket.get("revoked_agent_ids", [])
+        if acting_agent_id in revoked_ids and acting_agent_id != current_assigned:
+            rev_entry = next((r for r in ticket.get("revoked_agents", []) if r.get("agent_id") == acting_agent_id), None)
+            rev_reason = rev_entry.get("reason", "policy non-compliance") if rev_entry else "policy non-compliance"
+            raise HTTPException(
+                status_code=403,
+                detail=f"Access Revoked: Your access to ticket {ticket_id} was revoked by your manager (Reason: {rev_reason}). You cannot send email replies on this ticket."
+            )
+        if current_assigned and acting_agent_id != current_assigned:
+            user_doc = await db.users.find_one({"user_id": acting_agent_id})
+            user_role = (user_doc.get("role") if user_doc else "AGENT").upper()
+            if user_role not in ["MANAGER", "ADMIN"]:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Access Denied: Ticket {ticket_id} is currently assigned to {ticket.get('assigned_agent') or current_assigned}. You cannot send customer replies for it."
+                )
+
+    if not current_assigned and acting_agent_id:
         claim_audit = {
             "agent_id": acting_agent_id,
             "agent_name": acting_agent_name or "Support Agent",
