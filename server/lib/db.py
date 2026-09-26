@@ -16,7 +16,10 @@ db_instance = Database()
 async def connect_to_mongo():
     """Establish async connection to MongoDB via Motor"""
     try:
-        db_instance.client = AsyncIOMotorClient(MONGO_URI)
+        db_instance.client = AsyncIOMotorClient(
+            MONGO_URI,
+            serverSelectionTimeoutMS=int(os.getenv("MONGO_SERVER_SELECTION_TIMEOUT_MS", "5000")),
+        )
         if DB_NAME:
             db_instance.db = db_instance.client[DB_NAME]
         else:

@@ -34,15 +34,18 @@ async def lifespan(app: FastAPI):
     # Startup: Connect to MongoDB Atlas (Unified Primary Database)
     await connect_to_mongo()
     db = get_database()
+    index_task = None
     try:
         from email_ingestion import ensure_email_indexes
-        await ensure_email_indexes(db)
+        index_task = asyncio.create_task(ensure_email_indexes(db))
     except Exception as ie:
         print(f"[INDEX NOTICE] {ie}")
     fetch_task = asyncio.create_task(periodic_email_fetch())
     yield
     # Shutdown: Cancel background task & Close MongoDB Connection
     fetch_task.cancel()
+    if index_task and not index_task.done():
+        index_task.cancel()
     await close_mongo_connection()
 
 app = FastAPI(
