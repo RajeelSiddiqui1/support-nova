@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRealtimeRefresh } from '../../lib/useWebSocket'
 import Sidebar from '../../components/Sidebar'
 import Navbar from '../../components/Navbar'
 import StatCard from '../../components/StatCard'
@@ -62,7 +63,23 @@ export default function CustomerDashboard() {
   const [selectedTicket, setSelectedTicket] = useState(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
 
-  const fetchCustomerTickets = async (userId, email) => {
+  // Live WebSocket Real-time sync (zero reload)
+  const { isConnected: wsConnected } = useRealtimeRefresh(
+    () => {
+      const uId = user?.user_id || user?.id
+      const uEmail = user?.email
+      if (uId || uEmail) {
+        fetchCustomerTickets(uId, uEmail, true)
+      }
+      if (selectedTicket?.ticket_id) {
+        openTicketDetail(selectedTicket.ticket_id, tickets, true)
+      }
+    },
+    ['TICKET_CREATED', 'TICKET_UPDATED', 'TICKET_REASSIGNED', 'REVIEWER_ACTION']
+  )
+
+  const fetchCustomerTickets = async (userId, email, isBackground = false) => {
+    if (!isBackground) setLoading(true)
     try {
       const cId = cleanStr(userId)
       const cEmail = cleanStr(email)
@@ -85,9 +102,9 @@ export default function CustomerDashboard() {
         }
       }
     } catch (e) {
-      setTickets([])
+      if (!isBackground) setTickets([])
     } finally {
-      setLoading(false)
+      if (!isBackground) setLoading(false)
     }
   }
 
@@ -219,12 +236,22 @@ export default function CustomerDashboard() {
             border: '1px solid rgba(124,58,237,0.15)',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14,
           }}>
-            <div>
-              <h2 style={{ fontSize: 19, fontWeight: 700, color: '#0F172A', marginBottom: 5 }}>Welcome back, {user.name} 👋</h2>
-              <p style={{ color: '#64748B', fontSize: 13 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: 19, fontWeight: 700, color: '#0F172A', margin: 0 }}>Welcome back, {user.name} 👋</h2>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: wsConnected ? '#ECFDF5' : '#FEF2F2',
+                  color: wsConnected ? '#059669' : '#DC2626',
+                  border: wsConnected ? '1px solid #A7F3D0' : '1px solid #FECACA',
+                  fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6
+                }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: wsConnected ? '#10B981' : '#EF4444', display: 'inline-block' }} />
+                  {wsConnected ? 'Live Updates Active' : 'WS Reconnecting'}
+                </span>
+              </div>
+              <p style={{ color: '#64748B', fontSize: 13, margin: '5px 0 0' }}>
                 You have <span style={{ color: '#D97706', fontWeight: 600 }}>{activeTickets} active tickets</span>.
               </p>
-            </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <Link href="/customer/chat" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 7,

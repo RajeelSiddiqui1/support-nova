@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useRealtimeRefresh } from '../../../lib/useWebSocket'
 import Sidebar from '../../../components/Sidebar'
 import {
   Ticket, ArrowLeft, CheckCircle, AlertTriangle, ShieldCheck, Scale,
@@ -73,6 +74,17 @@ export default function TicketDetailPage({ params: propParams }) {
 
   const [actionAlert, setActionAlert] = useState('')
 
+  // Real-time WebSocket live updates (zero reload)
+  const { isConnected: wsConnected } = useRealtimeRefresh(
+    (event) => {
+      // Re-fetch ticket details whenever an update or reassignment occurs
+      if (!event?.payload?.ticket_id || event.payload.ticket_id === ticketId) {
+        fetchTicketDetail(true)
+      }
+    },
+    ['TICKET_UPDATED', 'TICKET_REASSIGNED', 'REVIEWER_ACTION']
+  )
+
   useEffect(() => {
     if (ticketId) {
       fetchTicketDetail()
@@ -80,8 +92,8 @@ export default function TicketDetailPage({ params: propParams }) {
     }
   }, [ticketId])
 
-  const fetchTicketDetail = async () => {
-    setLoading(true)
+  const fetchTicketDetail = async (isBackground = false) => {
+    if (!isBackground) setLoading(true)
     setError('')
     try {
       const res = await fetch(`${API_BASE}/api/tickets/${encodeURIComponent(ticketId)}`)
@@ -92,9 +104,9 @@ export default function TicketDetailPage({ params: propParams }) {
       setTicket(data)
       setNewStatus(data.status || 'In Progress')
     } catch (err) {
-      setError(err.message || 'Failed to fetch ticket.')
+      if (!isBackground) setError(err.message || 'Failed to fetch ticket.')
     } finally {
-      setLoading(false)
+      if (!isBackground) setLoading(false)
     }
   }
 
@@ -296,8 +308,19 @@ export default function TicketDetailPage({ params: propParams }) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: wsConnected ? '#ECFDF5' : '#FEF2F2',
+              color: wsConnected ? '#059669' : '#DC2626',
+              border: wsConnected ? '1px solid #A7F3D0' : '1px solid #FECACA',
+              fontSize: 11, fontWeight: 700, padding: '6px 12px', borderRadius: 8
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: wsConnected ? '#10B981' : '#EF4444', display: 'inline-block' }} />
+              {wsConnected ? 'Live Sync Active' : 'WS Reconnecting'}
+            </span>
+
             <button
-              onClick={fetchTicketDetail}
+              onClick={() => fetchTicketDetail(false)}
               disabled={loading}
               style={{
                 padding: '7px 12px', borderRadius: 8, border: '1px solid #E2E8F0',

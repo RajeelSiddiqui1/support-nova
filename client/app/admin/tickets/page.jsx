@@ -10,6 +10,7 @@ import {
   ArrowUpRight, ArrowRightLeft, RefreshCw, History, UserCheck, Shield,
   Users, ExternalLink
 } from 'lucide-react'
+import { useRealtimeRefresh } from '../../lib/useWebSocket'
 
 const glass = (extra = {}) => ({
   background: 'rgba(255,255,255,0.82)',
@@ -91,6 +92,12 @@ export default function TicketsPage() {
     fetchMetadata()
     fetchAgentsOverview()
   }, [])
+
+  // Live WebSocket Real-Time Synchronization (Zero-Reload)
+  const { isConnected: isLiveWs } = useRealtimeRefresh(() => {
+    fetchTickets()
+    fetchAgentsOverview()
+  })
 
   const fetchAgentsOverview = async () => {
     setAgentsLoading(true)
@@ -453,6 +460,35 @@ export default function TicketsPage() {
                 </span>
               )}
             </button>
+
+            {/* Live Real-Time WebSocket Indicator */}
+            <div
+              style={{
+                marginLeft: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 14px',
+                borderRadius: 99,
+                background: isLiveWs ? '#ECFDF5' : '#FFFBEB',
+                border: isLiveWs ? '1px solid #A7F3D0' : '1px solid #FDE68A',
+                fontSize: 11,
+                fontWeight: 700,
+                color: isLiveWs ? '#059669' : '#D97706',
+              }}
+              title={isLiveWs ? "Connected to Real-time WebSocket: Updates stream instantly without page reload" : "Reconnecting to WebSocket..."}
+            >
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  background: isLiveWs ? '#059669' : '#D97706',
+                  boxShadow: isLiveWs ? '0 0 8px #10B981' : undefined
+                }}
+              />
+              {isLiveWs ? 'Live Sync Active (Zero Reload)' : 'Connecting...'}
+            </div>
           </div>
 
           {/* ════════════ VIEW 1: ALL COMPLAINT TICKETS QUEUE ════════════ */}

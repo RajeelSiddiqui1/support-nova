@@ -550,8 +550,8 @@ async def fetch_latest_email_ticket() -> Dict[str, Any]:
                 app_password,
                 initial_folder="INBOX"
             ) as mailbox:
-                # Fetch latest 3 messages in reverse order to inspect the latest
-                latest_messages = list(mailbox.fetch(reverse=True, limit=3, mark_seen=True))
+                # Scan a bounded recent batch so duplicate mail cannot hide a nearby customer email.
+                latest_messages = list(mailbox.fetch(reverse=True, limit=50, mark_seen=True))
 
                 if not latest_messages:
                     return {
@@ -562,6 +562,12 @@ async def fetch_latest_email_ticket() -> Dict[str, Any]:
 
                 # Check messages starting from the most recent
                 for msg in latest_messages:
+                    logger.info(
+                        "IMAP message fetched: UID=%s | From=%s | Subj='%s'",
+                        msg.uid,
+                        msg.from_,
+                        msg.subject or "No Subject"
+                    )
                     res = await process_single_email_message(msg, db, user_email)
 
                     if res.get("status") == "ticket_created":
@@ -579,14 +585,8 @@ async def fetch_latest_email_ticket() -> Dict[str, Any]:
                             "checked_at": datetime.utcnow().isoformat()
                         }
                     elif res.get("status") == "already_processed":
-                        # The latest email in the mailbox has ALREADY been processed!
-                        return {
-                            "status": "no_new_email",
-                            "message": f"Inbox is up to date. Latest email (UID {res['uid']}: '{res['subject']}') was already processed.",
-                            "latest_uid": res["uid"],
-                            "latest_subject": res["subject"],
-                            "checked_at": datetime.utcnow().isoformat()
-                        }
+                        # A duplicate is local to this message; keep checking the rest of the batch.
+                        continue
 
                 # If all were skipped (e.g. automated newsletters)
                 return {

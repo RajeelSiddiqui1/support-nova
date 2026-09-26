@@ -236,29 +236,7 @@ export default function Sidebar({ role = 'customer', userName, userEmail }) {
         )}
 
         {/* Role Switcher */}
-        <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(226,232,240,0.5)' }}>
-          <div style={{ fontSize: 9, color: '#CBD5E1', letterSpacing: '0.1em', fontWeight: 700, padding: '2px 8px 6px', textTransform: 'uppercase' }}>
-            SWITCH ROLE
-          </div>
-          {Object.entries(ROLE_META).map(([r, m]) => {
-            const rHref = r === 'customer' ? '/customer/dashboard' : r === 'agent' ? '/agent/workspace' : r === 'reviewer' ? '/reviewer/queue' : '/admin/dashboard'
-            return (
-              <Link key={r} href={rHref}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '7px 10px', borderRadius: 8, marginBottom: 1,
-                  textDecoration: 'none',
-                  background: r === rKey ? `${m.color}10` : 'transparent',
-                  color: r === rKey ? m.color : '#94A3B8',
-                  fontSize: 12, fontWeight: r === rKey ? 600 : 400,
-                  transition: 'all 0.15s',
-                }}
-              >
-                <span>{m.emoji}</span> {m.label}
-              </Link>
-            )
-          })}
-        </div>
+    
       </nav>
 
       {/* User */}

@@ -244,6 +244,151 @@ def evaluate_policy_compliance(ticket: dict) -> dict:
         "policy_reference": python_out.get("policy_reference", "NovaWear Apparel Resolution Guidelines v1.0")
     }
 
+@router.get("/chat-options")
+async def get_chat_complaint_options():
+    """
+    Dynamically generates complaint options and common issue prompt chips for the Customer Chat Intake.
+    Analyzes active categories, departments, and policy rules in MongoDB Atlas:
+    - Never serves obsolete/unrelated categories (e.g. 'Cloud').
+    - Maps real active policies (Cancellation, Shipping/Delivery, Quality, Billing, Warranty, Replacement, Refund)
+      to customer-facing selection chips.
+    """
+    db = get_database()
+    categories = await db.categories.find({"status": "ACTIVE"}).to_list(100)
+    departments = await db.departments.find({"status": "ACTIVE"}).to_list(100)
+    policies = await db.kb_docs.find({}).to_list(100)
+
+    # Category icon & branding map for apparel & customer issues
+    CAT_META = {
+        "delivery": {"icon": "📦", "label": "Order & Shipping Delay", "default_dept": "Logistics"},
+        "del": {"icon": "📦", "label": "Order & Shipping Delay", "default_dept": "Logistics"},
+        "refund": {"icon": "💰", "label": "Refund & Payment Return", "default_dept": "Finance"},
+        "ref": {"icon": "💰", "label": "Refund & Payment Return", "default_dept": "Finance"},
+        "replacement": {"icon": "🔄", "label": "Item Replacement & Exchange", "default_dept": "Fulfillment"},
+        "rep": {"icon": "🔄", "label": "Item Replacement & Exchange", "default_dept": "Fulfillment"},
+        "exchange": {"icon": "🔄", "label": "Size & Color Exchange", "default_dept": "Fulfillment"},
+        "warranty": {"icon": "🛡️", "label": "Product Warranty & Stitching Defect", "default_dept": "Quality"},
+        "war": {"icon": "🛡️", "label": "Product Warranty & Stitching Defect", "default_dept": "Quality"},
+        "billing": {"icon": "💳", "label": "Billing & Double Charge", "default_dept": "Billing"},
+        "bil": {"icon": "💳", "label": "Billing & Double Charge", "default_dept": "Billing"},
+        "quality": {"icon": "✨", "label": "Fabric & Quality Control Issue", "default_dept": "Quality"},
+        "qual": {"icon": "✨", "label": "Fabric & Quality Control Issue", "default_dept": "Quality"},
+        "cancel": {"icon": "🚫", "label": "Order Cancellation Request", "default_dept": "Logistics"},
+        "can": {"icon": "🚫", "label": "Order Cancellation Request", "default_dept": "Logistics"},
+        "general": {"icon": "👕", "label": "Apparel & General Customer Support", "default_dept": "Clothes"},
+        "gernal": {"icon": "👕", "label": "Apparel & General Customer Support", "default_dept": "Clothes"},
+        "clothes": {"icon": "👗", "label": "Clothing Sizing & Apparel Inquiry", "default_dept": "Clothes"}
+    }
+
+    # Policy sub-issues mapping
+    POLICY_ISSUES = {
+        "delivery": [
+            "Order delayed by > 72 hours without carrier update",
+            "Tracking indicates delivered but package not received",
+            "Wrong shipment tracking number provided"
+        ],
+        "refund": [
+            "Return request delivered but refund not credited",
+            "Double charge charged to credit card on checkout",
+            "Refund amount deducted without authorization"
+        ],
+        "replacement": [
+            "Wrong apparel size / color delivered in parcel",
+            "Damaged package with missing clothing item",
+            "Defective zipper / stitching on received item"
+        ],
+        "warranty": [
+            "Fabric tore / shrunk after first wash as per care label",
+            "Item stopped working within 30-day warranty window",
+            "Manufacturing flaw in apparel seam or zipper"
+        ],
+        "billing": [
+            "Credit card charged twice for single order transaction",
+            "Discount voucher / coupon code failed to apply",
+            "Invoice amount does not match online order total"
+        ],
+        "quality": [
+            "Apparel fabric quality does not match catalog description",
+            "Visible stain / tear on brand new clothing item",
+            "Color fading or dye bleed immediately upon unboxing"
+        ],
+        "cancel": [
+            "Order cancellation requested prior to warehouse dispatch",
+            "Accidental duplicate order placed",
+            "Incorrect shipping address entered at checkout"
+        ]
+    }
+
+    # Fallback department name
+    first_dept_name = departments[0].get("name") if departments else "Clothes"
+
+    complaint_types = []
+    common_issues = {}
+
+    for c in categories:
+        c_name = c.get("name", "").strip()
+        c_code = (c.get("code") or "").strip().lower()
+        c_key = c_code if c_code in CAT_META else c_name.lower()
+
+        # Strictly ignore any obsolete "cloud" category
+        if "cloud" in c_key or "cloud" in c_name.lower():
+            continue
+
+        meta = CAT_META.get(c_key) or CAT_META.get(c_name.lower()) or {
+            "icon": "📋",
+            "label": f"{c_name} Inquiry",
+            "default_dept": first_dept_name
+        }
+
+        # Resolve department from available depts
+        matched_dept = first_dept_name
+        for d in departments:
+            d_name = d.get("name", "")
+            if d_name.lower() == meta["default_dept"].lower() or d_name.lower() in meta["default_dept"].lower():
+                matched_dept = d_name
+                break
+
+        complaint_types.append({
+            "id": c_code or c_name.lower(),
+            "label": f"{meta['icon']} {meta['label']}",
+            "dept": matched_dept,
+            "category": c_name,
+            "cat_id": c.get("cat_id")
+        })
+
+        # Match policy issues
+        issues = POLICY_ISSUES.get(c_code) or POLICY_ISSUES.get(c_name.lower()) or [
+            f"Issue regarding {c_name} policy",
+            f"Customer assistance required for {c_name}",
+            f"Escalation regarding {c_name} guideline"
+        ]
+        common_issues[c_name] = issues
+        common_issues[matched_dept] = issues
+
+    # If categories list was empty in DB, provide standard e-commerce apparel categories
+    if not complaint_types:
+        complaint_types = [
+            {"id": "del", "label": "📦 Order & Shipping Delay", "dept": first_dept_name, "category": "Delivery"},
+            {"id": "ref", "label": "💰 Refund & Payment Return", "dept": first_dept_name, "category": "Refund"},
+            {"id": "rep", "label": "🔄 Item Replacement & Exchange", "dept": first_dept_name, "category": "Replacement"},
+            {"id": "qual", "label": "✨ Fabric Quality & Damaged Apparel", "dept": first_dept_name, "category": "Quality"},
+            {"id": "bil", "label": "💳 Billing & Double Charge", "dept": first_dept_name, "category": "Billing"},
+            {"id": "war", "label": "🛡️ Product Warranty & Defect", "dept": first_dept_name, "category": "Warranty"},
+            {"id": "can", "label": "🚫 Order Cancellation Request", "dept": first_dept_name, "category": "Cancel"},
+        ]
+        common_issues = POLICY_ISSUES
+
+    dept_names = [d.get("name") for d in departments if d.get("name")]
+    if not dept_names:
+        dept_names = ["Clothes", "Logistics", "Finance", "Quality"]
+
+    return {
+        "complaint_types": complaint_types,
+        "common_issues": common_issues,
+        "departments": dept_names,
+        "policies_count": len(policies)
+    }
+
 @router.get("/department/agent-activity")
 async def get_department_agent_activity(
     department_id: Optional[str] = None,
@@ -259,13 +404,18 @@ async def get_department_agent_activity(
     """
     db = get_database()
     query = {}
-    if department_id and department_id.strip():
-        query["$or"] = [
-            {"department_id": department_id.strip()},
-            {"department": {"$regex": f"^{department_id.strip()}$", "$options": "i"}}
-        ]
-    elif department and department.strip():
-        query["department"] = {"$regex": f"^{department.strip()}$", "$options": "i"}
+    is_all_depts = (
+        (department_id and department_id.strip().upper() in ["ALL", "DEP-ALL", "ALL DEPARTMENTS"]) or
+        (department and department.strip().upper() in ["ALL", "ALL DEPARTMENTS"])
+    )
+    if not is_all_depts:
+        if department_id and department_id.strip():
+            query["$or"] = [
+                {"department_id": department_id.strip()},
+                {"department": {"$regex": f"^{department_id.strip()}$", "$options": "i"}}
+            ]
+        elif department and department.strip():
+            query["department"] = {"$regex": f"^{department.strip()}$", "$options": "i"}
 
     cursor = db.tickets.find(query).sort("created_at", -1)
     tickets = await cursor.to_list(length=300)

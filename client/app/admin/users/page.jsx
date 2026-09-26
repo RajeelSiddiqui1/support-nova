@@ -180,8 +180,8 @@ export default function UsersPage() {
     e.preventDefault()
     if (!staffForm.name || !staffForm.email || !staffForm.department) return
 
-    if ((staffForm.role === 'AGENT' || staffForm.role === 'REVIEWER') && !staffForm.reporting_manager_id) {
-      alert(`Reporting Manager is required for ${staffForm.role} role. Please select an active Manager from ${staffForm.department}.`)
+    if (staffForm.role === 'AGENT' && !staffForm.reporting_manager_id) {
+      alert(`Reporting Manager is required for AGENT role. Please select an active Manager from ${staffForm.department}.`)
       return
     }
 
@@ -190,10 +190,17 @@ export default function UsersPage() {
     setCreatedTemp('')
 
     try {
+      const payload = { ...staffForm }
+      if (payload.role === 'REVIEWER') {
+        payload.department = payload.department || 'All Departments'
+        payload.department_id = payload.department_id || 'DEP-ALL'
+        payload.reporting_manager_id = ''
+      }
+
       const res = await fetch(`${API_BASE}/api/admin/create-staff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(staffForm),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
 
@@ -218,17 +225,24 @@ export default function UsersPage() {
     e.preventDefault()
     if (!editForm.name || !editForm.email) return
 
-    if ((editForm.role === 'AGENT' || editForm.role === 'REVIEWER') && !editForm.reporting_manager_id) {
-      alert(`Reporting Manager is required for ${editForm.role} role.`)
+    if (editForm.role === 'AGENT' && !editForm.reporting_manager_id) {
+      alert(`Reporting Manager is required for AGENT role.`)
       return
     }
 
     setEditLoading(true)
     try {
+      const payload = { ...editForm }
+      if (payload.role === 'REVIEWER') {
+        payload.department = payload.department || 'All Departments'
+        payload.department_id = payload.department_id || 'DEP-ALL'
+        payload.reporting_manager_id = ''
+      }
+
       const res = await fetch(`${API_BASE}/api/admin/users/${editModalUser.user_id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
 
@@ -367,6 +381,9 @@ export default function UsersPage() {
                           onChange={e => handleCreateDeptChange(e.target.value)}
                           style={{ width:'100%', padding:'9px 12px', borderRadius:10, border:'1.5px solid rgba(226,232,240,0.8)', background:'rgba(248,250,252,0.9)', fontSize:13, outline:'none', cursor:'pointer' }}
                         >
+                          {staffForm.role === 'REVIEWER' && (
+                            <option value="All Departments">🌐 All Departments (Cross-Department)</option>
+                          )}
                           {deptsList.length > 0 ? (
                             deptsList.map(d => (
                               <option key={d.dept_id || d.name} value={d.dept_id || d.name}>
@@ -379,8 +396,19 @@ export default function UsersPage() {
                         </select>
                       </div>
 
-                      {/* Dynamic Reporting Manager Field for Agent & Reviewer */}
-                      {(staffForm.role === 'AGENT' || staffForm.role === 'REVIEWER') && (
+                      {/* Reviewer Cross-Department Notice */}
+                      {staffForm.role === 'REVIEWER' && (
+                        <div style={{ gridColumn: 'span 2', marginTop: 4, background: '#FFFBEB', border: '1px solid #FDE68A', padding: '12px 14px', borderRadius: 10, fontSize: 12, color: '#B45309', display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ fontSize: 18 }}>⚖️</span>
+                          <div>
+                            <strong style={{ display: 'block', marginBottom: 2 }}>Independent Reviewer (Global Cross-Department Access)</strong>
+                            <span>Reviewers operate across all departments and complaint queues with direct administrative audit capability. Not assigned under any department manager.</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Dynamic Reporting Manager Field for Agent Only */}
+                      {staffForm.role === 'AGENT' && (
                         <div style={{ gridColumn: 'span 2', marginTop: 4 }}>
                           <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#7C3AED', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>
                             Reporting Manager (Filtered to {staffForm.department || 'Department'}) *
@@ -468,6 +496,9 @@ export default function UsersPage() {
                         onChange={e => handleEditDeptChange(e.target.value)}
                         style={{ width:'100%', padding:'9px 12px', borderRadius:10, border:'1.5px solid rgba(226,232,240,0.8)', background:'rgba(248,250,252,0.9)', fontSize:13, outline:'none', cursor:'pointer' }}
                       >
+                        {editForm.role === 'REVIEWER' && (
+                          <option value="All Departments">🌐 All Departments (Cross-Department)</option>
+                        )}
                         {deptsList.length > 0 ? (
                           deptsList.map(d => (
                             <option key={d.dept_id || d.name} value={d.dept_id || d.name}>
@@ -480,8 +511,19 @@ export default function UsersPage() {
                       </select>
                     </div>
 
-                    {/* Dynamic Reporting Manager for Agent & Reviewer */}
-                    {(editForm.role === 'AGENT' || editForm.role === 'REVIEWER') && (
+                    {/* Reviewer Cross-Department Notice */}
+                    {editForm.role === 'REVIEWER' && (
+                      <div style={{ gridColumn: 'span 2', marginTop: 4, background: '#FFFBEB', border: '1px solid #FDE68A', padding: '12px 14px', borderRadius: 10, fontSize: 12, color: '#B45309', display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 18 }}>⚖️</span>
+                        <div>
+                          <strong style={{ display: 'block', marginBottom: 2 }}>Independent Reviewer (Global Cross-Department Access)</strong>
+                          <span>Reviewers operate across all departments with direct administrative audit capability. Not bound to any department manager.</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dynamic Reporting Manager for Agent Only */}
+                    {editForm.role === 'AGENT' && (
                       <div style={{ gridColumn: 'span 2', marginTop: 4 }}>
                         <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#7C3AED', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>
                           Reporting Manager (Filtered to {editForm.department || 'Department'}) *

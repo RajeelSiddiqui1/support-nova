@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRealtimeRefresh } from '../../lib/useWebSocket'
 import Sidebar from '../../components/Sidebar'
 import Navbar from '../../components/Navbar'
 import StatCard from '../../components/StatCard'
@@ -63,6 +64,15 @@ export default function AgentWorkspace() {
 
   // Confirmation Toast
   const [emailAlert, setEmailAlert]   = useState('')
+
+  // Live WebSocket Real-time Sync (zero reload)
+  const { isConnected: wsConnected } = useRealtimeRefresh(
+    () => {
+      fetchTickets(true)
+      fetchAgents()
+    },
+    ['TICKET_CREATED', 'TICKET_UPDATED', 'TICKET_REASSIGNED', 'REVIEWER_ACTION', 'AGENT_WORKLOAD_CHANGE']
+  )
 
   useEffect(() => {
     fetchAgents()
@@ -139,8 +149,8 @@ export default function AgentWorkspace() {
     } catch (e) {}
   }
 
-  const fetchTickets = async () => {
-    setLoading(true)
+  const fetchTickets = async (isBackground = false) => {
+    if (!isBackground) setLoading(true)
     try {
       const res = await fetch(`${API_BASE}/api/tickets`)
       if (res.ok) {
@@ -164,7 +174,7 @@ export default function AgentWorkspace() {
       }
     } catch (e) {
     } finally {
-      setLoading(false)
+      if (!isBackground) setLoading(false)
     }
   }
 
@@ -554,11 +564,21 @@ export default function AgentWorkspace() {
                 </div>
               </div>
 
-              {/* 30s Auto Poller Status Badge */}
+              {/* 30s Auto Poller & WebSocket Status Badges */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, fontSize: 10 }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#ECFDF5', color: '#047857', padding: '2px 8px', borderRadius: 6, fontWeight: 600, border: '1px solid #A7F3D0' }}>
                   <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
                   30s Poller: {syncStatusText}
+                </span>
+                <span style={{ 
+                  display: 'inline-flex', alignItems: 'center', gap: 4, 
+                  background: wsConnected ? '#ECFDF5' : '#FEF2F2', 
+                  color: wsConnected ? '#047857' : '#DC2626', 
+                  padding: '2px 8px', borderRadius: 6, fontWeight: 600, 
+                  border: wsConnected ? '1px solid #A7F3D0' : '1px solid #FECACA' 
+                }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: wsConnected ? '#10B981' : '#EF4444', display: 'inline-block' }} />
+                  {wsConnected ? 'WebSocket Live' : 'WS Reconnecting'}
                 </span>
               </div>
 

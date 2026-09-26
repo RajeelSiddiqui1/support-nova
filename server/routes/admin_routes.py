@@ -120,11 +120,18 @@ async def create_staff(req: CreateStaffRequest):
     reporting_mgr_email = None
 
     # Role Hierarchy Enforcement
-    if role_upper in ["AGENT", "REVIEWER"]:
+    if role_upper == "REVIEWER":
+        # Reviewers have cross-department oversight across all complaints and do not report to a single department manager
+        dept_name = req.department or "All Departments"
+        dept_id = req.department_id or "DEP-ALL"
+        reporting_mgr_id = None
+        reporting_mgr_name = None
+        reporting_mgr_email = None
+    elif role_upper == "AGENT":
         if not req.reporting_manager_id or not req.reporting_manager_id.strip():
             raise HTTPException(
                 status_code=400,
-                detail=f"Reporting Manager is required for {role_upper.capitalize()} role."
+                detail="Reporting Manager is required for Agent role."
             )
 
         # Verify reporting manager exists, is active, is a MANAGER, and belongs to same department
@@ -235,12 +242,18 @@ async def update_staff_user(req: UpdateStaffRequest, user_id: Optional[str] = No
     update_fields["department_id"] = new_dept_id
 
     # Role Hierarchy for Edit
-    if new_role in ["AGENT", "REVIEWER"]:
+    if new_role == "REVIEWER":
+        update_fields["department"] = req.department or "All Departments"
+        update_fields["department_id"] = req.department_id or "DEP-ALL"
+        update_fields["reporting_manager_id"] = None
+        update_fields["reporting_manager_name"] = None
+        update_fields["reporting_manager_email"] = None
+    elif new_role == "AGENT":
         mgr_id = req.reporting_manager_id or user.get("reporting_manager_id")
         if not mgr_id or not str(mgr_id).strip():
             raise HTTPException(
                 status_code=400,
-                detail=f"Reporting Manager is required for {new_role.capitalize()} role."
+                detail="Reporting Manager is required for Agent role."
             )
 
         manager = await db.users.find_one({

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { useRealtimeRefresh } from '../../lib/useWebSocket'
 import Sidebar from '../../components/Sidebar'
 import Navbar from '../../components/Navbar'
 import Link from 'next/link'
@@ -29,50 +30,71 @@ const glass = {
 }
 
 const DEFAULT_COMPLAINT_TYPES = [
-  { id: 'delivery', label: '📦 Order & Delivery Delay', dept: 'Logistics', category: 'Delivery Issue' },
-  { id: 'billing', label: '💳 Billing & Double Charge', dept: 'Billing', category: 'Billing Error' },
-  { id: 'return', label: '🔄 Product Return & Refund', dept: 'Returns', category: 'Refund Request' },
-  { id: 'warranty', label: '🛠️ Defective Product & Warranty', dept: 'Warranty', category: 'Product Defect' },
-  { id: 'cloud', label: '☁️ Cloud & Server Instance', dept: 'Cloud', category: 'Cloud Service' },
-  { id: 'security', label: '🔐 Account & Security Concern', dept: 'Account Security', category: 'Account Security' }
+  { id: 'del', label: '📦 Order & Shipping Delay', dept: 'Clothes', category: 'Delivery' },
+  { id: 'ref', label: '💰 Refund & Payment Return', dept: 'Clothes', category: 'Refund' },
+  { id: 'rep', label: '🔄 Item Replacement & Exchange', dept: 'Clothes', category: 'Replacement' },
+  { id: 'qual', label: '✨ Fabric Quality & Damaged Apparel', dept: 'Clothes', category: 'Quality' },
+  { id: 'bil', label: '💳 Billing & Double Charge', dept: 'Clothes', category: 'Billing' },
+  { id: 'war', label: '🛡️ Product Warranty & Stitching Defect', dept: 'Clothes', category: 'Warranty' },
+  { id: 'can', label: '🚫 Order Cancellation Request', dept: 'Clothes', category: 'Cancel' }
 ]
 
-const COMMON_ISSUES = {
-  Logistics: [
+const DEFAULT_COMMON_ISSUES = {
+  Delivery: [
     'Order delayed by > 72 hours without carrier update',
     'Tracking shows delivered but package not received',
-    'Wrong items delivered in shipment'
+    'Wrong shipment tracking number provided'
+  ],
+  Refund: [
+    'Return request delivered but refund not credited',
+    'Double charge charged to credit card on checkout',
+    'Refund amount deducted without authorization'
+  ],
+  Replacement: [
+    'Wrong apparel size / color delivered in parcel',
+    'Damaged package with missing clothing item',
+    'Defective zipper / stitching on received item'
+  ],
+  Quality: [
+    'Apparel fabric quality does not match catalog description',
+    'Visible stain / tear on brand new clothing item',
+    'Color fading or dye bleed immediately upon unboxing'
   ],
   Billing: [
-    'Credit card charged twice for single transaction',
-    'Promotional discount / coupon code not applied',
-    'Invoice amount does not match order total'
-  ],
-  Returns: [
-    'Return request initiated but pick-up delayed',
-    'Refund status still pending after 5 business days',
-    'Return shipping label not generated'
+    'Credit card charged twice for single order transaction',
+    'Discount voucher / coupon code failed to apply',
+    'Invoice amount does not match online order total'
   ],
   Warranty: [
-    'Product arrived damaged / broken in box',
-    'Item stopped working within warranty period',
-    'Missing accessories / user manual'
+    'Fabric tore / shrunk after first wash as per care label',
+    'Item stopped working within 30-day warranty window',
+    'Manufacturing flaw in apparel seam or zipper'
   ],
-  Cloud: [
-    'Cloud instance unexpectedly terminated or unreachable',
-    'Pro-rated refund requested for unused VM hours',
-    'Billing charge exceeded provisioned server specs'
+  Cancel: [
+    'Order cancellation requested prior to warehouse dispatch',
+    'Accidental duplicate order placed',
+    'Incorrect shipping address entered at checkout'
   ],
-  'Account Security': [
-    'Unauthorized account login attempt detected',
-    'Unable to reset account password',
-    'Suspicious activity on stored payment method'
+  Clothes: [
+    'Sizing inquiry: Size L fits smaller than size chart',
+    'Fabric material question or defective stitching',
+    'Color discrepancy between product photo and delivered item'
   ]
 }
 
 export default function CustomerChatIntake() {
   const [step, setStep] = useState(1) // 1: Type, 2: Dept, 3: Details, 4: Order ID, 5: Review
-  const [departments, setDepartments] = useState(['Logistics', 'Billing', 'Returns', 'Warranty', 'Cloud', 'Technical Support', 'Account Security', 'Customer Relations'])
+  const [departments, setDepartments] = useState(['Clothes', 'Logistics', 'Finance', 'Quality', 'Fulfillment'])
+  const [complaintTypes, setComplaintTypes] = useState(DEFAULT_COMPLAINT_TYPES)
+  const [commonIssues, setCommonIssues] = useState(DEFAULT_COMMON_ISSUES)
+
+  // Live WebSocket Real-Time Synchronization for Chat Options
+  const { isConnected: wsConnected } = useRealtimeRefresh(
+    () => {
+      fetchChatOptions()
+    },
+    ['TICKET_CREATED', 'TICKET_UPDATED']
+  )
   
   // Chat state
   const [messages, setMessages] = useState([
@@ -100,8 +122,27 @@ export default function CustomerChatIntake() {
 
   useEffect(() => {
     fetchDepartments()
+    fetchChatOptions()
     loadSessionUser()
   }, [])
+
+  const fetchChatOptions = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/tickets/chat-options`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.complaint_types && data.complaint_types.length > 0) {
+          setComplaintTypes(data.complaint_types)
+        }
+        if (data.common_issues && Object.keys(data.common_issues).length > 0) {
+          setCommonIssues(data.common_issues)
+        }
+        if (data.departments && data.departments.length > 0) {
+          setDepartments(data.departments)
+        }
+      }
+    } catch (e) {}
+  }
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -443,7 +484,7 @@ export default function CustomerChatIntake() {
                         Click to select issue type or describe in the text box below:
                       </p>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                        {DEFAULT_COMPLAINT_TYPES.map(t => (
+                        {complaintTypes.map(t => (
                           <button
                             key={t.id}
                             onClick={() => handleSelectType(t)}
@@ -493,7 +534,7 @@ export default function CustomerChatIntake() {
                         Quick Suggestions for {selectedDept}:
                       </p>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-                        {(COMMON_ISSUES[selectedDept] || COMMON_ISSUES['Logistics']).map((iss, i) => (
+                        {(commonIssues[selectedDept] || commonIssues[complaintType?.category] || Object.values(commonIssues)[0] || []).map((iss, i) => (
                           <button
                             key={i}
                             type="button"
@@ -544,7 +585,7 @@ export default function CustomerChatIntake() {
                         <input
                           type="text"
                           required
-                          placeholder="Product / Service Name (e.g. Cloud VM, Earbuds)"
+                          placeholder="Product Item (e.g. Winter Hoodie, Denim Jacket)"
                           value={productService}
                           onChange={e => setProduct(e.target.value)}
                           style={{ padding: '10px 14px', borderRadius: 10, border: '1.5px solid #CBD5E1', fontSize: 13, outline: 'none' }}
@@ -552,7 +593,7 @@ export default function CustomerChatIntake() {
                         <input
                           type="text"
                           required
-                          placeholder="Order Reference ID (e.g. ORD-78234, CLD-991)"
+                          placeholder="Order Reference ID (e.g. ORD-78234, #98213)"
                           value={orderId}
                           onChange={e => setOrderId(e.target.value)}
                           style={{ padding: '10px 14px', borderRadius: 10, border: '1.5px solid #CBD5E1', fontSize: 13, outline: 'none' }}

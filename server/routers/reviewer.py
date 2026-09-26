@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from typing import List, Optional
+from datetime import datetime
 
 from lib.db import get_database
 from schemas.reviewer import (
@@ -10,6 +12,17 @@ from schemas.reviewer import (
     AuditReviewerLogResponse
 )
 from services.reviewer_service import ReviewerService
+
+class ClaimReviewerRequest(BaseModel):
+    reviewer_id: str
+    reviewer_name: Optional[str] = "Reviewer"
+
+class AssignReviewerRequest(BaseModel):
+    new_reviewer_id: str
+    new_reviewer_name: Optional[str] = None
+    assigned_by_id: Optional[str] = None
+    assigned_by_name: Optional[str] = None
+    reason: Optional[str] = "Reviewer workload rebalancing"
 
 router = APIRouter(
     prefix="/api/reviewer",
@@ -133,3 +146,117 @@ async def get_ticket_audit_logs(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve audit logs from MongoDB Atlas: {str(e)}"
         )
+
+@router.get("/reviewers", summary="List all active Reviewers across all departments")
+async def list_active_reviewers(db=Depends(get_database)):
+    """Fetches all active users with role REVIEWER or ADMIN for cross-department ticket assignment."""
+    cursor = db.users.find(
+        {"role": {"$in": ["REVIEWER", "ADMIN"]}, "status": "ACTIVE"},
+        {"hashed_password": 0, "otp_code": 0}
+    )
+    reviewers = await cursor.to_list(length=100)
+    for r in reviewers:
+        r["_id"] = str(r["_id"])
+    return reviewers
+
+@router.post("/tickets/{ticket_id}/claim", summary="Reviewer claims review of ticket")
+async def claim_ticket_review(ticket_id: str, req: ClaimReviewerRequest, db=Depends(get_database)):
+    """Assigns the ticket review to the requesting Reviewer."""
+    ticket = await db.tickets.find_one({"$or": [{"ticket_id": ticket_id}, {"_id": ticket_id}]})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found.")
+
+    t_id = ticket.get("ticket_id") or str(ticket.get("_id"))
+    update_doc = {
+        "assigned_reviewer_id": req.reviewer_id,
+        "assigned_reviewer_name": req.reviewer_name or "Reviewer",
+        "assigned_reviewer_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow()
+    }
+    history_entry = {
+        "action": "REVIEWER_CLAIMED_TICKET",
+        "reviewer_id": req.reviewer_id,
+        "reviewer_name": req.reviewer_name,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+    await db.tickets.update_one(
+        {"ticket_id": t_id},
+        {
+            "$set": update_doc,
+            "$push": {"assigned_agent_history": history_entry}
+        }
+    )
+
+    try:
+        from lib.websocket_manager import ws_manager
+        await ws_manager.notify_reviewer_action(
+            ticket_id=t_id,
+            action="CLAIM_REVIEW",
+            reviewer_name=req.reviewer_name,
+            new_status=ticket.get("status", "In Triage")
+        )
+    except Exception as wse:
+        print(f"[WS ERROR] {wse}")
+
+    return {
+        "status": "success",
+        "message": f"Ticket {t_id} assigned to Reviewer {req.reviewer_name}.",
+        "assigned_reviewer_id": req.reviewer_id,
+        "assigned_reviewer_name": req.reviewer_name
+    }
+
+@router.post("/tickets/{ticket_id}/assign-reviewer", summary="Reassign review ticket to another Reviewer")
+async def reassign_reviewer_ticket(ticket_id: str, req: AssignReviewerRequest, db=Depends(get_database)):
+    """Transfers the review ticket to another specified Reviewer."""
+    ticket = await db.tickets.find_one({"$or": [{"ticket_id": ticket_id}, {"_id": ticket_id}]})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found.")
+
+    t_id = ticket.get("ticket_id") or str(ticket.get("_id"))
+    new_reviewer = await db.users.find_one({"user_id": req.new_reviewer_id, "status": "ACTIVE"})
+    new_name = req.new_reviewer_name or (new_reviewer.get("name") if new_reviewer else "Reviewer")
+
+    update_doc = {
+        "assigned_reviewer_id": req.new_reviewer_id,
+        "assigned_reviewer_name": new_name,
+        "assigned_reviewer_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow()
+    }
+    history_entry = {
+        "action": "REVIEWER_REASSIGNED",
+        "previous_reviewer_id": ticket.get("assigned_reviewer_id"),
+        "previous_reviewer_name": ticket.get("assigned_reviewer_name"),
+        "new_reviewer_id": req.new_reviewer_id,
+        "new_reviewer_name": new_name,
+        "reassigned_by_id": req.assigned_by_id,
+        "reassigned_by_name": req.assigned_by_name,
+        "reason": req.reason or "Reviewer workload rebalancing",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+    await db.tickets.update_one(
+        {"ticket_id": t_id},
+        {
+            "$set": update_doc,
+            "$push": {"assigned_agent_history": history_entry}
+        }
+    )
+
+    try:
+        from lib.websocket_manager import ws_manager
+        await ws_manager.notify_reviewer_action(
+            ticket_id=t_id,
+            action="REASSIGN_REVIEWER",
+            reviewer_name=new_name,
+            new_status=ticket.get("status", "In Triage")
+        )
+    except Exception as wse:
+        print(f"[WS ERROR] {wse}")
+
+    return {
+        "status": "success",
+        "message": f"Review ticket {t_id} reassigned to Reviewer {new_name}.",
+        "assigned_reviewer_id": req.new_reviewer_id,
+        "assigned_reviewer_name": new_name
+    }

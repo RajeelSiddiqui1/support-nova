@@ -99,6 +99,13 @@ flowchart TD
 ---
 
 ### Stage 3: Verification & Reviewer Workspace (`/reviewer/queue`)
+* **Independent Reviewer Governance (Cross-Department Architecture):**
+  - **No Manager Hierarchy Binding:** Reviewers are decoupled from department managers (autonomous role, neither department-bound nor manager-subordinated). In Admin User Management, creating a Reviewer does not require selecting a manager.
+  - **Company-Wide Global Access:** Reviewers possess global oversight across **all departments** (`DEP-ALL`), with an intuitive Department Scope filter to switch between `🌐 All Departments (Global Review)` or isolate specific departmental queues.
+  - **Ticket Claiming & Inter-Reviewer Transfer:**
+    - Any Reviewer can claim an unassigned review ticket for themselves with a single click (`POST /api/reviewer/tickets/{id}/claim`).
+    - Tickets can be seamlessly transferred/reassigned between reviewers (`POST /api/reviewer/tickets/{id}/assign-reviewer`) with complete reason tracking and audit trail.
+    - Status badges in the queue immediately show `🧑‍⚖️ Reviewer: {Name}` or `⚠️ Unclaimed Review`.
 * **Automatic Routing Criteria:**
   - Pipeline 1 and Pipeline 2 have a discrepancy or conflict.
   - Policy citation is missing, ambiguous, or flags an unauthorized fee waiver.
@@ -108,7 +115,7 @@ flowchart TD
   - **Pipeline 1 Output:** GenAI detected intent, mapped policy, and drafted customer reply.
   - **Pipeline 2 Output:** Ground-Truth Rule ID, deterministic verdict (`APPROVE` / `BLOCK` / `ESCALATE`), and conflict diffs.
 * **Reviewer Actions (`POST /api/reviewer/tickets/{id}/action`):**
-  - `APPROVE`: Authorize AI response and dispatch to agent workspace.
+  - `APPROVE`: Authorize AI response, finalize policy compliance, and dispatch resolution to agent workspace.
   - `MODIFY`: Edit drafted reply text or category before dispatch.
   - `RECLASSIFY`: Correct category/department routing.
   - `REGENERATE`: Re-prompt Groq GenAI with specific human reviewer critiques.
@@ -116,6 +123,16 @@ flowchart TD
   - `ADD_INTERNAL_NOTE`: Attach confidential investigation notes.
 * **MongoDB Atlas Audit Logger (`reviewer_audit_logs` collection):**
   - Every override is committed to the MongoDB Atlas `reviewer_audit_logs` collection (`ticket_id`, `reviewer_id`, `original_ai_output`, `reviewer_modified_output`, `override_reason`, `timestamp`).
+
+---
+
+### Stage 3.1: Dynamic AI Customer Chat & Zero-Reload WebSocket Sync
+* **E-Commerce / Apparel Grounding (`/api/tickets/chat-options`):**
+  - All obsolete "Cloud" options have been completely expunged.
+  - Guided chips and prompt suggestions are generated dynamically from MongoDB Atlas collections (`categories`, `departments`, `kb_docs`), focusing purely on NovaWear Apparel needs (`Delivery`, `Refund`, `Replacement`, `Warranty`, `Quality`, `Billing`, `Cancellation`).
+* **Full-Stack Zero-Reload WebSocket Sync (`useWebSocket.js` / `/ws`):**
+  - Every ticket status update, agent reassignment, reviewer claim, and draft reply broadcasts a WebSocket event (`TICKET_CREATED`, `TICKET_UPDATED`, `AGENT_REASSIGNED`, `REVIEWER_CLAIMED`, `REFRESH_DATA`).
+  - Dashboards update live instantaneously without requiring manual browser reloads.
 
 ---
 
@@ -139,7 +156,7 @@ flowchart TD
    - Unified real-time filter across all channels (Web Form, Email, Chat), departments, and statuses.
    - Quick "Peek" slide-out drawer for fast scanning without leaving the list.
    - Direct button link to the dedicated 360° detail page.
-2. **Agent Live Oversight & Workload Monitor ("کتنے ایجنٹ ہیں، کیا کام کر رہے ہیں"):**
+2. **Agent Live Oversight & Workload Monitor (Live Roster & Task Visibility):**
    - **Real-Time KPI Cards:** Total Agents, Actively Engaged, Idle / Available, Active Workload, Total Resolved.
    - **Agent Detail Cards:**
      - Live presence (🟢 Actively Handling vs ⚪ Idle / Available).
@@ -181,23 +198,23 @@ flowchart TD
 4. **Clean Root Requirements ([`requirements.txt`](file:///c:/rajeel/support-nova/requirements.txt)):**
    - 100% pure MongoDB Atlas async stack with zero SQL dependencies.
 
-### 🔑 Vercel Environment Variables Checklist (ورسل ڈیش بورڈ کے لیے متغیرات)
-جب آپ پروجیکٹ کو Vercel پر ڈپلائے کریں تو Vercel Dashboard -> **Settings** -> **Environment Variables** میں درج ذیل ویلیوز سیٹ کریں (کسی SQL سرور کی ضرورت نہیں ہے):
+### 🔑 Vercel Environment Variables Checklist
+When deploying the application to Vercel, configure the following environment variables in Vercel Dashboard -> **Settings** -> **Environment Variables** (no SQL server required):
 
 | Variable Name | Description / Example Value |
 |---|---|
 | `MONGO_URI` | `mongodb+srv://<user>:<password>@cluster0.1cdmxhf.mongodb.net/supportnova_db?retryWrites=true&w=majority` |
-| `FRONTEND_URL` | `https://your-app-name.vercel.app` (آپ کی ورسل لائیو ویب سائٹ کا یو آر ایل) |
-| `NEXT_PUBLIC_API_URL` | `https://your-app-name.vercel.app` (یا مونو ریپو میں خالی چھوڑ دیں) |
+| `FRONTEND_URL` | `https://your-app-name.vercel.app` (Your production live Vercel URL) |
+| `NEXT_PUBLIC_API_URL` | `https://your-app-name.vercel.app` (Or leave empty for monorepo same-origin) |
 | `JWT_SECRET` | `supportnova_super_secret_jwt_key_2026` |
-| `GROQ_API_KEY` | آپ کی Groq LLM API Key |
+| `GROQ_API_KEY` | Your Groq LLM API Key |
 | `GROQ_MODEL` | `openai/gpt-oss-20b` |
-| `QDRANT_API_KEY` | آپ کی Qdrant Cloud API Key |
+| `QDRANT_API_KEY` | Your Qdrant Cloud API Key |
 | `QDRANT_END_POINT` | `https://4e155431-0900-497b-831d-bcf6a9efc89e.us-east-1-1.aws.cloud.qdrant.io` |
-| `AWS_ACCESS_KEY_ID` | `AKIAT7HJZSB7YXZB6UEM` (S3 پالیسی بکٹ کے لیے) |
+| `AWS_ACCESS_KEY_ID` | `AKIAT7HJZSB7YXZB6UEM` (For S3 Policy PDF Bucket) |
 | `AWS_SECRET_ACCESS_KEY` | AWS Secret Access Key |
 | `AWS_S3_BUCKET_NAME` | `support-nova` |
-| `SMTP_USER` & `SMTP_PASS` | Gmail / SMTP Credentials ای میل نوٹیفیکیشنز کے لیے |
+| `SMTP_USER` & `SMTP_PASS` | Gmail / SMTP Credentials for automated email notifications |
 
 ---
 
@@ -217,6 +234,9 @@ flowchart TD
 | **10** | **Admin Tickets & 360° Dossier** | Next.js App Router | ✅ **Complete** | `/admin/tickets` list, `/admin/tickets/[id]` full dossier, and Agent Live Oversight. |
 | **11** | **Targeted Rate Limiter (5m)** | FastAPI, Python | ✅ **Complete** | 5-minute lockout targeted to `(IP, Email)` with zero collateral damage for other users. |
 | **12** | **Vercel Serverless Deployment** | Vercel, Next.js, FastAPI | ✅ **Complete** | Root `vercel.json`, `api/index.py`, dynamic CORS regex, and production build tested. |
+| **13** | **Decoupled Reviewer Architecture** | Next.js, FastAPI, Atlas | ✅ **Complete** | Reviewers are decoupled from managers/departments with company-wide access, claim buttons & transfers. |
+| **14** | **Dynamic AI E-Commerce Chat** | Next.js, FastAPI, Atlas | ✅ **Complete** | Removed "Cloud", dynamic prompt chips derived from active categories (`Delivery`, `Refund`, etc.). |
+| **15** | **Zero-Reload WebSocket Sync** | WebSockets, FastAPI, Next.js | ✅ **Complete** | Instant real-time UI synchronization across all manager/agent/reviewer dashboards without browser reloads. |
 
 ---
 
@@ -225,8 +245,14 @@ flowchart TD
 ### Reviewer Workspace & Audit Endpoints (MongoDB Atlas)
 * `GET /api/reviewer/queue` — Fetch tickets requiring manual review with filtering (`urgency`, `category`, `mismatch_type`, `assigned_reviewer_id`).
 * `GET /api/reviewer/tickets/{ticket_id}` — 3-way Side-by-Side comparison payload (Customer Input, Pipeline 1 GenAI, Pipeline 2 Python Ground Truth).
+* `POST /api/reviewer/tickets/{ticket_id}/claim` — Self-assign / claim review ticket for current active reviewer.
+* `POST /api/reviewer/tickets/{ticket_id}/assign-reviewer` — Transfer / assign review ticket to another active reviewer with audit reason.
+* `GET /api/reviewer/reviewers` — List all registered active reviewers across the organization.
 * `POST /api/reviewer/tickets/{ticket_id}/action` — Execute reviewer decision (`APPROVE`, `MODIFY`, `RECLASSIFY`, `REGENERATE`, `ESCALATE_TO_MANAGER`, `ADD_INTERNAL_NOTE`).
 * `GET /api/reviewer/tickets/{ticket_id}/audit-logs` — Retrieve immutable audit logs from MongoDB Atlas `reviewer_audit_logs` collection.
+
+### Customer & Chat Dynamic Endpoints
+* `GET /api/tickets/chat-options` — Returns active categories, department topics, and dynamic apparel prompt chips directly from MongoDB Atlas.
 
 ### Admin Command Endpoints
 * `GET /api/admin/agents-overview` — Real-time roster metrics, agent active ticket workloads, and violation tallies.
@@ -262,9 +288,10 @@ npm run dev
 
 ---
 
-## 🎯 Handover & Demonstration Summary (آگے پیش کرنے کے لیے خلاصہ)
-
-1. **100% مونگو ڈی بی اٹلس (Pure MongoDB Atlas Cloud Stack):** تمام ماڈیولز بشمول ٹکٹس، ریویور اوور رائیڈز، لاگ ان، آڈٹ ٹریلز اور رولز اب مکمل طور پر مونگو ڈی بی اٹلس کلاؤڈ پر منتقل کر دیے گئے ہیں۔ کسی ریلیشنل یا لوکل ایس کیو ایل (SQL) ڈیٹا بیس کی کوئی ضرورت نہیں۔
-2. **ورسل کے لیے مکمل ہم آہنگ (Vercel Ready):** کلائنٹ اور سرور دونوں کے لیے روٹ `vercel.json` اور پائتھون سرور لیس اینٹری پوائنٹ تیار ہیں، جس سے آپ کا ڈیش بورڈ `https://<your-project>.vercel.app` پر بغیر کسی مسئلے کے لائیو چلے گا۔
-3. **ریویور اور آڈٹ ہسٹری (Audited Decisions):** ریویور کی ہر تبدیلی اور فیصلہ اٹلس کی `reviewer_audit_logs` کلیکشن میں محفوظ ہوتی ہے اور لائیو دیکھی جا سکتی ہے۔
-4. **ہائی سیکیورٹی و نان بلاکنگ ٹیسٹنگ:** ٹارگیٹڈ ریٹ لمٹر صرف غلط داخل کرنے والے کو 5 منٹ کے لیے روکتا ہے، تاکہ ٹیسٹنگ ٹیم کے باقی لوگ بلا رکاوٹ کام کر سکیں۔
+## 🎯 Handover & Stakeholder Demonstration Summary
+ 
+1. **100% MongoDB Atlas Cloud Stack:** All data modules—including tickets, reviewer overrides, staff authentication, audit trails, and policy rules—are fully unified on MongoDB Atlas Cloud. No relational or local SQL databases are required.
+2. **Vercel Serverless Ready (`https://*.vercel.app`):** Both client and server architectures feature native root configuration (`vercel.json` and `api/index.py`), enabling instantaneous zero-downtime deployment to Vercel preview and production environments.
+3. **Autonomous Reviewer Governance:** Reviewers operate independently of individual departments or managers with company-wide oversight, one-click ticket claiming, inter-reviewer reassignment, and policy validation.
+4. **Targeted Security & Non-Blocking Testing:** The compound-key rate limiter strictly locks only the specific `(IP, Email)` offending pair for 5 minutes during invalid login attempts, ensuring quality assurance teams and other users remain completely unhindered.
+5. **Real-Time WebSocket Synchronization:** Real-time bi-directional events guarantee that ticket state transitions, claims, and approvals propagate immediately across all dashboards without manual page reloads.

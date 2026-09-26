@@ -50,22 +50,45 @@ export default function ReviewerQueue() {
   const [revokeLoading, setRevokeLoad]   = useState(false)
   const [actionAlert, setActionAlert]     = useState('')
 
+  // Cross-Department & Reviewer Reassignment State
+  const [reviewersList, setReviewersList]       = useState([])
+  const [departmentsList, setDepartmentsList]   = useState([])
+  const [deptFilter, setDeptFilter]             = useState('All')
+  const [showAssignRevModal, setShowAssignRev]  = useState(false)
+  const [targetReviewerId, setTargetReviewerId] = useState('')
+  const [assignRevReason, setAssignRevReason]   = useState('')
+  const [assignRevLoading, setAssignRevLoad]   = useState(false)
+
   useEffect(() => {
     fetchManagers()
+    fetchReviewersAndDepts()
   }, [])
 
   useEffect(() => {
-    if (currentManager) {
-      fetchDepartmentActivity()
-    }
-  }, [currentManager])
+    fetchDepartmentActivity()
+  }, [deptFilter, currentManager])
 
   // Live WebSocket Real-Time Synchronization (Zero-Reload)
   const { isConnected: isLiveWs } = useRealtimeRefresh(() => {
-    if (currentManager) {
-      fetchDepartmentActivity()
-    }
+    fetchDepartmentActivity()
   })
+
+  const fetchReviewersAndDepts = async () => {
+    try {
+      const [rRes, dRes] = await Promise.all([
+        fetch(`${API_BASE}/api/reviewer/reviewers`),
+        fetch(`${API_BASE}/api/departments`)
+      ])
+      if (rRes.ok) {
+        const rData = await rRes.json()
+        setReviewersList(Array.isArray(rData) ? rData : [])
+      }
+      if (dRes.ok) {
+        const dData = await dRes.json()
+        setDepartmentsList(Array.isArray(dData) ? dData : [])
+      }
+    } catch (e) {}
+  }
 
   const fetchManagers = async () => {
     try {
@@ -93,7 +116,7 @@ export default function ReviewerQueue() {
                 user_id: cookies.user_id,
                 name: cookies.user_name,
                 email: cookies.user_email,
-                role: cookies.user_role || 'MANAGER'
+                role: cookies.user_role || 'REVIEWER'
               }
             }
           }
@@ -121,7 +144,7 @@ export default function ReviewerQueue() {
 
           // Fallback if not logged in
           if (!activeMgr) {
-            activeMgr = data.find(m => m.department === 'Ebook' || m.department === 'Cloud') || data[0]
+            activeMgr = data.find(m => m.department === 'Ebook' || m.department === 'Clothes') || data[0]
           }
 
           setCurrManager(activeMgr)
@@ -131,12 +154,11 @@ export default function ReviewerQueue() {
   }
 
   const fetchDepartmentActivity = async () => {
-    if (!currentManager) return
     setLoading(true)
     try {
-      const q = currentManager.department_id 
-        ? `department_id=${encodeURIComponent(currentManager.department_id)}`
-        : `department=${encodeURIComponent(currentManager.department || '')}`
+      const q = deptFilter && deptFilter !== 'All'
+        ? `department=${encodeURIComponent(deptFilter)}`
+        : 'department=All'
       
       const res = await fetch(`${API_BASE}/api/tickets/department/agent-activity?${q}`)
       if (res.ok) {
@@ -156,6 +178,85 @@ export default function ReviewerQueue() {
     } catch (e) {
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleClaimReview = async () => {
+    if (!selectedTicket) return
+    const revId = currentManager?.user_id || 'REV-001'
+    const revName = currentManager?.name || 'Reviewer'
+    try {
+      const res = await fetch(`${API_BASE}/api/reviewer/tickets/${selectedTicket.ticket_id}/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewer_id: revId, reviewer_name: revName })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setActionAlert(`⚖️ Ticket ${selectedTicket.ticket_id} claimed by Reviewer ${revName}!`)
+        fetchDepartmentActivity()
+      } else {
+        alert(data.detail || 'Failed to claim review ticket.')
+      }
+    } catch (err) {
+      alert('Error connecting to backend server.')
+    }
+  }
+
+  const handleAssignReviewerSubmit = async (e) => {
+    e.preventDefault()
+    if (!selectedTicket || !targetReviewerId) return
+    setAssignRevLoad(true)
+    try {
+      const target = reviewersList.find(r => r.user_id === targetReviewerId)
+      const res = await fetch(`${API_BASE}/api/reviewer/tickets/${selectedTicket.ticket_id}/assign-reviewer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          new_reviewer_id: targetReviewerId,
+          new_reviewer_name: target?.name || 'Reviewer',
+          assigned_by_id: currentManager?.user_id,
+          assigned_by_name: currentManager?.name,
+          reason: assignRevReason.trim() || 'Reviewer workload rebalancing'
+        })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setShowAssignRevModal(false)
+        setActionAlert(`✅ Review ticket ${selectedTicket.ticket_id} transferred to Reviewer ${target?.name || targetReviewerId}!`)
+        fetchDepartmentActivity()
+      } else {
+        alert(data.detail || 'Failed to assign reviewer.')
+      }
+    } catch (err) {
+      alert('Error connecting to backend.')
+    } finally {
+      setAssignRevLoad(false)
+    }
+  }
+
+  const handleReviewerApprove = async () => {
+    if (!selectedTicket) return
+    try {
+      const res = await fetch(`${API_BASE}/api/reviewer/tickets/${selectedTicket.ticket_id}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'APPROVE',
+          reviewer_id: currentManager?.user_id || 'REV-001',
+          reviewer_name: currentManager?.name || 'Reviewer',
+          notes: 'Reviewer validated resolution and approved ticket'
+        })
+      })
+      if (res.ok) {
+        setActionAlert(`✅ Ticket ${selectedTicket.ticket_id} approved by Reviewer!`)
+        fetchDepartmentActivity()
+      } else {
+        const data = await res.json()
+        alert(data.detail || 'Failed to approve ticket.')
+      }
+    } catch (err) {
+      alert('Error connecting to backend server.')
     }
   }
 
@@ -464,6 +565,70 @@ export default function ReviewerQueue() {
           </div>
         )}
 
+        {/* Assign to Reviewer Modal (Cross-Department) */}
+        {showAssignRevModal && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div className="animate-scale-in" style={{ ...glass, maxWidth: 500, width: '100%', padding: 24, background: '#FFF' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7C3AED' }}>
+                    <ArrowRightLeft size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', margin: 0 }}>Assign Ticket to Another Reviewer</h3>
+                    <p style={{ fontSize: 11, color: '#64748B', margin: '2px 0 0' }}>Ticket: <strong>[{selectedTicket?.ticket_id}]</strong></p>
+                  </div>
+                </div>
+                <button onClick={() => setShowAssignRevModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleAssignReviewerSubmit}>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: 5 }}>
+                    Select Target Reviewer (Cross-Department) *
+                  </label>
+                  <select
+                    required
+                    value={targetReviewerId}
+                    onChange={e => setTargetReviewerId(e.target.value)}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 13, outline: 'none', background: '#F8FAFC' }}
+                  >
+                    <option value="">-- Choose Active Reviewer --</option>
+                    {reviewersList.map(r => (
+                      <option key={r.user_id} value={r.user_id}>
+                        {r.name} ({r.email}) - {r.department || 'All Departments'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: 5 }}>
+                    Reassignment Reason (Optional)
+                  </label>
+                  <input
+                    value={assignRevReason}
+                    onChange={e => setAssignRevReason(e.target.value)}
+                    placeholder="e.g. Workload balancing, specialized product review"
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 12.5, outline: 'none' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                  <button type="button" onClick={() => setShowAssignRevModal(false)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #CBD5E1', background: 'transparent', color: '#64748B', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={assignRevLoading} style={{ padding: '8px 18px', borderRadius: 8, background: '#7C3AED', color: 'white', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {assignRevLoading ? <RefreshCw size={13} className="spin" /> : 'Confirm Reviewer Assignment'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Main Content Area */}
         <main style={{ flex: 1, padding: '16px 22px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
           
@@ -497,6 +662,23 @@ export default function ReviewerQueue() {
             {/* ── LEFT: Department Ticket Queue ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               
+              {/* Department Scope Selector */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: '#FFF', padding: '8px 12px', borderRadius: 10, border: '1px solid #E2E8F0' }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#475569', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Department Scope:</span>
+                <select
+                  value={deptFilter}
+                  onChange={e => setDeptFilter(e.target.value)}
+                  style={{ flex: 1, padding: '5px 8px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 11.5, fontWeight: 700, outline: 'none', background: '#F8FAFC', color: '#1E293B' }}
+                >
+                  <option value="All">🌐 All Departments (Global Review)</option>
+                  {departmentsList.map(d => (
+                    <option key={d.dept_id || d.name} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Filter Tabs */}
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                 {FILTERS.map(f => (
@@ -570,6 +752,11 @@ export default function ReviewerQueue() {
                         </span>
                         <span style={{ color: '#64748B', fontWeight: 600 }}>{t.status}</span>
                       </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, marginTop: 3 }}>
+                        <span style={{ color: t.assigned_reviewer_id ? '#7C3AED' : '#94A3B8', fontWeight: 700 }}>
+                          ⚖️ {t.assigned_reviewer_name ? `Rev: ${t.assigned_reviewer_name}` : 'Unclaimed Review'}
+                        </span>
+                      </div>
                     </div>
                   )
                 })
@@ -627,6 +814,65 @@ export default function ReviewerQueue() {
                       }}
                     >
                       <UserX size={14} /> Revoke & Reassign
+                    </button>
+                  </div>
+                </div>
+
+                {/* 0. REVIEWER WORKSPACE ACTIONS & OWNERSHIP */}
+                <div style={{ padding: '12px 16px', borderRadius: 10, background: '#F5F3FF', border: '1.5px solid #DDD6FE', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', flexShrink: 0 }}>
+                      <Scale size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 10.5, fontWeight: 800, color: '#6D28D9', textTransform: 'uppercase' }}>Reviewer Ownership</div>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1E1B4B' }}>
+                        {selectedTicket.assigned_reviewer_name ? (
+                          <span>Assigned Reviewer: <strong style={{ color: '#7C3AED' }}>{selectedTicket.assigned_reviewer_name}</strong></span>
+                        ) : (
+                          <span style={{ color: '#D97706' }}>⚠️ Unclaimed Ticket — Open for any Reviewer</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={handleClaimReview}
+                      style={{
+                        padding: '7px 13px', borderRadius: 8, fontSize: 11.5, fontWeight: 800, cursor: 'pointer',
+                        background: '#7C3AED', color: '#FFF', border: 'none', display: 'flex', alignItems: 'center', gap: 6,
+                        boxShadow: '0 2px 8px rgba(124,58,237,0.25)'
+                      }}
+                      title="Claim this review ticket for yourself"
+                    >
+                      <UserCheck size={14} /> Claim Review
+                    </button>
+
+                    <button
+                      onClick={() => setShowAssignRevModal(true)}
+                      style={{
+                        padding: '7px 13px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                        background: '#FFF', color: '#7C3AED', border: '1.5px solid #7C3AED', display: 'flex', alignItems: 'center', gap: 6
+                      }}
+                      title="Transfer ticket to another active reviewer"
+                    >
+                      <ArrowRightLeft size={14} /> Transfer Reviewer
+                    </button>
+
+                    <button
+                      onClick={handleReviewerApprove}
+                      disabled={selectedTicket.status === 'Resolved'}
+                      style={{
+                        padding: '7px 13px', borderRadius: 8, fontSize: 11.5, fontWeight: 800,
+                        cursor: selectedTicket.status === 'Resolved' ? 'not-allowed' : 'pointer',
+                        background: selectedTicket.status === 'Resolved' ? '#F1F5F9' : '#059669',
+                        color: selectedTicket.status === 'Resolved' ? '#94A3B8' : '#FFF',
+                        border: 'none', display: 'flex', alignItems: 'center', gap: 6,
+                        boxShadow: selectedTicket.status === 'Resolved' ? 'none' : '0 2px 8px rgba(5,150,105,0.25)'
+                      }}
+                    >
+                      <CheckCircle size={14} /> Approve & Finalize
                     </button>
                   </div>
                 </div>

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRealtimeRefresh } from '../../lib/useWebSocket'
 import Sidebar from '../../components/Sidebar'
 import Navbar from '../../components/Navbar'
 import StatCard from '../../components/StatCard'
@@ -42,12 +43,20 @@ export default function AgentChatTicketsPage() {
   const [updating, setUpdating]             = useState(false)
   const [toastMsg, setToastMsg]             = useState('')
 
+  // Live WebSocket Real-time sync (zero reload)
+  const { isConnected: wsConnected } = useRealtimeRefresh(
+    () => {
+      fetchChatTickets(true)
+    },
+    ['TICKET_CREATED', 'TICKET_UPDATED', 'TICKET_REASSIGNED', 'REVIEWER_ACTION']
+  )
+
   useEffect(() => {
     fetchChatTickets()
   }, [])
 
-  const fetchChatTickets = async () => {
-    setLoading(true)
+  const fetchChatTickets = async (isBackground = false) => {
+    if (!isBackground) setLoading(true)
     try {
       const res = await fetch(`${API_BASE}/api/tickets?channel=Chat`)
       if (res.ok) {
@@ -61,7 +70,7 @@ export default function AgentChatTicketsPage() {
     } catch (e) {
       console.log('Error fetching chat tickets:', e)
     } finally {
-      setLoading(false)
+      if (!isBackground) setLoading(false)
     }
   }
 
@@ -198,12 +207,25 @@ export default function AgentChatTicketsPage() {
               </select>
             </div>
 
-            <button
-              onClick={fetchChatTickets}
-              style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #CBD5E1', background: '#FFF', color: '#475569', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-            >
-              <RefreshCw size={14} /> Refresh
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                background: wsConnected ? '#ECFDF5' : '#FEF2F2',
+                color: wsConnected ? '#059669' : '#DC2626',
+                border: wsConnected ? '1px solid #A7F3D0' : '1px solid #FECACA',
+                fontSize: 11, fontWeight: 700, padding: '6px 12px', borderRadius: 8
+              }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: wsConnected ? '#10B981' : '#EF4444', display: 'inline-block' }} />
+                {wsConnected ? 'Live Sync Active' : 'WS Reconnecting'}
+              </span>
+
+              <button
+                onClick={() => fetchChatTickets(false)}
+                style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #CBD5E1', background: '#FFF', color: '#475569', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <RefreshCw size={14} /> Refresh
+              </button>
+            </div>
           </div>
 
           {/* Tickets Directory Table */}
