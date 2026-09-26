@@ -23,7 +23,7 @@ const P_COLORS = {
 }
 
 
-const FILTERS = ['All', 'Violations', 'Warnings', 'Compliant', 'Active Queue', 'Unassigned']
+const FILTERS = ['All', 'Mismatches / AI Review', 'Violations', 'Warnings', 'Compliant', 'Active Queue', 'Unassigned']
 
 export default function ReviewerQueue() {
   const [managers, setManagers]           = useState([])
@@ -348,6 +348,7 @@ export default function ReviewerQueue() {
   // Filtered Tickets
   const filteredTickets = tickets.filter(t => {
     const compStatus = t.policy_compliance?.status || 'COMPLIANT'
+    if (filter === 'Mismatches / AI Review') return t.status === 'AI Review' || t.status === 'NEEDS_REVIEW' || t.department_mismatch || t.match_status === false
     if (filter === 'Violations') return compStatus === 'VIOLATION'
     if (filter === 'Warnings') return compStatus === 'RISK_WARNING'
     if (filter === 'Compliant') return compStatus === 'COMPLIANT'
@@ -740,9 +741,9 @@ export default function ReviewerQueue() {
                     onClick={() => setFilter(f)}
                     style={{
                       padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                      border: filter === f ? '1.5px solid #7C3AED' : '1px solid var(--nw-border-strong)',
-                      background: filter === f ? '#F5F3FF' : '#FFF',
-                      color: filter === f ? '#7C3AED' : '#64748B',
+                      border: filter === f ? '1.5px solid var(--nw-accent)' : '1px solid var(--nw-border-strong)',
+                      background: filter === f ? 'var(--nw-accent-dim)' : 'var(--nw-surface)',
+                      color: filter === f ? 'var(--nw-accent)' : 'var(--nw-text-secondary)',
                     }}
                   >
                     {f}
@@ -777,21 +778,21 @@ export default function ReviewerQueue() {
                       }}
                       style={{
                         ...glass, padding: 13, cursor: 'pointer',
-                        border: isSel ? '2px solid #7C3AED' : isViolation ? '1.5px solid #FCA5A5' : '1px solid var(--nw-border)',
-                        background: isSel ? '#F5F3FF' : isViolation ? 'var(--nw-danger-dim)' : '#FFF',
+                        border: isSel ? '2px solid var(--nw-accent)' : isViolation ? '1.5px solid rgba(232,117,138,0.5)' : '1px solid var(--nw-border)',
+                        background: isSel ? 'var(--nw-accent-dim)' : isViolation ? 'var(--nw-danger-dim)' : 'var(--nw-surface)',
                         transition: 'all 0.15s'
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                        <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#7C3AED', fontWeight: 800 }}>{t.ticket_id}</span>
+                        <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--nw-accent)', fontWeight: 800 }}>{t.ticket_id}</span>
                         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                           <span style={{ fontSize: 9.5, fontWeight: 800, padding: '1px 6px', borderRadius: 4, background: P_COLORS[t.priority]?.bg, color: P_COLORS[t.priority]?.c }}>
                             {t.priority}
                           </span>
                           <span style={{
                             fontSize: 9.5, fontWeight: 800, padding: '1px 6px', borderRadius: 4,
-                            background: isViolation ? '#FEE2E2' : isWarning ? '#FEF3C7' : '#DCFCE7',
-                            color: isViolation ? '#DC2626' : isWarning ? '#D97706' : '#15803D'
+                            background: isViolation ? 'var(--nw-danger-dim)' : isWarning ? 'var(--nw-warning-dim)' : 'var(--nw-success-dim)',
+                            color: isViolation ? '#E8758A' : isWarning ? '#E8B56B' : '#4FA689'
                           }}>
                             {isViolation ? '🚨 VIOLATION' : isWarning ? '⚠️ POLICY RISK' : '✓ COMPLIANT'}
                           </span>
@@ -866,9 +867,9 @@ export default function ReviewerQueue() {
                       style={{
                         padding: '8px 12px', borderRadius: 9, fontSize: 12, fontWeight: 700,
                         cursor: selectedTicket.assigned_agent_id ? 'pointer' : 'not-allowed',
-                        background: selectedTicket.assigned_agent_id ? '#FFFBEB' : '#F1F5F9',
-                        color: selectedTicket.assigned_agent_id ? '#D97706' : '#94A3B8',
-                        border: selectedTicket.assigned_agent_id ? '1.5px solid #FCD34D' : '1px solid var(--nw-border-strong)',
+                        background: selectedTicket.assigned_agent_id ? 'var(--nw-warning-dim)' : 'var(--nw-elevated)',
+                        color: selectedTicket.assigned_agent_id ? '#E8B56B' : 'var(--nw-text-muted)',
+                        border: selectedTicket.assigned_agent_id ? '1px solid rgba(232,181,107,0.3)' : '1px solid var(--nw-border-strong)',
                         display: 'flex', alignItems: 'center', gap: 6,
                         opacity: selectedTicket.assigned_agent_id ? 1 : 0.6
                       }}
@@ -881,8 +882,8 @@ export default function ReviewerQueue() {
                       onClick={() => openRevokeModal('reassign')}
                       style={{
                         padding: '8px 14px', borderRadius: 9, fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                        background: '#DC2626', color: '#FFF', border: 'none', display: 'flex', alignItems: 'center', gap: 6,
-                        boxShadow: '0 2px 10px rgba(220,38,38,0.25)'
+                        background: 'var(--nw-danger)', color: 'var(--nw-text-inverse)', border: 'none', display: 'flex', alignItems: 'center', gap: 6,
+                        boxShadow: '0 2px 10px rgba(193,73,91,0.25)'
                       }}
                     >
                       <UserX size={14} /> Revoke & Reassign
@@ -893,16 +894,16 @@ export default function ReviewerQueue() {
                 {/* 0. REVIEWER WORKSPACE ACTIONS & OWNERSHIP */}
                 <div style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--nw-accent-dim)', border: '1px solid rgba(201,111,74,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 8, background: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', flexShrink: 0 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--nw-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--nw-text-inverse)', flexShrink: 0 }}>
                       <Scale size={18} />
                     </div>
                     <div>
-                      <div style={{ fontSize: 10.5, fontWeight: 800, color: '#6D28D9', textTransform: 'uppercase' }}>Reviewer Ownership</div>
+                      <div style={{ fontSize: 10.5, fontWeight: 800, color: 'var(--nw-accent)', textTransform: 'uppercase' }}>Reviewer Ownership</div>
                       <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--nw-text-secondary)' }}>
                         {selectedTicket.assigned_reviewer_name ? (
-                          <span>Assigned Reviewer: <strong style={{ color: '#7C3AED' }}>{selectedTicket.assigned_reviewer_name}</strong></span>
+                          <span>Assigned Reviewer: <strong style={{ color: 'var(--nw-accent)' }}>{selectedTicket.assigned_reviewer_name}</strong></span>
                         ) : (
-                          <span style={{ color: '#D97706' }}>⚠️ Unclaimed Ticket — Open for any Reviewer</span>
+                          <span style={{ color: 'var(--nw-warning)' }}>⚠️ Unclaimed Ticket — Open for any Reviewer</span>
                         )}
                       </div>
                     </div>
@@ -913,8 +914,8 @@ export default function ReviewerQueue() {
                       onClick={handleClaimReview}
                       style={{
                         padding: '7px 13px', borderRadius: 8, fontSize: 11.5, fontWeight: 800, cursor: 'pointer',
-                        background: '#7C3AED', color: '#FFF', border: 'none', display: 'flex', alignItems: 'center', gap: 6,
-                        boxShadow: '0 2px 8px rgba(124,58,237,0.25)'
+                        background: 'var(--nw-accent)', color: 'var(--nw-text-inverse)', border: 'none', display: 'flex', alignItems: 'center', gap: 6,
+                        boxShadow: '0 2px 8px rgba(201,111,74,0.25)'
                       }}
                       title="Claim this review ticket for yourself"
                     >
@@ -925,7 +926,7 @@ export default function ReviewerQueue() {
                       onClick={() => setShowAssignRevModal(true)}
                       style={{
                         padding: '7px 13px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-                        background: 'var(--nw-surface)', color: '#7C3AED', border: '1.5px solid #7C3AED', display: 'flex', alignItems: 'center', gap: 6
+                        background: 'var(--nw-surface)', color: 'var(--nw-accent)', border: '1.5px solid var(--nw-accent)', display: 'flex', alignItems: 'center', gap: 6
                       }}
                       title="Transfer ticket to another active reviewer"
                     >
@@ -938,10 +939,10 @@ export default function ReviewerQueue() {
                       style={{
                         padding: '7px 13px', borderRadius: 8, fontSize: 11.5, fontWeight: 800,
                         cursor: selectedTicket.status === 'Resolved' ? 'not-allowed' : 'pointer',
-                        background: selectedTicket.status === 'Resolved' ? '#F1F5F9' : '#059669',
-                        color: selectedTicket.status === 'Resolved' ? '#94A3B8' : '#FFF',
+                        background: selectedTicket.status === 'Resolved' ? 'var(--nw-elevated)' : 'var(--nw-success)',
+                        color: selectedTicket.status === 'Resolved' ? 'var(--nw-text-muted)' : 'var(--nw-text-inverse)',
                         border: 'none', display: 'flex', alignItems: 'center', gap: 6,
-                        boxShadow: selectedTicket.status === 'Resolved' ? 'none' : '0 2px 8px rgba(5,150,105,0.25)'
+                        boxShadow: selectedTicket.status === 'Resolved' ? 'none' : '0 2px 8px rgba(79,166,137,0.25)'
                       }}
                     >
                       <CheckCircle size={14} /> Approve & Finalize
@@ -981,15 +982,15 @@ export default function ReviewerQueue() {
                 </div>
 
                 {/* 2. POLICY COMPLIANCE MATRIX */}
-                <div style={{ padding: 14, borderRadius: 10, background: compliance.status === 'VIOLATION' ? 'var(--nw-danger-dim)' : compliance.status === 'RISK_WARNING' ? '#FFFBEB' : '#F0FDF4', border: compliance.status === 'VIOLATION' ? '1.5px solid #FCA5A5' : compliance.status === 'RISK_WARNING' ? '1.5px solid #FDE68A' : '1px solid #BBF7D0' }}>
+                <div style={{ padding: 14, borderRadius: 10, background: compliance.status === 'VIOLATION' ? 'var(--nw-danger-dim)' : compliance.status === 'RISK_WARNING' ? 'var(--nw-warning-dim)' : 'var(--nw-surface)', border: compliance.status === 'VIOLATION' ? '1.5px solid rgba(232,117,138,0.4)' : compliance.status === 'RISK_WARNING' ? '1.5px solid rgba(232,181,107,0.4)' : '1px solid var(--nw-border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Scale size={15} color={compliance.status === 'VIOLATION' ? '#DC2626' : compliance.status === 'RISK_WARNING' ? '#D97706' : '#15803D'} />
-                      <span style={{ fontSize: 11, fontWeight: 800, color: compliance.status === 'VIOLATION' ? '#DC2626' : compliance.status === 'RISK_WARNING' ? '#D97706' : '#15803D', textTransform: 'uppercase' }}>
+                      <Scale size={15} color={compliance.status === 'VIOLATION' ? '#E8758A' : compliance.status === 'RISK_WARNING' ? '#E8B56B' : '#4FA689'} />
+                      <span style={{ fontSize: 11, fontWeight: 800, color: compliance.status === 'VIOLATION' ? '#E8758A' : compliance.status === 'RISK_WARNING' ? '#E8B56B' : '#4FA689', textTransform: 'uppercase' }}>
                         Policy Rule Verification & Compliance Status
                       </span>
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 6, background: compliance.status === 'VIOLATION' ? '#FEE2E2' : '#DCFCE7', color: compliance.status === 'VIOLATION' ? '#DC2626' : '#15803D' }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 6, background: compliance.status === 'VIOLATION' ? 'var(--nw-danger-dim)' : 'var(--nw-success-dim)', color: compliance.status === 'VIOLATION' ? '#E8758A' : '#4FA689', border: '1px solid var(--nw-border)' }}>
                       {compliance.status}
                     </span>
                   </div>

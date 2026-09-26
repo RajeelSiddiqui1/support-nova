@@ -15,10 +15,10 @@ import { API_BASE } from '../../lib/api'
 const glass = { background: 'var(--nw-surface)', border: '1px solid var(--nw-border)', borderRadius: 16, boxShadow: '0 4px 24px rgba(11,14,20,0.3)' }
 
 const PCOLORS = {
-  P0: { bg: '#FEF2F2', c: '#EF4444', label: 'P0 Critical' },
-  P1: { bg: '#FFFBEB', c: '#D97706', label: 'P1 High' },
-  P2: { bg: '#EFF6FF', c: '#2563EB', label: 'P2 Medium' },
-  P3: { bg: '#F8FAFC', c: '#64748B', label: 'P3 Low' }
+  P0: { bg: 'var(--nw-danger-dim)',  c: '#E8758A', label: 'P0 Critical' },
+  P1: { bg: 'var(--nw-warning-dim)', c: '#E8B56B', label: 'P1 High' },
+  P2: { bg: 'var(--nw-info-dim)',    c: '#72B4D8', label: 'P2 Medium' },
+  P3: { bg: 'rgba(154,156,165,0.1)', c: 'var(--nw-text-muted)', label: 'P3 Low' }
 }
 
 const STATUS_OPTIONS = ['In Triage', 'In Progress', 'Resolved', 'Closed']
@@ -376,7 +376,17 @@ export default function AgentWorkspace() {
       if (t.assigned_agent_id) return false
     }
 
-    // 3. Status filter
+    // 3. Department or Policy Mismatch Exclusion:
+    // Tickets with department mismatch or under AI Review belong to the Reviewer/Manager queue ONLY!
+    // They must not appear in the open agent pool until a reviewer has triaged or assigned them.
+    const isUnderReview = t.status === 'AI Review' || t.status === 'NEEDS_REVIEW' || t.department_mismatch || t.match_status === false
+    if (isUnderReview) {
+      if (!t.assigned_agent_id || t.assigned_agent_id !== currentAgent?.user_id) {
+        return false
+      }
+    }
+
+    // 4. Status filter
     if (statusFilter !== 'All' && t.status !== statusFilter) return false
 
     return true
@@ -409,7 +419,7 @@ export default function AgentWorkspace() {
     confidence_score: 95.0
   }
 
-  const isMismatch = selectedTicket?.department_mismatch || (selectedTicket?.match_status === false)
+  const isMismatch = Boolean(selectedTicket?.department_mismatch)
   const auditHistory = selectedTicket?.assigned_agent_history || selectedTicket?.assignedAgentHistory || []
   const isRevoked = Boolean(selectedTicket?.revoked_agent_ids?.includes(currentAgent?.user_id))
   const revokedDetail = selectedTicket?.revoked_agents?.slice().reverse().find(r => r.agent_id === currentAgent?.user_id)
@@ -627,9 +637,11 @@ export default function AgentWorkspace() {
                   background: wsConnected ? '#ECFDF5' : '#FEF2F2', 
                   color: wsConnected ? '#047857' : '#DC2626', 
                   padding: '2px 8px', borderRadius: 6, fontWeight: 600, 
-                  border: wsConnected ? '1px solid #A7F3D0' : '1px solid #FECACA' 
+                  border: wsConnected ? '1px solid rgba(79,166,137,0.35)' : '1px solid rgba(193,73,91,0.35)',
+                  background: wsConnected ? 'var(--nw-success-dim)' : 'var(--nw-danger-dim)',
+                  color: wsConnected ? 'var(--nw-success)' : 'var(--nw-danger)'
                 }}>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: wsConnected ? '#10B981' : '#EF4444', display: 'inline-block' }} />
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: wsConnected ? 'var(--nw-success)' : 'var(--nw-danger)', display: 'inline-block' }} />
                   {wsConnected ? 'WebSocket Live' : 'WS Reconnecting'}
                 </span>
               </div>
@@ -646,9 +658,9 @@ export default function AgentWorkspace() {
                     onClick={() => setQueueScope(scopeKey)}
                     style={{
                       padding: '5px 4px', borderRadius: 6, fontSize: 10, fontWeight: 700,
-                      border: queueScope === scopeKey ? '1.5px solid #7C3AED' : '1px solid var(--nw-border)',
-                      background: queueScope === scopeKey ? '#7C3AED' : '#F8FAFC',
-                      color: queueScope === scopeKey ? '#FFF' : '#64748B',
+                      border: queueScope === scopeKey ? '1.5px solid var(--nw-accent)' : '1px solid var(--nw-border)',
+                      background: queueScope === scopeKey ? 'var(--nw-accent)' : 'var(--nw-elevated)',
+                      color: queueScope === scopeKey ? 'var(--nw-text-inverse)' : 'var(--nw-text-secondary)',
                       cursor: 'pointer', textAlign: 'center'
                     }}
                   >
@@ -666,8 +678,8 @@ export default function AgentWorkspace() {
                     style={{
                       padding: '2px 7px', borderRadius: 4, fontSize: 9.5, fontWeight: 700,
                       border: '1px solid var(--nw-border)',
-                      background: statusFilter === st ? '#2563EB' : '#FFF',
-                      color: statusFilter === st ? '#FFF' : '#64748B',
+                      background: statusFilter === st ? 'var(--nw-accent)' : 'var(--nw-elevated)',
+                      color: statusFilter === st ? 'var(--nw-text-inverse)' : 'var(--nw-text-secondary)',
                       cursor: 'pointer'
                     }}
                   >
@@ -700,13 +712,13 @@ export default function AgentWorkspace() {
                     }}
                     style={{
                       padding: '12px 14px', borderBottom: '1px solid var(--nw-border)', cursor: 'pointer',
-                      background: active ? '#F5F3FF' : '#FFF',
-                      borderLeft: active ? '3px solid #7C3AED' : '3px solid transparent',
+                      background: active ? 'var(--nw-accent-dim)' : 'transparent',
+                      borderLeft: active ? '3px solid var(--nw-accent)' : '3px solid transparent',
                       transition: 'all 0.15s',
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#7C3AED', fontWeight: 800 }}>{t.ticket_id}</span>
+                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--nw-accent)', fontWeight: 800 }}>{t.ticket_id}</span>
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                         <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: pc.bg, color: pc.c }}>{t.priority}</span>
                       </div>
@@ -719,15 +731,15 @@ export default function AgentWorkspace() {
                     {/* Assignment Pill */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10.5 }}>
                       {isRevokedForMe ? (
-                        <span style={{ color: '#E8758A', background: 'var(--nw-danger-dim)', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid rgba(193,73,91,0.3)' }}>
+                        <span style={{ color: 'var(--nw-danger)', background: 'var(--nw-danger-dim)', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid rgba(193,73,91,0.3)' }}>
                           ⛔ Access Revoked (In History)
                         </span>
                       ) : isUnassigned ? (
-                        <span style={{ color: '#D97706', background: 'var(--nw-warning-dim)', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid rgba(217,164,65,0.3)' }}>
+                        <span style={{ color: 'var(--nw-warning)', background: 'var(--nw-warning-dim)', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid rgba(217,164,65,0.3)' }}>
                           ⚡ Unassigned Pool
                         </span>
                       ) : isAssignedToMe ? (
-                        <span style={{ color: '#059669', background: 'var(--nw-success-dim)', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid rgba(79,166,137,0.3)' }}>
+                        <span style={{ color: 'var(--nw-success)', background: 'var(--nw-success-dim)', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid rgba(79,166,137,0.3)' }}>
                           ✓ Assigned to You
                         </span>
                       ) : (
@@ -738,8 +750,9 @@ export default function AgentWorkspace() {
 
                       <span style={{
                         fontWeight: 700, padding: '1px 6px', borderRadius: 4,
-                        background: t.status === 'Resolved' ? '#ECFDF5' : '#EFF6FF',
-                        color: t.status === 'Resolved' ? '#059669' : '#2563EB'
+                        background: t.status === 'Resolved' ? 'var(--nw-success-dim)' : 'var(--nw-info-dim)',
+                        color: t.status === 'Resolved' ? 'var(--nw-success)' : 'var(--nw-info)',
+                        border: '1px solid var(--nw-border)'
                       }}>
                         {t.status}
                       </span>
@@ -853,13 +866,13 @@ export default function AgentWorkspace() {
               {/* Department Comparison & Mismatch Banner */}
               <div style={{
                 padding: '12px 16px', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: isMismatch ? '#FFFBEB' : '#ECFDF5',
-                border: `1px solid ${isMismatch ? '#FCD34D' : '#A7F3D0'}`,
+                background: isMismatch ? 'var(--nw-warning-dim)' : 'var(--nw-success-dim)',
+                border: `1px solid ${isMismatch ? 'rgba(232,181,107,0.35)' : 'rgba(79,166,137,0.35)'}`,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {isMismatch ? <AlertTriangle size={18} color="#D97706" /> : <CheckCircle size={18} color="#059669" />}
+                  {isMismatch ? <AlertTriangle size={18} color="var(--nw-warning)" /> : <CheckCircle size={18} color="var(--nw-success)" />}
                   <div>
-                    <span style={{ fontWeight: 800, color: isMismatch ? '#B45309' : '#047857', fontSize: 13 }}>
+                    <span style={{ fontWeight: 800, color: isMismatch ? '#E8B56B' : '#4FA689', fontSize: 13 }}>
                       {isMismatch ? '⚠️ DEPARTMENT MISMATCH DETECTED' : '✅ DEPARTMENT MATCH VERIFIED'}
                     </span>
                     <p style={{ fontSize: 12, color: 'var(--nw-text-secondary)', margin: '2px 0 0' }}>
@@ -868,7 +881,7 @@ export default function AgentWorkspace() {
                   </div>
                 </div>
 
-                <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'monospace', padding: '4px 10px', borderRadius: 6, background: 'var(--nw-surface)', border: '1px solid var(--nw-border-strong)' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'monospace', padding: '4px 10px', borderRadius: 6, background: 'var(--nw-surface)', border: '1px solid var(--nw-border-strong)', color: 'var(--nw-text-primary)' }}>
                   Confidence: {pythonRule.confidence_score || 94}%
                 </span>
               </div>
@@ -887,11 +900,11 @@ export default function AgentWorkspace() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
 
                 {/* GenAI Pipeline Box */}
-                <div style={{ ...glass, padding: 18, background: 'linear-gradient(135deg, #F5F3FF, #FFF)', border: '1px solid #7C3AED30' }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid #7C3AED20' }}>
-                    <Zap size={18} color="#7C3AED" />
+                <div style={{ ...glass, padding: 18, background: 'var(--nw-surface)', border: '1px solid var(--nw-border)' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid var(--nw-border)' }}>
+                    <Zap size={18} color="var(--nw-accent)" />
                     <div>
-                      <h4 style={{ fontSize: 13, fontWeight: 800, color: '#7C3AED', margin: 0 }}>Pipeline 1: GenAI Analysis</h4>
+                      <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--nw-accent)', margin: 0 }}>Pipeline 1: GenAI Analysis</h4>
                       <span style={{ fontSize: 10, color: 'var(--nw-text-muted)' }}>Groq LLM Intelligence Engine</span>
                     </div>
                   </div>
@@ -909,12 +922,12 @@ export default function AgentWorkspace() {
 
                     <div>
                       <span style={{ fontSize: 10, color: 'var(--nw-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Urgency</span>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: '#D97706', margin: '2px 0 0' }}>{genai.urgency || selectedTicket.urgency}</p>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: '#E8B56B', margin: '2px 0 0' }}>{genai.urgency || selectedTicket.urgency}</p>
                     </div>
 
                     <div>
                       <span style={{ fontSize: 10, color: 'var(--nw-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>AI Dept</span>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: '#2563EB', margin: '2px 0 0' }}>{genai.department || selectedTicket.department}</p>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: '#72B4D8', margin: '2px 0 0' }}>{genai.department || selectedTicket.department}</p>
                     </div>
                   </div>
 
@@ -926,7 +939,7 @@ export default function AgentWorkspace() {
                     {genai.resolution_steps && genai.resolution_steps.length > 0 ? (
                       genai.resolution_steps.map((step, idx) => (
                         <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6 }}>
-                          <span style={{ width: 16, height: 16, borderRadius: '50%', background: '#7C3AED20', color: '#7C3AED', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <span style={{ width: 16, height: 16, borderRadius: '50%', background: 'var(--nw-accent-dim)', color: 'var(--nw-accent)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                             {idx + 1}
                           </span>
                           <p style={{ fontSize: 12, color: 'var(--nw-text-secondary)', margin: 0, lineHeight: 1.4 }}>{step}</p>
@@ -939,27 +952,27 @@ export default function AgentWorkspace() {
                 </div>
 
                 {/* Python Deterministic Ground-Truth Rule Box */}
-                <div style={{ ...glass, padding: 18, background: 'linear-gradient(135deg, #ECFDF5, #FFF)', border: '1px solid #05966930' }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid #05966920' }}>
-                    <ShieldCheck size={18} color="#059669" />
+                <div style={{ ...glass, padding: 18, background: 'var(--nw-surface)', border: '1px solid var(--nw-border)' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid var(--nw-border)' }}>
+                    <ShieldCheck size={18} color="var(--nw-success)" />
                     <div>
-                      <h4 style={{ fontSize: 13, fontWeight: 800, color: '#059669', margin: 0 }}>Pipeline 2: Ground-Truth Policy Match</h4>
+                      <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--nw-success)', margin: 0 }}>Pipeline 2: Ground-Truth Policy Match</h4>
                       <span style={{ fontSize: 10, color: 'var(--nw-text-muted)' }}>Deterministic Rule Engine</span>
                     </div>
                   </div>
 
                   <div style={{ marginBottom: 10 }}>
                     <span style={{ fontSize: 10, color: 'var(--nw-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Matched Company Policy</span>
-                    <p style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#059669', background: 'var(--nw-success-dim)', padding: '4px 8px', borderRadius: 6, marginTop: 4 }}>
+                    <p style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#4FA689', background: 'var(--nw-success-dim)', padding: '4px 8px', borderRadius: 6, marginTop: 4 }}>
                       {pythonRule.matched_rule_id || genai.policy_id || 'DEL-POL-04: Delivery Policy'}
                     </p>
                   </div>
 
                   <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: 'var(--nw-danger-dim)', color: '#EF4444' }}>
+                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: 'var(--nw-danger-dim)', color: '#E8758A' }}>
                       🚨 Escalation: {pythonRule.escalation_required ? 'REQUIRED' : 'NO'}
                     </span>
-                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: 'var(--nw-success-dim)', color: '#059669' }}>
+                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: 'var(--nw-success-dim)', color: '#4FA689' }}>
                       ✓ Refund Eligible: {pythonRule.refund_eligible ? 'YES' : 'NO'}
                     </span>
                   </div>
@@ -971,7 +984,7 @@ export default function AgentWorkspace() {
                     {pythonRule.mandatory_actions ? (
                       pythonRule.mandatory_actions.map((act, idx) => (
                         <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
-                          <CheckCircle size={12} color="#059669" />
+                          <CheckCircle size={12} color="var(--nw-success)" />
                           <span style={{ fontSize: 11.5, color: 'var(--nw-text-secondary)' }}>{act}</span>
                         </div>
                       ))
@@ -1060,9 +1073,9 @@ export default function AgentWorkspace() {
                     style={{
                       padding: '8px 6px', borderRadius: 8, fontSize: 11, fontWeight: 700,
                       cursor: (isRevoked || isOtherAssigned) ? 'not-allowed' : 'pointer',
-                      border: selectedTicket?.status === st ? '2px solid #7C3AED' : '1px solid var(--nw-border-strong)',
-                      background: selectedTicket?.status === st ? '#F5F3FF' : '#FFF',
-                      color: selectedTicket?.status === st ? '#7C3AED' : '#475569',
+                      border: selectedTicket?.status === st ? '2px solid var(--nw-accent)' : '1px solid var(--nw-border-strong)',
+                      background: selectedTicket?.status === st ? 'var(--nw-accent-dim)' : 'var(--nw-surface)',
+                      color: selectedTicket?.status === st ? 'var(--nw-accent)' : 'var(--nw-text-secondary)',
                       opacity: (isRevoked || isOtherAssigned) ? 0.5 : 1,
                       transition: 'all 0.15s'
                     }}
@@ -1075,7 +1088,7 @@ export default function AgentWorkspace() {
               {/* Permission & Revocation Notice */}
               {isRevoked ? (
                 <div style={{ background: 'var(--nw-danger-dim)', border: '1px solid rgba(193,73,91,0.3)', padding: '8px 10px', borderRadius: 8, marginBottom: 10 }}>
-                  <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: '#B91C1C' }}>
+                  <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: 'var(--nw-danger)' }}>
                     ⛔ ACCESS REVOKED: You cannot update status or send replies on this ticket.
                   </p>
                 </div>
@@ -1097,7 +1110,7 @@ export default function AgentWorkspace() {
                   onChange={e => setAgentNotes(e.target.value)}
                   disabled={isRevoked || isOtherAssigned}
                   placeholder="Notes to include in customer status notification..."
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--nw-border-strong)', fontSize: 12, outline: 'none', background: (isRevoked || isOtherAssigned) ? '#F1F5F9' : '#FFF' }}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--nw-border-strong)', fontSize: 12, outline: 'none', background: 'var(--nw-surface)', color: 'var(--nw-text-primary)' }}
                 />
               </div>
 
@@ -1107,9 +1120,9 @@ export default function AgentWorkspace() {
                 disabled={statusUpdating || isRevoked || isOtherAssigned}
                 style={{
                   width: '100%', padding: '10px', borderRadius: 9, border: 'none',
-                  background: (isRevoked || isOtherAssigned) ? '#94A3B8' : 'linear-gradient(135deg, #7C3AED, #6D28D9)', color: '#FFF',
+                  background: (isRevoked || isOtherAssigned) ? 'var(--nw-elevated)' : 'var(--nw-accent)', color: 'var(--nw-text-inverse)',
                   fontSize: 12, fontWeight: 700, cursor: (isRevoked || isOtherAssigned) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  boxShadow: (isRevoked || isOtherAssigned) ? 'none' : '0 4px 12px rgba(124,58,237,0.25)', opacity: statusUpdating ? 0.7 : 1, marginBottom: 8
+                  opacity: statusUpdating ? 0.7 : 1, marginBottom: 8
                 }}
               >
                 {statusUpdating ? <RefreshCw size={14} className="spin" /> : <Send size={14} />}
@@ -1121,9 +1134,9 @@ export default function AgentWorkspace() {
                 onClick={() => handleStatusUpdate('Resolved')}
                 disabled={statusUpdating || isRevoked || isOtherAssigned}
                 style={{
-                  width: '100%', padding: '9px', borderRadius: 9, border: '1px solid #059669',
-                  background: (isRevoked || isOtherAssigned) ? '#F1F5F9' : '#ECFDF5',
-                  color: (isRevoked || isOtherAssigned) ? '#94A3B8' : '#059669',
+                  width: '100%', padding: '9px', borderRadius: 9, border: '1px solid rgba(79,166,137,0.4)',
+                  background: (isRevoked || isOtherAssigned) ? 'var(--nw-elevated)' : 'var(--nw-success-dim)',
+                  color: (isRevoked || isOtherAssigned) ? 'var(--nw-text-muted)' : 'var(--nw-success)',
                   fontSize: 11.5, fontWeight: 700, cursor: (isRevoked || isOtherAssigned) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
                 }}
               >

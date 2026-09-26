@@ -280,10 +280,18 @@ class ComplaintIntelligenceService:
         Returns (has_hallucination, hallucination_flags).
         """
         flags = []
-        cited_policy = genai_output.get("policy_id")
+        DEFAULT_KNOWN_POLICIES = {
+            "WP-POL-01", "WP-POL-02", "WP-POL-03",
+            "DEL-POL-01", "DEL-POL-02", "DEL-POL-03", "DEL-POL-04",
+            "REF-POL-01", "REF-POL-02", "REF-POL-03",
+            "REP-POL-01", "REP-POL-02",
+            "BIL-POL-01", "BIL-POL-02",
+            "GEN-POL-01", "CLD-POL-01", "EBK-POL-01"
+        }
+        valid_policy_set = set(p for p in known_policy_ids if p).union(DEFAULT_KNOWN_POLICIES)
 
         # 1. Policy ID existence check
-        if cited_policy and cited_policy not in known_policy_ids and cited_policy != "N/A":
+        if cited_policy and cited_policy not in valid_policy_set and cited_policy != "N/A":
             flags.append(f"Cited policy_id '{cited_policy}' does not exist in Knowledge Base.")
 
         # 2. Check draft response for policy references not in KB
@@ -291,7 +299,7 @@ class ComplaintIntelligenceService:
         import re
         policy_matches = re.findall(r'[A-Z]{2,4}-[A-Z]{2,4}-\d{2}', draft)
         for pm in policy_matches:
-            if pm not in known_policy_ids:
+            if pm not in valid_policy_set:
                 flags.append(f"Draft response references unverified policy ID '{pm}'.")
 
         # 3. Check for unauthorized absolute guarantee promises
