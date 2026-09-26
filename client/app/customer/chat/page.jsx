@@ -377,17 +377,17 @@ export default function CustomerChatIntake() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Navbar title="Live Chat Complaint Intake" subtitle="Interactive AI-Powered Customer Intake Engine" />
 
-        <main style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
+        <main className="responsive-main-padding" style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', justifyContent: 'center' }}>
           <div style={{ maxWidth: 860, width: '100%' }}>
 
             {/* Header Tag */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 42, height: 42, borderRadius: 14, background: 'linear-gradient(135deg, #7C3AED20, #4F46E520)', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 42, height: 42, borderRadius: 14, background: 'linear-gradient(135deg, #7C3AED20, #4F46E520)', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <MessageSquare size={22} />
                 </div>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>Intelligent Chatbot</h2>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: '#ECFDF5', color: '#059669' }}>
                       ● Online & Active
@@ -409,7 +409,7 @@ export default function CustomerChatIntake() {
             <div style={{ ...glass, background: '#FFF', minHeight: 560, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               
               {/* Messages Area */}
-              <div style={{ flex: 1, padding: 24, overflowY: 'auto', background: 'linear-gradient(180deg, #F9FAFB 0%, #FFF 100%)', maxHeight: 420 }}>
+              <div style={{ flex: 1, padding: 16, overflowY: 'auto', background: 'linear-gradient(180deg, #F9FAFB 0%, #FFF 100%)', maxHeight: 420 }}>
                 {messages.map((m, idx) => (
                   <div
                     key={idx}
@@ -483,7 +483,7 @@ export default function CustomerChatIntake() {
                       <p style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 10, letterSpacing: '0.05em' }}>
                         Click to select issue type or describe in the text box below:
                       </p>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10 }}>
                         {complaintTypes.map(t => (
                           <button
                             key={t.id}
@@ -549,7 +549,7 @@ export default function CustomerChatIntake() {
                         ))}
                       </div>
 
-                      <div style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         <textarea
                           rows={2}
                           required
@@ -557,7 +557,7 @@ export default function CustomerChatIntake() {
                           value={description}
                           onChange={e => setDescription(e.target.value)}
                           style={{
-                            flex: 1, padding: 12, borderRadius: 12, border: '1.5px solid #CBD5E1', outline: 'none',
+                            flex: '1 1 240px', padding: 12, borderRadius: 12, border: '1.5px solid #CBD5E1', outline: 'none',
                             fontSize: 13, fontFamily: 'Inter, sans-serif'
                           }}
                         />
@@ -565,8 +565,9 @@ export default function CustomerChatIntake() {
                           type="submit"
                           disabled={description.trim().length < 15}
                           style={{
-                            padding: '0 22px', borderRadius: 12, background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
-                            color: '#FFF', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: description.trim().length < 15 ? 0.5 : 1
+                            padding: '12px 22px', borderRadius: 12, background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
+                            color: '#FFF', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: description.trim().length < 15 ? 0.5 : 1,
+                            flexShrink: 0
                           }}
                         >
                           Next <CornerDownLeft size={14} style={{ display: 'inline', marginLeft: 4 }} />
@@ -581,7 +582,7 @@ export default function CustomerChatIntake() {
                       <p style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 10 }}>
                         Product & Reference Details:
                       </p>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
                         <input
                           type="text"
                           required
@@ -602,8 +603,8 @@ export default function CustomerChatIntake() {
                           type="submit"
                           disabled={!productService.trim() || !orderId.trim()}
                           style={{
-                            padding: '0 20px', borderRadius: 10, background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
-                            color: '#FFF', border: 'none', fontWeight: 700, cursor: 'pointer'
+                            padding: '10px 20px', borderRadius: 10, background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
+                            color: '#FFF', border: 'none', fontWeight: 700, cursor: 'pointer', minHeight: 42
                           }}
                         >
                           Review <ArrowRight size={14} style={{ display: 'inline', marginLeft: 4 }} />
@@ -616,7 +617,7 @@ export default function CustomerChatIntake() {
                   {step === 5 && (
                     <div>
                       <div style={{ background: '#FFF', border: '1px solid #7C3AED30', borderRadius: 14, padding: 16, marginBottom: 14, boxShadow: '0 2px 10px rgba(124,58,237,0.05)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                           <span style={{ fontSize: 11, fontWeight: 700, color: '#7C3AED', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 4 }}>
                             <Sparkles size={13} /> AI Intake Summary Review
                           </span>
@@ -624,7 +625,7 @@ export default function CustomerChatIntake() {
                             Channel: Chat 💬
                           </span>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12.5, color: '#334155' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, fontSize: 12.5, color: '#334155' }}>
                           <div>Target Department: <strong>{selectedDept}</strong></div>
                           <div>Order Reference: <strong>{orderId}</strong></div>
                           <div>Product / Service: <strong>{productService}</strong></div>
@@ -702,7 +703,7 @@ export default function CustomerChatIntake() {
                     Department: <strong>{createdTicket.department || selectedDept}</strong> • Channel: <strong>Chat</strong> • Automated confirmation email sent to <strong>{createdTicket.customer_email || cleanQuotes(user.email)}</strong>.
                   </p>
 
-                  <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
                     <button
                       onClick={handleResetChat}
                       style={{ padding: '9px 20px', borderRadius: 10, background: '#FFF', border: '1px solid #A7F3D0', color: '#047857', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}

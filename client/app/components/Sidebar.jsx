@@ -125,42 +125,123 @@ export default function Sidebar({ role = 'customer', userName, userEmail }) {
     }
   }, [userName, userEmail])
 
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Listen for global toggle/open/close sidebar events
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleToggle = () => setMobileOpen(prev => !prev)
+    const handleOpen   = () => setMobileOpen(true)
+    const handleClose  = () => setMobileOpen(false)
+    const handleKey    = (e) => { if (e.key === 'Escape') setMobileOpen(false) }
+
+    window.addEventListener('toggle-supportnova-sidebar', handleToggle)
+    window.addEventListener('open-supportnova-sidebar', handleOpen)
+    window.addEventListener('close-supportnova-sidebar', handleClose)
+    window.addEventListener('keydown', handleKey)
+
+    return () => {
+      window.removeEventListener('toggle-supportnova-sidebar', handleToggle)
+      window.removeEventListener('open-supportnova-sidebar', handleOpen)
+      window.removeEventListener('close-supportnova-sidebar', handleClose)
+      window.removeEventListener('keydown', handleKey)
+    }
+  }, [])
+
+  // Auto-close on route transition
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
+  // Lock mobile body scroll when drawer is open
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (mobileOpen && window.innerWidth < 1024) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      if (typeof document !== 'undefined') document.body.style.overflow = ''
+    }
+  }, [mobileOpen])
+
   // group admin items by section safely
   const sections = rKey === 'admin'
     ? [...new Set(items.map(i => i.section).filter(Boolean))]
     : null
 
   return (
-    <aside style={{
-      background: 'rgba(255,255,255,0.88)',
-      backdropFilter: 'blur(24px)',
-      WebkitBackdropFilter: 'blur(24px)',
-      borderRight: '1px solid rgba(226,232,240,0.7)',
-      boxShadow: '4px 0 32px rgba(148,163,184,0.08)',
-      width: 248,
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      flexShrink: 0,
-    }}>
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          className="sidebar-backdrop"
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.45)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
+            zIndex: 90,
+            transition: 'opacity 0.25s ease',
+          }}
+        />
+      )}
 
-      {/* Logo */}
-      <div style={{ padding: '20px 18px 14px', borderBottom: '1px solid rgba(226,232,240,0.5)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-          <div style={{
-            width: 38, height: 38, borderRadius: 12,
-            background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 6px 18px rgba(124,58,237,0.35)',
-          }} className="animate-float">
-            <Zap size={17} color="white" />
+      <aside
+        className={`app-sidebar ${mobileOpen ? 'mobile-open' : ''}`}
+        style={{
+          background: 'rgba(255,255,255,0.94)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderRight: '1px solid rgba(226,232,240,0.7)',
+          boxShadow: '4px 0 32px rgba(148,163,184,0.08)',
+          width: 250,
+          display: 'flex',
+          flexDirection: 'column',
+          flexShrink: 0,
+        }}
+      >
+        {/* Logo & Mobile Dismiss Header */}
+        <div style={{ padding: '18px 18px 14px', borderBottom: '1px solid rgba(226,232,240,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: 12,
+              background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 6px 18px rgba(124,58,237,0.35)',
+            }} className="animate-float">
+              <Zap size={17} color="white" />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.3px' }}>NovaWear Apparel</div>
+              <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500 }}>AI Intelligence v1.0</div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.3px' }}>NovaWear Apparel</div>
-            <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500 }}>AI Intelligence v1.0</div>
-          </div>
+
+          {/* Close button on mobile */}
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="sidebar-mobile-close"
+            aria-label="Close menu"
+            style={{
+              background: 'rgba(241,245,249,0.8)',
+              border: '1px solid rgba(226,232,240,0.8)',
+              borderRadius: 8,
+              width: 30, height: 30,
+              cursor: 'pointer',
+              color: '#64748B',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <span style={{ fontSize: 16, lineHeight: 1, fontWeight: 'bold' }}>✕</span>
+          </button>
         </div>
-      </div>
 
       {/* Role Badge */}
       <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(226,232,240,0.4)' }}>
@@ -189,7 +270,7 @@ export default function Sidebar({ role = 'customer', userName, userEmail }) {
                 const Icon = item.icon
                 const targetHref = item.href || '/admin/dashboard'
                 return (
-                  <Link key={item.label} href={targetHref} style={{
+                  <Link key={item.label} href={targetHref} onClick={() => setMobileOpen(false)} style={{
                     display: 'flex', alignItems: 'center', gap: 9,
                     padding: '8px 10px', borderRadius: 9, marginBottom: 1,
                     textDecoration: 'none',
@@ -217,7 +298,7 @@ export default function Sidebar({ role = 'customer', userName, userEmail }) {
               const Icon = item.icon
               const targetHref = item.href || '/customer/dashboard'
               return (
-                <Link key={item.label} href={targetHref} style={{
+                <Link key={item.label} href={targetHref} onClick={() => setMobileOpen(false)} style={{
                   display: 'flex', alignItems: 'center', gap: 9,
                   padding: '8px 10px', borderRadius: 9, marginBottom: 2,
                   textDecoration: 'none',
@@ -260,11 +341,12 @@ export default function Sidebar({ role = 'customer', userName, userEmail }) {
             <div style={{ fontSize: 12, fontWeight: 700, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.name}</div>
             <div style={{ fontSize: 10, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.email}</div>
           </div>
-          <Link href="/login" style={{ color: '#94A3B8', display: 'flex', padding: 4, borderRadius: 6, transition: 'all 0.15s' }}>
+          <Link href="/login" onClick={() => setMobileOpen(false)} style={{ color: '#94A3B8', display: 'flex', padding: 4, borderRadius: 6, transition: 'all 0.15s' }}>
             <LogOut size={13} />
           </Link>
         </div>
       </div>
     </aside>
+    </>
   )
 }

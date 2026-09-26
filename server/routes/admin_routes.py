@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Query
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
-from datetime import datetime
+from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta
 
 from lib.db import get_database
 from lib.auth import hash_password, generate_temp_password
@@ -432,3 +432,261 @@ async def get_agents_overview():
         "total_resolved_tickets": total_resolved_tickets,
         "agents": agent_data
     }
+
+
+def _parse_datetime(val):
+    if not val:
+        return None
+    if isinstance(val, datetime):
+        return val.replace(tzinfo=None) if val.tzinfo else val
+    if isinstance(val, str):
+        try:
+            cleaned = val.replace("Z", "+00:00")
+            dt = datetime.fromisoformat(cleaned)
+            return dt.replace(tzinfo=None) if dt.tzinfo else dt
+        except Exception:
+            return None
+    return None
+
+
+@router.get("/analytics")
+async def get_admin_analytics():
+    """
+    Live aggregated real-time analytics for the Admin Command Center dashboard.
+    Fetches and computes live stats directly from MongoDB:
+    - Stat cards: Total tickets, open tickets, AI match rate, SLA breach, KB docs, active rules.
+    - Complaint volume: 7-day daily breakdown.
+    - Department workload: Active tickets per department.
+    - AI Pipeline Accuracy: Match vs Mismatch vs Override.
+    - SLA Risk Monitor: Active tickets by priority (P0, P1, P2, P3).
+    - Weekly Trend: Tickets opened vs resolved over the past 7 days.
+    - Quick access counts: review queue, users, agents, total tickets.
+    """
+    db = get_database()
+
+    # Fetch all tickets
+    ticket_cursor = db.tickets.find({})
+    tickets = await ticket_cursor.to_list(length=5000)
+
+    # Fetch counts from other collections
+    kb_docs_count = await db.kb_docs.count_documents({})
+    active_kb_docs = await db.kb_docs.count_documents({"status": "Active"})
+    active_rules_count = await db.rule_matrix.count_documents({"is_active": True})
+    total_customers = await db.users.count_documents({"role": "CUSTOMER"})
+    total_staff = await db.users.count_documents({"role": {"$ne": "CUSTOMER"}})
+
+    # Active departments list
+    dept_cursor = db.departments.find({"status": "ACTIVE"})
+    all_depts = await dept_cursor.to_list(length=100)
+    dept_names = [d.get("name") for d in all_depts if d.get("name")]
+    if not dept_names:
+        dept_names = ["Logistics", "Finance", "Quality", "Fulfillment", "Operations", "Tech", "Customer Experience"]
+
+    total_tickets = len(tickets)
+    open_tickets = 0
+    resolved_tickets = 0
+    review_queue_count = 0
+    sla_breach_count = 0
+
+    match_count = 0
+    mismatch_count = 0
+    override_count = 0
+
+    priority_counts = {"P0": 0, "P1": 0, "P2": 0, "P3": 0}
+    department_counts = {name: 0 for name in dept_names}
+
+    now = datetime.utcnow()
+    today_start = datetime(now.year, now.month, now.day)
+
+    # Initialize 7-day buckets (from 6 days ago up to today)
+    day_buckets = []
+    for i in range(6, -1, -1):
+        d_start = today_start - timedelta(days=i)
+        d_end = d_start + timedelta(days=1)
+        day_buckets.append({
+            "d": d_start.strftime("%a"),
+            "date": d_start.strftime("%Y-%m-%d"),
+            "start": d_start,
+            "end": d_end,
+            "open": 0,
+            "resolved": 0,
+            "v": 0
+        })
+
+    for t in tickets:
+        status_val = t.get("status", "In Triage")
+        is_resolved = status_val in ["Resolved", "Closed"]
+        if is_resolved:
+            resolved_tickets += 1
+        else:
+            open_tickets += 1
+
+        # Review Queue count
+        if status_val == "AI Review" or t.get("match_status") is False:
+            review_queue_count += 1
+
+        # SLA breach check
+        sla_hrs = t.get("sla_hours_remaining")
+        is_breached = False
+        if sla_hrs is not None and sla_hrs <= 0:
+            is_breached = True
+        elif t.get("sla_breach") is True or t.get("sla_breached") is True:
+            is_breached = True
+        elif (t.get("policy_compliance") or {}).get("status") == "VIOLATION":
+            is_breached = True
+        if is_breached:
+            sla_breach_count += 1
+
+        # AI Pipeline accuracy categorization
+        has_override = bool(
+            t.get("reviewer_override") or 
+            t.get("override_action") or 
+            t.get("overridden_by") or 
+            status_val == "OVERRIDE"
+        )
+        if has_override:
+            override_count += 1
+        elif t.get("match_status") is False or status_val == "AI Review":
+            mismatch_count += 1
+        else:
+            match_count += 1
+
+        # Priority breakdown
+        prio = t.get("priority", "P2")
+        if prio in priority_counts:
+            priority_counts[prio] += 1
+        else:
+            priority_counts["P2"] += 1
+
+        # Department breakdown (active tickets)
+        if not is_resolved:
+            dept = t.get("department") or t.get("customer_department") or "General"
+            department_counts[dept] = department_counts.get(dept, 0) + 1
+
+        # 7-day Volume and Weekly Trend
+        created_dt = _parse_datetime(t.get("created_at"))
+        updated_dt = _parse_datetime(t.get("updated_at")) or created_dt
+
+        if created_dt:
+            for b in day_buckets:
+                if b["start"] <= created_dt < b["end"]:
+                    b["open"] += 1
+                    b["v"] += 1
+                    break
+
+        if is_resolved and updated_dt:
+            for b in day_buckets:
+                if b["start"] <= updated_dt < b["end"]:
+                    b["resolved"] += 1
+                    break
+
+    # Format AI Accuracy percentage
+    total_ai_eval = match_count + mismatch_count + override_count
+    if total_ai_eval > 0:
+        match_pct = round((match_count / total_ai_eval) * 100, 1)
+        mismatch_pct = round((mismatch_count / total_ai_eval) * 100, 1)
+        override_pct = round((override_count / total_ai_eval) * 100, 1)
+    else:
+        match_pct = 100.0
+        mismatch_pct = 0.0
+        override_pct = 0.0
+
+    sla_breach_rate = round((sla_breach_count / max(total_tickets, 1)) * 100, 1)
+
+    # Department Workload formatting (sorted descending)
+    dept_workload = [
+        {"d": k, "v": v} 
+        for k, v in sorted(department_counts.items(), key=lambda item: item[1], reverse=True)
+    ]
+    if len(dept_workload) > 6:
+        dept_workload = dept_workload[:6]
+
+    # SLA Risk formatting
+    max_active = max(open_tickets, 10)
+    sla_risk_data = [
+        {"l": "Critical (P0)", "v": priority_counts["P0"], "m": max(priority_counts["P0"] * 2, 10), "c": "#E11D48"},
+        {"l": "High (P1)",     "v": priority_counts["P1"], "m": max(priority_counts["P1"] * 2, 10), "c": "#D97706"},
+        {"l": "Medium (P2)",   "v": priority_counts["P2"], "m": max(priority_counts["P2"] * 2, 10), "c": "#0891B2"},
+        {"l": "Low (P3)",      "v": priority_counts["P3"], "m": max(priority_counts["P3"] * 2, 10), "c": "#059669"},
+    ]
+
+    volume_chart = [{"d": b["d"], "v": b["v"], "date": b["date"]} for b in day_buckets]
+    weekly_chart = [{"d": b["d"], "open": b["open"], "resolved": b["resolved"]} for b in day_buckets]
+
+    return {
+        "status": "success",
+        "summary": {
+            "total_tickets": total_tickets,
+            "open_tickets": open_tickets,
+            "resolved_tickets": resolved_tickets,
+            "ai_match_rate": match_pct,
+            "sla_breach_count": sla_breach_count,
+            "sla_breach_rate": sla_breach_rate,
+            "kb_docs_count": kb_docs_count,
+            "active_kb_docs_count": active_kb_docs,
+            "active_rules_count": active_rules_count,
+            "total_customers": total_customers,
+            "total_staff": total_staff,
+            "review_queue_count": review_queue_count,
+            "agent_queue_count": open_tickets
+        },
+        "volume": volume_chart,
+        "department_workload": dept_workload,
+        "ai_pipeline_accuracy": [
+            {"name": "Match",    "v": match_pct,    "count": match_count,    "c": "#059669"},
+            {"name": "Mismatch", "v": mismatch_pct, "count": mismatch_count, "c": "#D97706"},
+            {"name": "Override", "v": override_pct, "count": override_count, "c": "#7C3AED"}
+        ],
+        "sla_risk": sla_risk_data,
+        "weekly_trend": weekly_chart
+    }
+
+
+class CreateRuleRequest(BaseModel):
+    rule_id: str
+    category: str
+    condition: str
+    department: str
+    mandatory_actions: List[str] = []
+    prohibited_actions: List[str] = []
+    policy_reference: Optional[str] = None
+    refund_eligible: Optional[bool] = False
+    escalation_required: Optional[bool] = False
+
+
+@router.get("/rules")
+async def list_rules():
+    """Lists all rules from the Rule Matrix collection."""
+    db = get_database()
+    cursor = db.rule_matrix.find({}).sort("rule_id", 1)
+    rules = await cursor.to_list(length=300)
+    for r in rules:
+        r["_id"] = str(r["_id"])
+    return rules
+
+
+@router.post("/rules")
+async def create_rule(req: CreateRuleRequest):
+    """Admin creates a new policy rule in the rule matrix."""
+    db = get_database()
+    existing = await db.rule_matrix.find_one({"rule_id": req.rule_id.strip()})
+    if existing:
+        raise HTTPException(status_code=400, detail="Rule with this ID already exists.")
+
+    rule_doc = req.model_dump()
+    rule_doc["is_active"] = True
+    rule_doc["created_at"] = datetime.utcnow()
+    await db.rule_matrix.insert_one(rule_doc)
+    rule_doc["_id"] = str(rule_doc["_id"])
+    return {"status": "success", "rule": rule_doc}
+
+
+@router.delete("/rules/{rule_id}")
+async def delete_rule(rule_id: str):
+    """Admin deletes a rule from the rule matrix."""
+    db = get_database()
+    result = await db.rule_matrix.delete_one({"rule_id": rule_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Rule not found.")
+    return {"status": "success", "message": f"Rule {rule_id} deleted."}
+

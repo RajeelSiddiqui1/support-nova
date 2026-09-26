@@ -387,7 +387,7 @@ export default function PoliciesPage() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' }}>
         <Navbar title="Policy Knowledge Base" subtitle="Upload PDF/DOC policies, extract structured content, and link department foreign keys" />
 
-        <main style={{ padding: '24px 32px', flex: 1 }}>
+        <main className="responsive-main-padding" style={{ padding: '24px 32px', flex: 1 }}>
 
           {/* Toast Notification */}
           {toastMsg && (
@@ -454,7 +454,7 @@ export default function PoliciesPage() {
           </div>
 
           {/* Stats Bar */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 24 }}>
             <StatCard label="Total Policies" value={totalDocs} icon={BookOpen} iconBg="#F5F3FF" iconColor="#7C3AED" />
             <StatCard label="Active Policies" value={activeDocs} icon={CheckCircle} iconBg="#ECFDF5" iconColor="#059669" />
             <StatCard label="Departments Linked" value={uniqueDepts} icon={Building2} iconBg="#EFF6FF" iconColor="#2563EB" />
@@ -477,7 +477,7 @@ export default function PoliciesPage() {
               />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Building2 size={15} color="#64748B" />
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Department:</span>
@@ -519,7 +519,7 @@ export default function PoliciesPage() {
           </div>
 
           {/* Policies Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
             {filteredPolicies.map((pol) => {
               const deptName = pol.department || 'General'
               return (
@@ -644,9 +644,9 @@ export default function PoliciesPage() {
       {showUploadModal && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 520, padding: 28, background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(520px, 94vw)', padding: '24px 18px', background: '#FFF' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 38, height: 38, borderRadius: 10, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -711,7 +711,7 @@ export default function PoliciesPage() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div className="responsive-form-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Department (Foreign Key) *</label>
                   <select
@@ -774,9 +774,9 @@ export default function PoliciesPage() {
       {showManualModal && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 540, padding: 28, background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(540px, 94vw)', padding: '24px 18px', background: '#FFF' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 38, height: 38, borderRadius: 10, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -811,7 +811,7 @@ export default function PoliciesPage() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <div className="responsive-form-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Department (Foreign Key) *</label>
                   <select
@@ -892,14 +892,14 @@ export default function PoliciesPage() {
       {viewPolicy && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 720, maxHeight: '88vh', display: 'flex', flexDirection: 'column', padding: 28, background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(720px, 94vw)', maxHeight: '88vh', display: 'flex', flexDirection: 'column', padding: '24px 18px', background: '#FFF' }}>
             
             {/* Modal Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                   <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 800, background: '#F1F5F9', color: '#475569' }}>
                     {viewPolicy.doc_id}
                   </span>
@@ -920,7 +920,7 @@ export default function PoliciesPage() {
             </div>
 
             {/* View Tabs Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', marginBottom: 16 }}>
+            <div className="touch-scroll no-scrollbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', marginBottom: 16, overflowX: 'auto', whiteSpace: 'nowrap' }}>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button
                   onClick={() => setActiveTab('text')}
@@ -1062,9 +1062,9 @@ export default function PoliciesPage() {
       {editPolicy && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 540, padding: 28, background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(540px, 94vw)', padding: '24px 18px', background: '#FFF' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 38, height: 38, borderRadius: 10, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1098,7 +1098,7 @@ export default function PoliciesPage() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <div className="responsive-form-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Department (Foreign Key) *</label>
                   <select
@@ -1139,7 +1139,7 @@ export default function PoliciesPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <div className="responsive-form-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Version</label>
                   <input
@@ -1236,9 +1236,9 @@ export default function PoliciesPage() {
       {deletePolicy && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 420, padding: 28, background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(420px, 94vw)', padding: '24px 18px', background: '#FFF' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <div style={{ width: 42, height: 42, borderRadius: 12, background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <AlertCircle size={22} color="#EF4444" />

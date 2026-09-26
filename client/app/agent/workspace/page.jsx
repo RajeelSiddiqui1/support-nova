@@ -7,7 +7,7 @@ import StatCard from '../../components/StatCard'
 import {
   Zap, ShieldCheck, ShieldAlert, Send, ArrowUp, MessageSquare, CheckCircle,
   AlertTriangle, Clock, User, Info, RefreshCw, Mail, Check, AlertCircle, 
-  Building2, UserCheck, ArrowRightLeft, History, Shield, Users
+  Building2, UserCheck, ArrowRightLeft, History, Shield, Users, Menu, ChevronLeft
 } from 'lucide-react'
 
 import { API_BASE } from '../../lib/api'
@@ -35,6 +35,7 @@ export default function AgentWorkspace() {
   const [selectedId, setSelectedId]   = useState('')
   const [loading, setLoading]         = useState(false)
   const [statusFilter, setStatusF]    = useState('All')
+  const [mobileTab, setMobileTab]     = useState('queue') // 'queue' or 'workbench' on mobile
 
   // Queue Scope Filter: ALL_DEPT, MY_QUEUE, UNASSIGNED
   const [queueScope, setQueueScope]   = useState('ALL_DEPT')
@@ -428,27 +429,82 @@ export default function AgentWorkspace() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
         
         {/* Top Navbar with Working Agent Profile Switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', background: '#FFF', borderBottom: '1px solid #E2E8F0' }}>
-          <div>
-            <h1 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: 0 }}>Agent Workspace & Claim Workbench</h1>
-            <p style={{ fontSize: 11, color: '#64748B', margin: '2px 0 0' }}>Department Routing, First-Response Auto-Claiming & Manager Reassignment</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: '#FFF', borderBottom: '1px solid #E2E8F0', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('toggle-supportnova-sidebar'))}
+              className="sidebar-toggle-btn"
+              aria-label="Toggle navigation menu"
+              style={{
+                background: 'rgba(248,250,252,0.9)',
+                border: '1px solid rgba(226,232,240,0.8)',
+                cursor: 'pointer',
+                color: '#475569',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 7,
+                borderRadius: 9,
+                flexShrink: 0,
+              }}
+            >
+              <Menu size={18} />
+            </button>
+            <div style={{ minWidth: 0 }}>
+              <h1 style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Agent Workspace & Workbench
+              </h1>
+              <p className="hide-on-mobile" style={{ fontSize: 11, color: '#64748B', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Department Routing, First-Response Auto-Claiming & Reassignment
+              </p>
+            </div>
           </div>
 
           {/* Currently Logged In Agent Profile Display */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#F8FAFC', padding: '6px 14px', borderRadius: 10, border: '1.5px solid #E2E8F0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F8FAFC', padding: '6px 12px', borderRadius: 10, border: '1.5px solid #E2E8F0', flexShrink: 0 }}>
             <UserCheck size={16} color="#7C3AED" />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: '#0F172A' }}>
                 {currentAgent?.name || 'Logged In Agent'}
               </span>
-              <span style={{ fontSize: 10, color: '#64748B', fontWeight: 600 }}>
+              <span className="hide-on-mobile" style={{ fontSize: 10, color: '#64748B', fontWeight: 600 }}>
                 {currentAgent?.email || 'agent@company.com'} · {currentAgent?.role || 'AGENT'}
               </span>
             </div>
-            <span style={{ fontSize: 11, padding: '2px 10px', borderRadius: 6, background: '#ECFDF5', color: '#059669', fontWeight: 800, marginLeft: 6 }}>
-              {currentAgent?.department || 'Department'}
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: '#ECFDF5', color: '#059669', fontWeight: 800 }}>
+              {currentAgent?.department || 'Dept'}
             </span>
           </div>
+        </div>
+
+        {/* Mobile Sub-Navigation Bar between Queue and Workbench */}
+        <div className="show-on-mobile-flex" style={{ display: 'none', background: '#FFF', borderBottom: '1px solid #E2E8F0', padding: '6px 12px', gap: 8, flexShrink: 0 }}>
+          <button
+            onClick={() => setMobileTab('queue')}
+            style={{
+              flex: 1, padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+              border: 'none', cursor: 'pointer',
+              background: mobileTab === 'queue' ? '#7C3AED' : '#F1F5F9',
+              color: mobileTab === 'queue' ? '#FFF' : '#64748B',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              transition: 'all 0.15s'
+            }}
+          >
+            📋 Queue ({filteredQueue.length})
+          </button>
+          <button
+            onClick={() => setMobileTab('workbench')}
+            style={{
+              flex: 1, padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+              border: 'none', cursor: 'pointer',
+              background: mobileTab === 'workbench' ? '#7C3AED' : '#F1F5F9',
+              color: mobileTab === 'workbench' ? '#FFF' : '#64748B',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              transition: 'all 0.15s'
+            }}
+          >
+            ⚡ Workbench {selectedTicket ? `[${selectedTicket.ticket_id}]` : ''}
+          </button>
         </div>
 
         {/* Email Notification Alert Toast */}
@@ -536,7 +592,10 @@ export default function AgentWorkspace() {
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
           {/* ── LEFT: Ticket Queue (Landing Page & Shared Pool) ── */}
-          <div style={{ width: 300, borderRight: '1px solid #E2E8F0', overflowY: 'auto', background: '#FFF', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+          <div
+            className={`agent-queue-col ${mobileTab === 'workbench' ? 'hide-on-mobile' : ''}`}
+            style={{ width: 300, borderRight: '1px solid #E2E8F0', overflowY: 'auto', background: '#FFF', display: 'flex', flexDirection: 'column', flexShrink: 0 }}
+          >
             
             {/* Scope Tabs: All Dept, My Queue, Unassigned */}
             <div style={{ padding: '12px 14px', borderBottom: '1px solid #F1F5F9' }}>
@@ -642,7 +701,10 @@ export default function AgentWorkspace() {
                 return (
                   <div
                     key={t.ticket_id}
-                    onClick={() => setSelectedId(t.ticket_id)}
+                    onClick={() => {
+                      setSelectedId(t.ticket_id)
+                      setMobileTab('workbench')
+                    }}
                     style={{
                       padding: '12px 14px', borderBottom: '1px solid #F1F5F9', cursor: 'pointer',
                       background: active ? '#F5F3FF' : '#FFF',
@@ -697,7 +759,23 @@ export default function AgentWorkspace() {
 
           {/* ── CENTER: AI Pipeline & Ticket Workbench ── */}
           {selectedTicket ? (
-            <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+            <div
+              className={`agent-workbench-col ${mobileTab === 'queue' ? 'hide-on-mobile' : ''}`}
+              style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}
+            >
+              {/* Back to Queue Button for Mobile */}
+              <button
+                className="show-on-mobile-flex"
+                onClick={() => setMobileTab('queue')}
+                style={{
+                  display: 'none', alignItems: 'center', gap: 6,
+                  padding: '6px 12px', borderRadius: 8, background: '#EFF6FF',
+                  border: '1px solid #BFDBFE', fontSize: 12, fontWeight: 700,
+                  color: '#2563EB', cursor: 'pointer', width: 'fit-content'
+                }}
+              >
+                <ChevronLeft size={16} /> Back to Ticket Queue
+              </button>
 
               {/* Access Revocation Banner */}
               {isRevoked && (

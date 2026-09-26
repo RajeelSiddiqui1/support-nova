@@ -495,7 +495,7 @@ export default function TicketsPage() {
           {viewMode === 'tickets' && (
             <>
               {/* Stats Bar */}
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:13 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:12 }}>
             <StatCard title="Total Tickets" value={tickets.length}   subtitle="All time"          icon={Ticket}        color="violet"  delay={0}   />
             <StatCard title="In Triage"     value={tickets.filter(t => t.status === 'In Triage').length}    subtitle="Awaiting response" icon={Clock}         color="amber"   delay={70}  />
             <StatCard title="Assigned"      value={tickets.filter(t => t.assigned_agent_id).length}     subtitle="Active agent queue" icon={UserCheck} color="emerald"    delay={140} />
@@ -504,8 +504,8 @@ export default function TicketsPage() {
 
           {/* Filter Bar */}
           <div style={{ ...glass(), padding:'14px 18px', display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', justifyContent:'space-between' }}>
-            <div style={{ display:'flex', gap:8, alignItems:'center', flex:1, minWidth:260 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(248,250,252,0.9)', border:'1px solid rgba(226,232,240,0.8)', borderRadius:10, padding:'6px 12px', flex:1, maxWidth:320 }}>
+            <div style={{ display:'flex', gap:8, alignItems:'center', flex:1, minWidth:260, flexWrap:'wrap' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(248,250,252,0.9)', border:'1px solid rgba(226,232,240,0.8)', borderRadius:10, padding:'6px 12px', flex:1, minWidth:180, maxWidth:320 }}>
                 <Search size={13} color="#94A3B8"/>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search ID, customer, title…" style={{ background:'none', border:'none', outline:'none', fontSize:12.5, color:'#0F172A', width:'100%' }}/>
               </div>
@@ -525,11 +525,11 @@ export default function TicketsPage() {
           </div>
 
           {/* Main Grid: Table + Detail Panel */}
-          <div style={{ display:'grid', gridTemplateColumns: selTicket ? '1fr 440px' : '1fr', gap:16, alignItems:'flex-start' }}>
+          <div className="admin-tickets-grid" style={{ display:'grid', gridTemplateColumns: selTicket ? '1fr 440px' : '1fr', gap:16, alignItems:'flex-start' }}>
 
             {/* Tickets Table Card */}
             <div style={{ ...glass(), padding:18, overflow:'hidden' }}>
-              <div style={{ overflowX:'auto' }}>
+              <div className="touch-scroll" style={{ overflowX:'auto' }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', minWidth:700 }}>
                   <thead>
                     <tr style={{ background:'rgba(248,250,252,0.8)' }}>
@@ -629,7 +629,7 @@ export default function TicketsPage() {
 
             {/* Detail Panel */}
             {selTicket && (
-              <div className="animate-slide-left" style={glass({ padding:0, alignSelf:'flex-start', position:'sticky', top:22, maxHeight:'calc(100vh - 120px)', display:'flex', flexDirection:'column', overflow:'hidden' })}>
+              <div className="animate-slide-left ticket-detail-panel" style={glass({ padding:0, alignSelf:'flex-start', maxHeight:'calc(100vh - 120px)', display:'flex', flexDirection:'column', overflow:'hidden' })}>
                 {/* Header */}
                 <div style={{ padding:'18px 20px', background:'linear-gradient(135deg,rgba(124,58,237,0.07),rgba(79,70,229,0.03))', borderBottom:'1px solid rgba(226,232,240,0.5)', position:'relative', flexShrink:0 }}>
                   <button onClick={() => setSel(null)} style={{ position:'absolute', top:13, right:13, background:'rgba(255,255,255,0.8)', border:'1px solid rgba(226,232,240,0.6)', borderRadius:8, width:26, height:26, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#64748B', transition:'all 0.15s' }}

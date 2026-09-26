@@ -1,13 +1,14 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Sidebar from '../../components/Sidebar'
 import Navbar from '../../components/Navbar'
 import StatCard from '../../components/StatCard'
-import { Upload, FileText, CheckCircle, XCircle, Zap, ShieldCheck, Settings, Database, BarChart3, Users, RefreshCw, Plus, Search, X, Ticket, ArrowUpRight, Eye } from 'lucide-react'
+import { Upload, FileText, CheckCircle, XCircle, Zap, ShieldCheck, Settings, Database, BarChart3, Users, RefreshCw, Plus, Search, X, Ticket, ArrowUpRight, Eye, AlertCircle } from 'lucide-react'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 import { API_BASE } from '../../lib/api'
+import { useRealtimeRefresh } from '../../lib/useWebSocket'
 
 const glass = (extra = {}) => ({
   background: 'rgba(255,255,255,0.82)',
@@ -24,39 +25,17 @@ const hoverLift = {
   onMouseLeave: e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 28px rgba(148,163,184,0.1), 0 1px 4px rgba(148,163,184,0.06)' },
 }
 
-const VOLUME  = [{ d:'Mon',v:42},{ d:'Tue',v:67},{ d:'Wed',v:53},{ d:'Thu',v:88},{ d:'Fri',v:74},{ d:'Sat',v:31},{ d:'Sun',v:19}]
-const DEPT    = [{ d:'Logistics',v:38},{ d:'Finance',v:27},{ d:'Quality',v:19},{ d:'Fulfillment',v:24},{ d:'Tech',v:11}]
-const PIE     = [{ name:'Match',v:76,c:'#059669'},{ name:'Mismatch',v:18,c:'#D97706'},{ name:'Override',v:6,c:'#7C3AED'}]
-const SLA     = [{ l:'Critical (P0)',v:3,m:10,c:'#E11D48'},{ l:'High (P1)',v:7,m:30,c:'#D97706'},{ l:'Medium (P2)',v:18,m:60,c:'#0891B2'},{ l:'Low (P3)',v:42,m:80,c:'#059669'}]
-const WEEKLY  = [{ d:'Mon',open:12,resolved:8},{ d:'Tue',open:18,resolved:14},{ d:'Wed',open:15,resolved:12},{ d:'Thu',open:24,resolved:19},{ d:'Fri',open:21,resolved:17},{ d:'Sat',open:9,resolved:8},{ d:'Sun',open:5,resolved:5}]
-
-const KB_DOCS = [
-  { id:'KB-001', name:'Customer Delivery Policy v2.1',   chunks:34, status:'Active',     date:'Sep 10, 2026', size:'1.2 MB', ver:'v2.1' },
-  { id:'KB-002', name:'Refund & Return Policy v3.0',     chunks:28, status:'Active',     date:'Sep 12, 2026', size:'890 KB',  ver:'v3.0' },
-  { id:'KB-003', name:'Product Quality Guidelines v1.5', chunks:19, status:'Active',     date:'Aug 28, 2026', size:'640 KB',  ver:'v1.5' },
-  { id:'KB-004', name:'Customer Delivery Policy v2.0',   chunks:32, status:'Superseded', date:'Aug 01, 2026', size:'1.1 MB',  ver:'v2.0' },
-]
-
-const RULES = [
-  { id:'DEL-POL-04', cat:'Delivery',   cond:'Delay > 72h',            dept:'Logistics',   must:'Escalate within 2h',       no:'Promise date without confirmation' },
-  { id:'REF-POL-07', cat:'Refund',     cond:'Defective product',      dept:'Finance',     must:'Full refund within 24h',   no:'Partial refund without approval' },
-  { id:'WP-POL-02',  cat:'Wrong Prod', cond:'Wrong item delivered',   dept:'Fulfillment', must:'Photo evidence required',  no:'Issue replacement without photo' },
-  { id:'BIL-POL-03', cat:'Billing',    cond:'Double charge detected', dept:'Finance',     must:'Full refund within 24h',   no:'Loyalty points only' },
-  { id:'ESC-POL-01', cat:'Escalation', cond:'SLA breach > P1',        dept:'Management',  must:'Manager notification',     no:'Auto-close without review' },
-]
-
-const STAFF_INIT = [
-  { id:1, name:'Zara Ahmed',   role:'Agent',    dept:'Logistics',   email:'zara@company.com',  status:'Active' },
-  { id:2, name:'Omar Sheikh',  role:'Agent',    dept:'Finance',     email:'omar@company.com',  status:'Active' },
-  { id:3, name:'Sana Malik',   role:'Reviewer', dept:'Quality',     email:'sana@company.com',  status:'Active' },
-  { id:4, name:'Bilal Rana',   role:'Manager',  dept:'Operations',  email:'bilal@company.com', status:'Active' },
-  { id:5, name:'Hira Qureshi', role:'Agent',    dept:'Fulfillment', email:'hira@company.com',  status:'Inactive' },
-]
+const FALLBACK_VOLUME  = [{ d:'Mon',v:0},{ d:'Tue',v:0},{ d:'Wed',v:0},{ d:'Thu',v:0},{ d:'Fri',v:0},{ d:'Sat',v:0},{ d:'Sun',v:0}]
+const FALLBACK_DEPT    = [{ d:'Logistics',v:0},{ d:'Finance',v:0},{ d:'Quality',v:0},{ d:'Fulfillment',v:0},{ d:'Operations',v:0}]
+const FALLBACK_PIE     = [{ name:'Match',v:100,count:0,c:'#059669'},{ name:'Mismatch',v:0,count:0,c:'#D97706'},{ name:'Override',v:0,count:0,c:'#7C3AED'}]
+const FALLBACK_SLA     = [{ l:'Critical (P0)',v:0,m:10,c:'#E11D48'},{ l:'High (P1)',v:0,m:10,c:'#D97706'},{ l:'Medium (P2)',v:0,m:10,c:'#0891B2'},{ l:'Low (P3)',v:0,m:10,c:'#059669'}]
+const FALLBACK_WEEKLY  = [{ d:'Mon',open:0,resolved:0},{ d:'Tue',open:0,resolved:0},{ d:'Wed',open:0,resolved:0},{ d:'Thu',open:0,resolved:0},{ d:'Fri',open:0,resolved:0},{ d:'Sat',open:0,resolved:0},{ d:'Sun',open:0,resolved:0}]
 
 const ROLES_L = ['Agent','Reviewer','Manager']
 const DEPTS_L  = ['Logistics','Finance','Quality','Fulfillment','Operations','Tech','Customer Experience']
+const CATS_L   = ['Delivery','Refund','Replacement','Warranty','Billing','Quality','General']
 
-const ROLE_COLORS = { Agent:'#0891B2', Reviewer:'#D97706', Manager:'#7C3AED' }
+const ROLE_COLORS = { Agent:'#0891B2', Reviewer:'#D97706', Manager:'#7C3AED', Admin:'#4F46E5' }
 
 const CustomTip = ({ active, payload, label }) => active && payload?.length ? (
   <div style={{ background:'rgba(255,255,255,0.97)', border:'1px solid rgba(226,232,240,0.8)', borderRadius:10, padding:'8px 13px', boxShadow:'0 8px 20px rgba(148,163,184,0.15)' }}>
@@ -73,11 +52,44 @@ export default function AdminDashboard() {
   const [drag, setDrag]       = useState(false)
   const [uploads, setUploads] = useState([])
   const [ruleQ, setRuleQ]     = useState('')
-  const [staff, setStaff]     = useState(STAFF_INIT)
-  const [newForm, setNewForm]  = useState({ name:'', role:'Agent', dept:'', email:'' })
-  const [showAdd, setShowAdd]  = useState(false)
-  const [editId, setEditId]    = useState(null)
-  const [editForm, setEditForm]= useState({})
+  
+  // Real DB state
+  const [analytics, setAnalytics] = useState(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(true)
+  const [analyticsError, setAnalyticsError] = useState(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const [rules, setRules]     = useState([])
+  const [rulesLoading, setRulesLoading] = useState(true)
+
+  const [kbDocs, setKbDocs]   = useState([])
+  const [kbLoading, setKbLoading] = useState(true)
+
+  const [staff, setStaff]     = useState([])
+  const [staffLoading, setStaffLoading] = useState(true)
+
+  // Forms
+  const [newForm, setNewForm]   = useState({ name:'', role:'Agent', dept:'', email:'' })
+  const [showAdd, setShowAdd]   = useState(false)
+  const [editId, setEditId]     = useState(null)
+  const [editForm, setEditForm] = useState({})
+
+  // Rule Form
+  const [showAddRule, setShowAddRule] = useState(false)
+  const [newRuleForm, setNewRuleForm] = useState({
+    rule_id: '',
+    category: 'Delivery',
+    condition: '',
+    department: 'Logistics',
+    mandatory_actions: '',
+    prohibited_actions: '',
+    policy_reference: ''
+  })
+  const [ruleSubmitting, setRuleSubmitting] = useState(false)
+
+  const [createdTempPwd, setTempPwd] = useState('')
+  const [createdEmail, setCreatedEmail] = useState('')
+  const [apiSuccessMsg, setApiSuccess] = useState('')
 
   const TABS = [
     { k:'analytics', label:'📊 Analytics'        },
@@ -86,10 +98,115 @@ export default function AdminDashboard() {
     { k:'staff',     label:'👥 Staff Management'  },
   ]
 
-  const [createdTempPwd, setTempPwd] = useState('')
-  const [createdEmail, setCreatedEmail] = useState('')
-  const [apiSuccessMsg, setApiSuccess] = useState('')
+  // ── 1. Fetch Real Analytics from MongoDB ──
+  const fetchAnalytics = useCallback(async (manual = false) => {
+    if (manual) setIsRefreshing(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/analytics`)
+      if (res.ok) {
+        const data = await res.json()
+        setAnalytics(data)
+        setAnalyticsError(null)
+      } else {
+        setAnalyticsError('Unable to load live database analytics.')
+      }
+    } catch (err) {
+      console.error('Error fetching admin analytics:', err)
+      setAnalyticsError('Network error connecting to backend API.')
+    } finally {
+      setAnalyticsLoading(false)
+      if (manual) setTimeout(() => setIsRefreshing(false), 500)
+    }
+  }, [])
 
+  // ── 2. Fetch Rules from MongoDB ──
+  const fetchRules = useCallback(async () => {
+    try {
+      setRulesLoading(true)
+      const res = await fetch(`${API_BASE}/api/admin/rules`)
+      if (res.ok) {
+        const data = await res.json()
+        setRules(data.map(r => ({
+          id: r.rule_id,
+          cat: r.category,
+          cond: r.condition,
+          dept: r.department,
+          must: (r.mandatory_actions && r.mandatory_actions.length > 0) ? r.mandatory_actions.join(', ') : 'Standard verification',
+          no: (r.prohibited_actions && r.prohibited_actions.length > 0) ? r.prohibited_actions.join(', ') : 'None',
+          refund_eligible: r.refund_eligible,
+          escalation_required: r.escalation_required,
+          policy_reference: r.policy_reference
+        })))
+      }
+    } catch (err) {
+      console.error('Error fetching rule matrix:', err)
+    } finally {
+      setRulesLoading(false)
+    }
+  }, [])
+
+  // ── 3. Fetch Knowledge Base Documents from MongoDB ──
+  const fetchKbDocs = useCallback(async () => {
+    try {
+      setKbLoading(true)
+      const res = await fetch(`${API_BASE}/api/policies`)
+      if (res.ok) {
+        const data = await res.json()
+        setKbDocs(data.map(d => ({
+          id: d.doc_id,
+          name: d.title,
+          chunks: d.chunk_count || (d.chunks ? d.chunks.length : 0),
+          ver: d.version || 'v1.0',
+          status: d.status || 'Active',
+          size: d.file_size_kb ? `${d.file_size_kb} KB` : '120 KB',
+          date: d.uploaded_at ? new Date(d.uploaded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'
+        })))
+      }
+    } catch (err) {
+      console.error('Error fetching policies:', err)
+    } finally {
+      setKbLoading(false)
+    }
+  }, [])
+
+  // ── 4. Fetch Staff from MongoDB Users ──
+  const fetchStaff = useCallback(async () => {
+    try {
+      setStaffLoading(true)
+      const res = await fetch(`${API_BASE}/api/admin/users`)
+      if (res.ok) {
+        const users = await res.json()
+        const staffOnly = users.filter(u => ['AGENT', 'REVIEWER', 'MANAGER', 'ADMIN'].includes(u.role?.toUpperCase()))
+        setStaff(staffOnly.map(u => ({
+          id: u.user_id || u._id,
+          name: u.name,
+          role: u.role ? (u.role.charAt(0).toUpperCase() + u.role.slice(1).toLowerCase()) : 'Agent',
+          dept: u.department || 'General',
+          email: u.email,
+          status: u.status === 'ACTIVE' ? 'Active' : 'Inactive'
+        })))
+      }
+    } catch (err) {
+      console.error('Error fetching staff members:', err)
+    } finally {
+      setStaffLoading(false)
+    }
+  }, [])
+
+  // Load live data on mount
+  useEffect(() => {
+    fetchAnalytics()
+    fetchRules()
+    fetchKbDocs()
+    fetchStaff()
+  }, [fetchAnalytics, fetchRules, fetchKbDocs, fetchStaff])
+
+  // Real-time zero-reload sync via WebSocket
+  useRealtimeRefresh(() => {
+    fetchAnalytics()
+  })
+
+  // Staff creation
   const addStaff = async () => {
     if (!newForm.name || !newForm.dept || !newForm.email) return
 
@@ -104,88 +221,216 @@ export default function AdminDashboard() {
       if (res.ok && data.temp_password) {
         setTempPwd(data.temp_password)
         setCreatedEmail(newForm.email)
-        setApiSuccess(`Staff ${newForm.name} created! Credentials sent to ${newForm.email}`)
+        setApiSuccess(`Staff ${newForm.name} created! Temporary credentials sent to ${newForm.email}`)
+      } else if (res.ok) {
+        setApiSuccess(`Staff ${newForm.name} created successfully!`)
+      } else {
+        setApiSuccess(`Error: ${data.detail || 'Could not create staff member.'}`)
       }
+      fetchStaff()
+      fetchAnalytics()
     } catch {
-      const fakeTemp = `Nova#${Math.floor(1000 + Math.random() * 9000)}`
-      setTempPwd(fakeTemp)
-      setCreatedEmail(newForm.email)
-      setApiSuccess(`Staff ${newForm.name} created! Temporary password generated.`)
+      setApiSuccess(`Staff creation request submitted.`)
+      fetchStaff()
     }
 
-    setStaff(s => [...s, { id: Date.now(), ...newForm, status: 'MUST_CHANGE_PASSWORD', joined: 'Sep 2026' }])
     setNewForm({ name: '', role: 'Agent', dept: '', email: '' })
     setShowAdd(false)
   }
 
-  const filteredRules = ruleQ ? RULES.filter(r => r.id.toLowerCase().includes(ruleQ.toLowerCase()) || r.cat.toLowerCase().includes(ruleQ.toLowerCase()) || r.dept.toLowerCase().includes(ruleQ.toLowerCase())) : RULES
+  // Rule creation
+  const handleCreateRule = async () => {
+    if (!newRuleForm.rule_id || !newRuleForm.condition) return
+    setRuleSubmitting(true)
+    try {
+      const payload = {
+        rule_id: newRuleForm.rule_id.trim().toUpperCase(),
+        category: newRuleForm.category,
+        condition: newRuleForm.condition,
+        department: newRuleForm.department,
+        mandatory_actions: newRuleForm.mandatory_actions ? newRuleForm.mandatory_actions.split(',').map(s => s.trim()).filter(Boolean) : [],
+        prohibited_actions: newRuleForm.prohibited_actions ? newRuleForm.prohibited_actions.split(',').map(s => s.trim()).filter(Boolean) : [],
+        policy_reference: newRuleForm.policy_reference || 'SOP Policy Guidelines'
+      }
+      const res = await fetch(`${API_BASE}/api/admin/rules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (res.ok) {
+        setShowAddRule(false)
+        setNewRuleForm({ rule_id: '', category: 'Delivery', condition: '', department: 'Logistics', mandatory_actions: '', prohibited_actions: '', policy_reference: '' })
+        fetchRules()
+        fetchAnalytics()
+      }
+    } catch (err) {
+      console.error('Failed to create rule:', err)
+    } finally {
+      setRuleSubmitting(false)
+    }
+  }
+
+  // Delete rule
+  const handleDeleteRule = async (ruleId) => {
+    if (!window.confirm(`Delete rule ${ruleId} from Rule Matrix?`)) return
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/rules/${ruleId}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        fetchRules()
+        fetchAnalytics()
+      }
+    } catch (err) {
+      console.error('Failed to delete rule:', err)
+    }
+  }
+
+  const filteredRules = ruleQ 
+    ? rules.filter(r => r.id?.toLowerCase().includes(ruleQ.toLowerCase()) || r.cat?.toLowerCase().includes(ruleQ.toLowerCase()) || r.dept?.toLowerCase().includes(ruleQ.toLowerCase()))
+    : rules
+
+  // Dynamic Chart Datasets
+  const volumeData = analytics?.volume && analytics.volume.length > 0 ? analytics.volume : FALLBACK_VOLUME
+  const deptData   = analytics?.department_workload && analytics.department_workload.length > 0 ? analytics.department_workload : FALLBACK_DEPT
+  const pieData    = analytics?.ai_pipeline_accuracy && analytics.ai_pipeline_accuracy.length > 0 ? analytics.ai_pipeline_accuracy : FALLBACK_PIE
+  const slaData    = analytics?.sla_risk && analytics.sla_risk.length > 0 ? analytics.sla_risk : FALLBACK_SLA
+  const weeklyData = analytics?.weekly_trend && analytics.weekly_trend.length > 0 ? analytics.weekly_trend : FALLBACK_WEEKLY
 
   return (
     <div style={{ display:'flex', minHeight:'100vh', background:'linear-gradient(135deg,#F8FAFC 0%,#EEF2FF 60%,#F0FDF4 100%)' }}>
       <Sidebar role="admin" userName="Admin Nova" userEmail="admin@company.com" />
 
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
-        <Navbar title="Admin Command Center" subtitle="Analytics, Knowledge Base, Rule Matrix & Staff Management" />
+        <Navbar title="Admin Command Center" subtitle="Real-Time Analytics, Knowledge Base, Rule Matrix & Staff Management" />
 
-        <main style={{ flex:1, padding:22, overflowY:'auto', display:'flex', flexDirection:'column', gap:18 }}>
+        <main className="responsive-main-padding" style={{ flex:1, padding:22, overflowY:'auto', display:'flex', flexDirection:'column', gap:18 }}>
 
           {/* Quick Access Cards */}
-          <div className="animate-fade-up" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:12 }}>
+          <div className="animate-fade-up" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(145px,1fr))', gap:12 }}>
             {[
-              { href:'/admin/tickets', icon:'🎫', title:'All Tickets',       sub:'12 total · 5 open',   c:'#7C3AED', bg:'#F5F3FF' },
-              { href:'/admin/users',   icon:'👥', title:'User Management',   sub:'8 customers registered', c:'#059669', bg:'#ECFDF5' },
-              { href:'/reviewer/queue',icon:'⚖️', title:'Review Queue',      sub:'4 pending review',    c:'#D97706', bg:'#FFFBEB' },
-              { href:'/agent/workspace',icon:'🎧',title:'Agent Workspace',   sub:'5 tickets in queue',  c:'#0891B2', bg:'#EFF6FF' },
+              { href:'/admin/tickets',  icon:'🎫', title:'All Tickets',     sub:`${analytics?.summary?.total_tickets ?? 0} total · ${analytics?.summary?.open_tickets ?? 0} open`, c:'#7C3AED', bg:'#F5F3FF' },
+              { href:'/admin/users',    icon:'👥', title:'User Management', sub:`${analytics?.summary?.total_customers ?? 0} customers registered`, c:'#059669', bg:'#ECFDF5' },
+              { href:'/reviewer/queue', icon:'⚖️', title:'Review Queue',    sub:`${analytics?.summary?.review_queue_count ?? 0} pending review`, c:'#D97706', bg:'#FFFBEB' },
+              { href:'/agent/workspace',icon:'🎧', title:'Agent Workspace', sub:`${analytics?.summary?.agent_queue_count ?? 0} tickets in queue`, c:'#0891B2', bg:'#EFF6FF' },
             ].map(card => (
               <Link key={card.href} href={card.href || '/admin/dashboard'} style={{ textDecoration:'none' }}>
-                <div style={{ ...glass(), padding:'16px 18px', display:'flex', alignItems:'center', gap:12, transition:'all 0.2s', cursor:'pointer' }} {...hoverLift}>
-                  <div style={{ width:40, height:40, borderRadius:12, background:card.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0, boxShadow:`0 4px 12px ${card.c}20` }}>
+                <div style={{ ...glass(), padding:'14px 16px', display:'flex', alignItems:'center', gap:11, transition:'all 0.2s', cursor:'pointer' }} {...hoverLift}>
+                  <div style={{ width:38, height:38, borderRadius:12, background:card.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0, boxShadow:`0 4px 12px ${card.c}20` }}>
                     {card.icon}
                   </div>
-                  <div>
-                    <p style={{ fontSize:13, fontWeight:700, color:'#0F172A' }}>{card.title}</p>
-                    <p style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>{card.sub}</p>
+                  <div style={{ minWidth:0 }}>
+                    <p style={{ fontSize:13, fontWeight:700, color:'#0F172A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{card.title}</p>
+                    <p style={{ fontSize:10.5, color:'#94A3B8', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{card.sub}</p>
                   </div>
-                  <ArrowUpRight size={13} color="#94A3B8" style={{ marginLeft:'auto' }}/>
+                  <ArrowUpRight size={13} color="#94A3B8" style={{ marginLeft:'auto', flexShrink:0 }}/>
                 </div>
               </Link>
             ))}
           </div>
 
-          {/* Stats */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(155px,1fr))', gap:13 }}>
-            <StatCard title="Total Tickets"  value="374" subtitle="↑12% vs last week" icon={BarChart3} color="violet"  trend="up"   trendValue="12%" delay={0}   />
-            <StatCard title="AI Match Rate"  value="76%" subtitle="GenAI vs Python"   icon={Zap}       color="emerald" trend="up"   trendValue="4%"  delay={70}  />
-            <StatCard title="SLA Breach"     value="8.2%" subtitle="Needs attention"  icon={Settings}  color="amber"   trend="down" trendValue="2%"  delay={140} />
-            <StatCard title="KB Documents"   value="4"   subtitle="3 active"          icon={Database}  color="cyan"                                  delay={210} />
-            <StatCard title="Active Rules"   value="127" subtitle="Rule matrix"        icon={Settings}  color="violet"                                delay={280} />
+          {/* Real-time Stats Cards directly from Live Database */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:12 }}>
+            <StatCard 
+              title="Total Tickets"  
+              value={analyticsLoading ? "..." : String(analytics?.summary?.total_tickets ?? 0)} 
+              subtitle={analytics?.summary ? `${analytics.summary.open_tickets} active open` : "Live from DB"} 
+              icon={BarChart3} 
+              color="violet"  
+              trend="up"   
+              trendValue="Live DB" 
+              delay={0}   
+            />
+            <StatCard 
+              title="AI Match Rate"  
+              value={analyticsLoading ? "..." : `${analytics?.summary?.ai_match_rate ?? 0}%`} 
+              subtitle="GenAI vs Python"   
+              icon={Zap}       
+              color="emerald" 
+              trend={(analytics?.summary?.ai_match_rate ?? 0) >= 70 ? "up" : "down"}   
+              trendValue={analytics?.summary ? `${analytics.summary.ai_match_rate}%` : undefined}  
+              delay={70}  
+            />
+            <StatCard 
+              title="SLA Breach"     
+              value={analyticsLoading ? "..." : `${analytics?.summary?.sla_breach_rate ?? 0}%`} 
+              subtitle={analytics?.summary ? `${analytics.summary.sla_breach_count} breached tickets` : "Needs attention"}  
+              icon={Settings}  
+              color="amber"   
+              trend={(analytics?.summary?.sla_breach_count ?? 0) > 0 ? "down" : "up"} 
+              trendValue={analytics?.summary ? `${analytics.summary.sla_breach_count} alerts` : undefined}  
+              delay={140} 
+            />
+            <StatCard 
+              title="KB Documents"   
+              value={analyticsLoading ? "..." : String(analytics?.summary?.kb_docs_count ?? 0)}   
+              subtitle={analytics?.summary ? `${analytics.summary.active_kb_docs_count} active in DB` : "Knowledge base"}          
+              icon={Database}  
+              color="cyan"                                  
+              delay={210} 
+            />
+            <StatCard 
+              title="Active Rules"   
+              value={analyticsLoading ? "..." : String(analytics?.summary?.active_rules_count ?? 0)} 
+              subtitle="Rule matrix rules"        
+              icon={Settings}  
+              color="violet"                                
+              delay={280} 
+            />
           </div>
 
-          {/* Tab Nav */}
-          <div style={{ display:'flex', gap:3, padding:4, background:'rgba(226,232,240,0.25)', borderRadius:13, border:'1px solid rgba(226,232,240,0.4)', width:'fit-content', backdropFilter:'blur(8px)' }}>
-            {TABS.map(t => (
-              <button key={t.k} onClick={() => setTab(t.k)} style={{
-                padding:'9px 16px', borderRadius:10, border:'none', cursor:'pointer',
-                fontSize:13, fontWeight:600,
-                background: tab===t.k ? 'rgba(255,255,255,0.95)' : 'transparent',
-                color: tab===t.k ? '#0F172A' : '#64748B',
-                boxShadow: tab===t.k ? '0 2px 10px rgba(148,163,184,0.15)' : 'none',
-                transition:'all 0.2s cubic-bezier(0.22,1,0.36,1)',
-                transform: tab===t.k ? 'none' : 'scale(0.97)',
-              }}>{t.label}</button>
-            ))}
+          {/* Tab Nav & Live Sync Indicator */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
+            <div className="no-scrollbar touch-scroll" style={{ display:'flex', gap:4, padding:4, background:'rgba(226,232,240,0.25)', borderRadius:13, border:'1px solid rgba(226,232,240,0.4)', width:'fit-content', maxWidth:'100%', overflowX:'auto', backdropFilter:'blur(8px)', WebkitOverflowScrolling:'touch' }}>
+              {TABS.map(t => (
+                <button key={t.k} onClick={() => setTab(t.k)} style={{
+                  padding:'8px 14px', borderRadius:10, border:'none', cursor:'pointer',
+                  fontSize:12.5, fontWeight:600, whiteSpace:'nowrap', flexShrink:0,
+                  background: tab===t.k ? 'rgba(255,255,255,0.95)' : 'transparent',
+                  color: tab===t.k ? '#0F172A' : '#64748B',
+                  boxShadow: tab===t.k ? '0 2px 10px rgba(148,163,184,0.15)' : 'none',
+                  transition:'all 0.2s cubic-bezier(0.22,1,0.36,1)',
+                  transform: tab===t.k ? 'none' : 'scale(0.97)',
+                }}>{t.label}</button>
+              ))}
+            </div>
+
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:20, background:'rgba(5,150,105,0.08)', border:'1px solid rgba(5,150,105,0.2)' }}>
+                <span className="pulse-dot" style={{ width:6, height:6, borderRadius:'50%', background:'#059669' }}/>
+                <span style={{ fontSize:11.5, fontWeight:600, color:'#059669' }}>Live MongoDB Atlas Sync</span>
+              </div>
+              <button 
+                onClick={() => fetchAnalytics(true)}
+                disabled={isRefreshing}
+                title="Refresh Live Database Analytics"
+                style={{ padding:'7px 12px', borderRadius:10, border:'1px solid rgba(226,232,240,0.8)', background:'white', color:'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:6, boxShadow:'0 2px 6px rgba(0,0,0,0.04)', transition:'all 0.2s' }}
+                onMouseEnter={e => e.currentTarget.style.borderColor='#7C3AED'}
+                onMouseLeave={e => e.currentTarget.style.borderColor='rgba(226,232,240,0.8)'}
+              >
+                <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''} color={isRefreshing ? '#7C3AED' : '#64748B'}/>
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
+            </div>
           </div>
 
-          {/* ── ANALYTICS ── */}
+          {/* ── ANALYTICS TAB (POWERED BY REAL MONGODB DATA) ── */}
           {tab === 'analytics' && (
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+            <div className="admin-analytics-grid" style={{ gap:16 }}>
 
-              {/* Volume Area */}
+              {/* Volume Area Chart (Live 7-Day Complaint Volume) */}
               <div className="animate-fade-up" style={{ ...glass(), padding:22, transition:'all 0.2s' }} {...hoverLift}>
-                <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:2 }}>Complaint Volume</h3>
-                <p style={{ fontSize:11, color:'#94A3B8', marginBottom:18 }}>This week — daily breakdown</p>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                  <div>
+                    <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:2 }}>Complaint Volume</h3>
+                    <p style={{ fontSize:11, color:'#94A3B8', marginBottom:18 }}>Real-time 7-day intake from database</p>
+                  </div>
+                  <span style={{ fontSize:11, fontWeight:700, color:'#7C3AED', background:'rgba(124,58,237,0.1)', padding:'2px 8px', borderRadius:6 }}>
+                    {analytics?.summary?.total_tickets ?? 0} total
+                  </span>
+                </div>
                 <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={VOLUME}>
+                  <AreaChart data={volumeData}>
                     <defs>
                       <linearGradient id="gv" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%"  stopColor="#7C3AED" stopOpacity={0.2}/>
@@ -193,49 +438,59 @@ export default function AdminDashboard() {
                       </linearGradient>
                     </defs>
                     <XAxis dataKey="d" tick={{ fill:'#94A3B8', fontSize:11 }} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{ fill:'#94A3B8', fontSize:11 }} axisLine={false} tickLine={false}/>
+                    <YAxis tick={{ fill:'#94A3B8', fontSize:11 }} axisLine={false} tickLine={false} allowDecimals={false}/>
                     <Tooltip content={<CustomTip/>}/>
                     <Area type="monotone" dataKey="v" name="tickets" stroke="#7C3AED" strokeWidth={2.5} fill="url(#gv)" dot={{ fill:'#7C3AED', r:4, strokeWidth:2, stroke:'white' }} activeDot={{ r:6, fill:'#7C3AED', stroke:'white', strokeWidth:2 }}/>
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Dept Bar */}
+              {/* Dept Bar (Live Active Tickets by Department) */}
               <div className="animate-fade-up d100" style={{ ...glass(), padding:22, transition:'all 0.2s' }} {...hoverLift}>
-                <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:2 }}>Department Workload</h3>
-                <p style={{ fontSize:11, color:'#94A3B8', marginBottom:18 }}>Active tickets by department</p>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                  <div>
+                    <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:2 }}>Department Workload</h3>
+                    <p style={{ fontSize:11, color:'#94A3B8', marginBottom:18 }}>Active tickets per department</p>
+                  </div>
+                  <span style={{ fontSize:11, fontWeight:700, color:'#059669', background:'rgba(5,150,105,0.1)', padding:'2px 8px', borderRadius:6 }}>
+                    {analytics?.summary?.open_tickets ?? 0} active
+                  </span>
+                </div>
                 <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={DEPT} layout="vertical">
-                    <XAxis type="number" tick={{ fill:'#94A3B8', fontSize:11 }} axisLine={false} tickLine={false}/>
-                    <YAxis dataKey="d" type="category" tick={{ fill:'#64748B', fontSize:11 }} axisLine={false} tickLine={false} width={85}/>
+                  <BarChart data={deptData} layout="vertical">
+                    <XAxis type="number" tick={{ fill:'#94A3B8', fontSize:11 }} axisLine={false} tickLine={false} allowDecimals={false}/>
+                    <YAxis dataKey="d" type="category" tick={{ fill:'#64748B', fontSize:11 }} axisLine={false} tickLine={false} width={90}/>
                     <Tooltip content={<CustomTip/>}/>
-                    <Bar dataKey="v" name="tickets" fill="#7C3AED" radius={[0,7,7,0]}/>
+                    <Bar dataKey="v" name="active tickets" fill="#7C3AED" radius={[0,7,7,0]}/>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* AI Pie */}
+              {/* AI Pie Chart (Live GenAI vs Python Match Rate) */}
               <div className="animate-fade-up d200" style={{ ...glass(), padding:22, transition:'all 0.2s' }} {...hoverLift}>
                 <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:2 }}>AI Pipeline Accuracy</h3>
-                <p style={{ fontSize:11, color:'#94A3B8', marginBottom:16 }}>GenAI vs Python Rule Engine match rate</p>
+                <p style={{ fontSize:11, color:'#94A3B8', marginBottom:16 }}>GenAI vs Python Rule Engine match verification</p>
                 <div style={{ display:'flex', alignItems:'center', gap:20, flexWrap:'wrap' }}>
                   <ResponsiveContainer width={160} height={160}>
                     <PieChart>
-                      <Pie data={PIE} innerRadius={44} outerRadius={68} dataKey="v" paddingAngle={3} stroke="none">
-                        {PIE.map((e,i) => <Cell key={i} fill={e.c}/>)}
+                      <Pie data={pieData} innerRadius={44} outerRadius={68} dataKey="v" paddingAngle={3} stroke="none">
+                        {pieData.map((e,i) => <Cell key={i} fill={e.c}/>)}
                       </Pie>
                     </PieChart>
                   </ResponsiveContainer>
-                  <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                    {PIE.map(d => (
-                      <div key={d.name} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:10, background:`${d.c}09`, border:`1px solid ${d.c}20`, transition:'transform 0.15s' }}
+                  <div style={{ display:'flex', flexDirection:'column', gap:10, flex:1 }}>
+                    {pieData.map(d => (
+                      <div key={d.name} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'7px 12px', borderRadius:10, background:`${d.c}09`, border:`1px solid ${d.c}20`, transition:'transform 0.15s' }}
                         onMouseEnter={e => e.currentTarget.style.transform='translateX(3px)'}
                         onMouseLeave={e => e.currentTarget.style.transform='none'}
                       >
-                        <div style={{ width:10, height:10, borderRadius:'50%', background:d.c, flexShrink:0, boxShadow:`0 2px 8px ${d.c}40` }}/>
-                        <div>
-                          <p style={{ fontSize:16, fontWeight:800, color:d.c, fontFamily:'monospace' }}>{d.v}%</p>
-                          <p style={{ fontSize:10, color:'#94A3B8' }}>{d.name}</p>
+                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          <div style={{ width:10, height:10, borderRadius:'50%', background:d.c, flexShrink:0, boxShadow:`0 2px 8px ${d.c}40` }}/>
+                          <p style={{ fontSize:12, color:'#334155', fontWeight:600 }}>{d.name}</p>
+                        </div>
+                        <div style={{ textAlign:'right' }}>
+                          <p style={{ fontSize:15, fontWeight:800, color:d.c, fontFamily:'monospace' }}>{d.v}%</p>
+                          {d.count !== undefined && <p style={{ fontSize:10, color:'#94A3B8' }}>{d.count} tickets</p>}
                         </div>
                       </div>
                     ))}
@@ -243,29 +498,47 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* SLA Risk */}
+              {/* SLA Risk Monitor (Live P0-P3 tickets from DB) */}
               <div className="animate-fade-up d300" style={{ ...glass(), padding:22, transition:'all 0.2s' }} {...hoverLift}>
                 <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:2 }}>SLA Risk Monitor</h3>
-                <p style={{ fontSize:11, color:'#94A3B8', marginBottom:20 }}>Tickets by breach risk level</p>
-                {SLA.map((item, i) => (
-                  <div key={item.l} className="animate-fade-up" style={{ marginBottom:16, animationDelay:`${i*80}ms` }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:7 }}>
-                      <span style={{ fontSize:12, color:'#64748B', fontWeight:500 }}>{item.l}</span>
-                      <span style={{ fontSize:14, fontWeight:800, color:item.c, fontFamily:'monospace' }}>{item.v}</span>
+                <p style={{ fontSize:11, color:'#94A3B8', marginBottom:20 }}>Active tickets by priority level</p>
+                {slaData.map((item, i) => {
+                  const maxCap = item.m || 10
+                  const pct = Math.min(100, Math.round((item.v / maxCap) * 100))
+                  return (
+                    <div key={item.l} className="animate-fade-up" style={{ marginBottom:16, animationDelay:`${i*80}ms` }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:7 }}>
+                        <span style={{ fontSize:12, color:'#64748B', fontWeight:500 }}>{item.l}</span>
+                        <span style={{ fontSize:14, fontWeight:800, color:item.c, fontFamily:'monospace' }}>{item.v}</span>
+                      </div>
+                      <div style={{ height:6, borderRadius:99, background:'rgba(226,232,240,0.7)', overflow:'hidden' }}>
+                        <div style={{ height:'100%', borderRadius:99, background:`linear-gradient(90deg,${item.c},${item.c}80)`, width:`${pct}%`, transition:'width 0.8s cubic-bezier(0.22,1,0.36,1)', boxShadow:`0 0 10px ${item.c}40` }}/>
+                      </div>
                     </div>
-                    <div style={{ height:6, borderRadius:99, background:'rgba(226,232,240,0.7)', overflow:'hidden' }}>
-                      <div style={{ height:'100%', borderRadius:99, background:`linear-gradient(90deg,${item.c},${item.c}80)`, width:`${(item.v/item.m)*100}%`, transition:'width 0.8s cubic-bezier(0.22,1,0.36,1)', boxShadow:`0 0 10px ${item.c}40` }}/>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
-              {/* Weekly open vs resolved */}
+              {/* Weekly Open vs Resolved (Live Throughput from DB) */}
               <div className="animate-fade-up d400" style={{ ...glass(), padding:22, gridColumn:'1/-1', transition:'all 0.2s' }} {...hoverLift}>
-                <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:2 }}>Open vs Resolved — Weekly Trend</h3>
-                <p style={{ fontSize:11, color:'#94A3B8', marginBottom:18 }}>Complaint resolution throughput</p>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:10, marginBottom:18 }}>
+                  <div>
+                    <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:2 }}>Open vs Resolved — Weekly Trend</h3>
+                    <p style={{ fontSize:11, color:'#94A3B8' }}>Complaint resolution throughput calculated from MongoDB</p>
+                  </div>
+                  <div style={{ display:'flex', gap:16, alignItems:'center' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                      <span style={{ width:10, height:10, borderRadius:2, background:'#E11D48' }}/>
+                      <span style={{ fontSize:12, color:'#64748B', fontWeight:500 }}>Open</span>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                      <span style={{ width:10, height:10, borderRadius:2, background:'#059669' }}/>
+                      <span style={{ fontSize:12, color:'#64748B', fontWeight:500 }}>Resolved</span>
+                    </div>
+                  </div>
+                </div>
                 <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={WEEKLY}>
+                  <AreaChart data={weeklyData}>
                     <defs>
                       <linearGradient id="go" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%"  stopColor="#E11D48" stopOpacity={0.15}/>
@@ -277,7 +550,7 @@ export default function AdminDashboard() {
                       </linearGradient>
                     </defs>
                     <XAxis dataKey="d" tick={{ fill:'#94A3B8', fontSize:11 }} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{ fill:'#94A3B8', fontSize:11 }} axisLine={false} tickLine={false}/>
+                    <YAxis tick={{ fill:'#94A3B8', fontSize:11 }} axisLine={false} tickLine={false} allowDecimals={false}/>
                     <Tooltip content={<CustomTip/>}/>
                     <Area type="monotone" dataKey="open"     name="Open"     stroke="#E11D48" strokeWidth={2} fill="url(#go)" dot={false}/>
                     <Area type="monotone" dataKey="resolved" name="Resolved" stroke="#059669" strokeWidth={2} fill="url(#gr)" dot={false}/>
@@ -287,7 +560,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ── KNOWLEDGE BASE ── */}
+          {/* ── KNOWLEDGE BASE TAB (FETCHED FROM /api/policies) ── */}
           {tab === 'kb' && (
             <div className="animate-fade-in" style={{ display:'flex', flexDirection:'column', gap:16 }}>
               <div style={{ ...glass(), padding:22 }}>
@@ -301,7 +574,7 @@ export default function AdminDashboard() {
                 >
                   <Upload size={28} color="#7C3AED" style={{ margin:'0 auto 12px', display:'block' }}/>
                   <p style={{ fontSize:13, color:'#64748B', marginBottom:3 }}>Drop PDF / DOCX or <span style={{ color:'#7C3AED', fontWeight:600 }}>browse</span></p>
-                  <p style={{ fontSize:11, color:'#94A3B8' }}>Files are parsed, chunked and embedded into the Knowledge Base</p>
+                  <p style={{ fontSize:11, color:'#94A3B8' }}>Files are parsed, chunked and embedded into MongoDB Atlas Knowledge Base</p>
                   <input id="kb-fi" type="file" multiple accept=".pdf,.docx" style={{ display:'none' }} onChange={e => setUploads(p => [...p, ...Array.from(e.target.files)])}/>
                 </div>
                 {uploads.length > 0 && (
@@ -317,8 +590,18 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
+
               <div style={{ ...glass(), padding:22 }}>
-                <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:18 }}>Active Knowledge Base</h3>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
+                  <div>
+                    <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A' }}>Active Knowledge Base Documents</h3>
+                    <p style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>{kbDocs.length} policy documents registered in database</p>
+                  </div>
+                  <Link href="/admin/policies" style={{ fontSize:12, fontWeight:600, color:'#7C3AED', textDecoration:'none', display:'flex', alignItems:'center', gap:4 }}>
+                    Manage in Policy Center <ArrowUpRight size={13}/>
+                  </Link>
+                </div>
+
                 <div style={{ overflowX:'auto', borderRadius:12, border:'1px solid rgba(226,232,240,0.5)' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse', minWidth:600 }}>
                     <thead>
@@ -329,7 +612,11 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {KB_DOCS.map((d,i) => (
+                      {kbLoading ? (
+                        <tr><td colSpan={8} style={{ padding:20, textAlign:'center', color:'#94A3B8', fontSize:12 }}>Loading documents from database...</td></tr>
+                      ) : kbDocs.length === 0 ? (
+                        <tr><td colSpan={8} style={{ padding:20, textAlign:'center', color:'#94A3B8', fontSize:12 }}>No KB documents found. Upload above to create.</td></tr>
+                      ) : kbDocs.map((d,i) => (
                         <tr key={d.id} className="animate-fade-up" style={{ animationDelay:`${i*50}ms`, transition:'background 0.15s' }}
                           onMouseEnter={e => e.currentTarget.style.background='rgba(124,58,237,0.025)'}
                           onMouseLeave={e => e.currentTarget.style.background='transparent'}
@@ -354,10 +641,9 @@ export default function AdminDashboard() {
                             </span>
                           </td>
                           <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
-                            <button style={{ padding:'5px 11px', borderRadius:8, border:'1px solid rgba(124,58,237,0.2)', background:'rgba(124,58,237,0.07)', color:'#7C3AED', fontSize:11, cursor:'pointer', fontWeight:600, transition:'all 0.15s' }}
-                              onMouseEnter={e => { e.currentTarget.style.background='rgba(124,58,237,0.14)'; e.currentTarget.style.transform='scale(1.05)' }}
-                              onMouseLeave={e => { e.currentTarget.style.background='rgba(124,58,237,0.07)'; e.currentTarget.style.transform='none' }}
-                            >Inspect</button>
+                            <Link href="/admin/policies" style={{ padding:'5px 11px', borderRadius:8, border:'1px solid rgba(124,58,237,0.2)', background:'rgba(124,58,237,0.07)', color:'#7C3AED', fontSize:11, cursor:'pointer', fontWeight:600, textDecoration:'none', display:'inline-block' }}>
+                              Inspect
+                            </Link>
                           </td>
                         </tr>
                       ))}
@@ -368,13 +654,13 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ── RULE MATRIX ── */}
+          {/* ── RULE MATRIX TAB (FETCHED FROM REAL MONGODB) ── */}
           {tab === 'rules' && (
             <div className="animate-fade-in" style={{ ...glass(), padding:24 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18, flexWrap:'wrap', gap:12 }}>
                 <div>
                   <h3 style={{ fontSize:15, fontWeight:700, color:'#0F172A' }}>Complaint Resolution Rule Matrix</h3>
-                  <p style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>127 active rules across all departments</p>
+                  <p style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>{rules.length} active rules synchronized from database</p>
                 </div>
                 <div style={{ display:'flex', gap:10 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:7, padding:'8px 13px', borderRadius:10, border:'1.5px solid rgba(226,232,240,0.8)', background:'rgba(248,250,252,0.8)' }}>
@@ -382,14 +668,57 @@ export default function AdminDashboard() {
                     <input value={ruleQ} onChange={e => setRuleQ(e.target.value)} placeholder="Search rules…"
                       style={{ background:'none', border:'none', outline:'none', color:'#0F172A', fontSize:13, width:140 }}/>
                   </div>
-                  <button style={{ padding:'9px 16px', borderRadius:10, background:'linear-gradient(135deg,#7C3AED,#4F46E5)', color:'white', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:6, boxShadow:'0 4px 14px rgba(124,58,237,0.25)', transition:'all 0.2s' }}
-                    onMouseEnter={e => { e.currentTarget.style.transform='translateY(-1px)'; e.currentTarget.style.boxShadow='0 6px 20px rgba(124,58,237,0.35)' }}
-                    onMouseLeave={e => { e.currentTarget.style.transform='none'; e.currentTarget.style.boxShadow='0 4px 14px rgba(124,58,237,0.25)' }}
-                  >
-                    <Plus size={14}/> Add Rule
+                  <button onClick={() => setShowAddRule(!showAddRule)} style={{ padding:'9px 16px', borderRadius:10, background:'linear-gradient(135deg,#7C3AED,#4F46E5)', color:'white', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:6, boxShadow:'0 4px 14px rgba(124,58,237,0.25)', transition:'all 0.2s' }}>
+                    <Plus size={14}/> {showAddRule ? 'Close' : 'Add Rule'}
                   </button>
                 </div>
               </div>
+
+              {/* Inline Add Rule Form */}
+              {showAddRule && (
+                <div className="animate-scale-in" style={{ padding:20, borderRadius:13, background:'linear-gradient(135deg,rgba(124,58,237,0.06),rgba(248,250,252,0.85))', border:'1px solid rgba(124,58,237,0.2)', marginBottom:20 }}>
+                  <h4 style={{ fontSize:13, fontWeight:700, color:'#0F172A', marginBottom:14 }}>➕ Add New Rule to Matrix</h4>
+                  <div className="responsive-form-2col" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:12, marginBottom:14 }}>
+                    <div>
+                      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>Rule ID *</label>
+                      <input placeholder="e.g. DEL-POL-08" value={newRuleForm.rule_id} onChange={e => setNewRuleForm({...newRuleForm, rule_id:e.target.value})} style={inp}/>
+                    </div>
+                    <div>
+                      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>Category *</label>
+                      <select value={newRuleForm.category} onChange={e => setNewRuleForm({...newRuleForm, category:e.target.value})} style={sel}>
+                        {CATS_L.map(c => <option key={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>Department *</label>
+                      <select value={newRuleForm.department} onChange={e => setNewRuleForm({...newRuleForm, department:e.target.value})} style={sel}>
+                        {DEPTS_L.map(d => <option key={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>Condition / Trigger *</label>
+                      <input placeholder="e.g. Package delay > 72h" value={newRuleForm.condition} onChange={e => setNewRuleForm({...newRuleForm, condition:e.target.value})} style={inp}/>
+                    </div>
+                    <div>
+                      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>Mandatory Action</label>
+                      <input placeholder="e.g. Escalate within 2h, Issue tracking update" value={newRuleForm.mandatory_actions} onChange={e => setNewRuleForm({...newRuleForm, mandatory_actions:e.target.value})} style={inp}/>
+                    </div>
+                    <div>
+                      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>Prohibited Action</label>
+                      <input placeholder="e.g. Promise date without carrier scan" value={newRuleForm.prohibited_actions} onChange={e => setNewRuleForm({...newRuleForm, prohibited_actions:e.target.value})} style={inp}/>
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:10 }}>
+                    <button onClick={handleCreateRule} disabled={ruleSubmitting} style={{ padding:'9px 18px', borderRadius:10, background:'linear-gradient(135deg,#059669,#047857)', color:'white', border:'none', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                      {ruleSubmitting ? 'Saving...' : 'Save Rule to DB'}
+                    </button>
+                    <button onClick={() => setShowAddRule(false)} style={{ padding:'9px 15px', borderRadius:10, border:'1.5px solid rgba(226,232,240,0.8)', background:'transparent', color:'#64748B', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div style={{ overflowX:'auto', borderRadius:12, border:'1px solid rgba(226,232,240,0.5)' }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', minWidth:800 }}>
                   <thead>
@@ -400,7 +729,11 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredRules.map((r,i) => (
+                    {rulesLoading ? (
+                      <tr><td colSpan={7} style={{ padding:20, textAlign:'center', color:'#94A3B8', fontSize:12 }}>Loading rule matrix from database...</td></tr>
+                    ) : filteredRules.length === 0 ? (
+                      <tr><td colSpan={7} style={{ padding:20, textAlign:'center', color:'#94A3B8', fontSize:12 }}>No matching rules found in database.</td></tr>
+                    ) : filteredRules.map((r,i) => (
                       <tr key={r.id} className="animate-fade-up" style={{ animationDelay:`${i*50}ms`, transition:'background 0.15s' }}
                         onMouseEnter={e => e.currentTarget.style.background='rgba(124,58,237,0.025)'}
                         onMouseLeave={e => e.currentTarget.style.background='transparent'}
@@ -425,11 +758,7 @@ export default function AdminDashboard() {
                         </td>
                         <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
                           <div style={{ display:'flex', gap:6 }}>
-                            <button style={{ padding:'5px 10px', borderRadius:7, border:'1px solid rgba(124,58,237,0.2)', background:'rgba(124,58,237,0.07)', color:'#7C3AED', fontSize:11, cursor:'pointer', fontWeight:600, transition:'all 0.15s' }}
-                              onMouseEnter={e => e.currentTarget.style.background='rgba(124,58,237,0.14)'}
-                              onMouseLeave={e => e.currentTarget.style.background='rgba(124,58,237,0.07)'}
-                            >Edit</button>
-                            <button style={{ padding:'5px 10px', borderRadius:7, border:'1px solid rgba(225,29,72,0.2)', background:'rgba(225,29,72,0.06)', color:'#E11D48', fontSize:11, cursor:'pointer', fontWeight:600, transition:'all 0.15s' }}
+                            <button onClick={() => handleDeleteRule(r.id)} style={{ padding:'5px 10px', borderRadius:7, border:'1px solid rgba(225,29,72,0.2)', background:'rgba(225,29,72,0.06)', color:'#E11D48', fontSize:11, cursor:'pointer', fontWeight:600, transition:'all 0.15s' }}
                               onMouseEnter={e => e.currentTarget.style.background='rgba(225,29,72,0.12)'}
                               onMouseLeave={e => e.currentTarget.style.background='rgba(225,29,72,0.06)'}
                             >Del</button>
@@ -441,111 +770,89 @@ export default function AdminDashboard() {
                 </table>
               </div>
               <div style={{ marginTop:14, display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
-                <p style={{ fontSize:11, color:'#94A3B8' }}>Showing {filteredRules.length} of 127 rules</p>
-                <div style={{ display:'flex', gap:5 }}>
-                  {['←','1','2','3','…','26','→'].map(p => (
-                    <button key={p} style={{ width:32, height:32, borderRadius:8, border:'1px solid rgba(226,232,240,0.7)', background:p==='1'?'rgba(124,58,237,0.1)':'transparent', color:p==='1'?'#7C3AED':'#64748B', cursor:'pointer', fontSize:12, fontWeight:600, transition:'all 0.15s' }}
-                      onMouseEnter={e => { if(p!=='1') e.currentTarget.style.background='rgba(124,58,237,0.05)' }}
-                      onMouseLeave={e => { if(p!=='1') e.currentTarget.style.background='transparent' }}
-                    >{p}</button>
-                  ))}
-                </div>
+                <p style={{ fontSize:11, color:'#94A3B8' }}>Showing {filteredRules.length} of {rules.length} live rules</p>
               </div>
             </div>
           )}
 
-          {/* ── STAFF MANAGEMENT ── */}
+          {/* ── STAFF MANAGEMENT (FETCHED FROM REAL MONGODB) ── */}
           {tab === 'staff' && (
             <div className="animate-fade-in" style={{ ...glass(), padding:24 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, flexWrap:'wrap', gap:12 }}>
                 <div>
                   <h3 style={{ fontSize:15, fontWeight:700, color:'#0F172A' }}>Staff Management</h3>
-                  <p style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>Create & manage Managers, Reviewers, and Agents</p>
+                  <p style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>{staff.length} staff members fetched directly from database</p>
                 </div>
-                <button onClick={() => setShowAdd(!showAdd)} style={{ padding:'10px 18px', borderRadius:11, background:'linear-gradient(135deg,#7C3AED,#4F46E5)', color:'white', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:7, boxShadow:'0 4px 16px rgba(124,58,237,0.28)', transition:'all 0.2s' }}
-                  onMouseEnter={e => { e.currentTarget.style.transform='translateY(-1px)'; e.currentTarget.style.boxShadow='0 6px 22px rgba(124,58,237,0.38)' }}
-                  onMouseLeave={e => { e.currentTarget.style.transform='none'; e.currentTarget.style.boxShadow='0 4px 16px rgba(124,58,237,0.28)' }}
-                >
+                <button onClick={() => setShowAdd(!showAdd)} style={{ padding:'10px 18px', borderRadius:11, background:'linear-gradient(135deg,#7C3AED,#4F46E5)', color:'white', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:7, boxShadow:'0 4px 16px rgba(124,58,237,0.28)', transition:'all 0.2s' }}>
                   <Plus size={14}/> Add Staff Member
                 </button>
               </div>
 
+              {apiSuccessMsg && (
+                <div className="animate-fade-in" style={{ padding:'10px 14px', borderRadius:10, background:'rgba(5,150,105,0.08)', border:'1px solid rgba(5,150,105,0.25)', color:'#059669', fontSize:12, fontWeight:600, marginBottom:16, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                  <span>{apiSuccessMsg}</span>
+                  <button onClick={() => setApiSuccess('')} style={{ background:'none', border:'none', color:'#059669', cursor:'pointer' }}><X size={14}/></button>
+                </div>
+              )}
+
               {showAdd && (
                 <div className="animate-scale-in" style={{ padding:20, borderRadius:13, background:'linear-gradient(135deg,rgba(124,58,237,0.06),rgba(248,250,252,0.85))', border:'1px solid rgba(124,58,237,0.2)', marginBottom:20 }}>
                   <h4 style={{ fontSize:13, fontWeight:700, color:'#0F172A', marginBottom:16 }}>➕ New Staff Member</h4>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:13, marginBottom:14 }}>
+                  <div className="responsive-form-2col" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:13, marginBottom:14 }}>
                     {[['Full Name *','name','text','e.g. Ali Hassan'],['Email *','email','email','ali@company.com']].map(([l,k,t,ph]) => (
                       <div key={k}>
                         <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>{l}</label>
-                        <input type={t} value={newForm[k]} onChange={e => setNewForm({...newForm,[k]:e.target.value})} placeholder={ph} style={inp}
-                          onFocus={e => { e.target.style.borderColor='rgba(124,58,237,0.45)'; e.target.style.boxShadow='0 0 0 3px rgba(124,58,237,0.08)' }}
-                          onBlur={e => { e.target.style.borderColor='rgba(226,232,240,0.8)'; e.target.style.boxShadow='none' }}/>
+                        <input type={t} value={newForm[k]} onChange={e => setNewForm({...newForm,[k]:e.target.value})} placeholder={ph} style={inp}/>
                       </div>
                     ))}
                     {[['Role *','role',ROLES_L],['Department *','dept',DEPTS_L]].map(([l,k,opts]) => (
                       <div key={k}>
                         <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>{l}</label>
-                        <select value={newForm[k]} onChange={e => setNewForm({...newForm,[k]:e.target.value})} style={sel}
-                          onFocus={e => { e.target.style.borderColor='rgba(124,58,237,0.45)'; e.target.style.boxShadow='0 0 0 3px rgba(124,58,237,0.08)' }}
-                          onBlur={e => { e.target.style.borderColor='rgba(226,232,240,0.8)'; e.target.style.boxShadow='none' }}
-                        >
+                        <select value={newForm[k]} onChange={e => setNewForm({...newForm,[k]:e.target.value})} style={sel}>
                           {k==='dept'&&<option value="">Select department…</option>}
                           {opts.map(o => <option key={o}>{o}</option>)}
                         </select>
                       </div>
                     ))}
                   </div>
-                  <div style={{ display:'flex', gap:10 }}>
-                    <button onClick={addStaff} style={{ padding:'10px 20px', borderRadius:10, background:'linear-gradient(135deg,#059669,#047857)', color:'white', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 14px rgba(5,150,105,0.25)', transition:'all 0.2s' }}
-                      onMouseEnter={e => e.currentTarget.style.transform='translateY(-1px)'}
-                      onMouseLeave={e => e.currentTarget.style.transform='none'}
-                    >Create Member</button>
+                  <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+                    <button onClick={addStaff} style={{ padding:'10px 20px', borderRadius:10, background:'linear-gradient(135deg,#059669,#047857)', color:'white', border:'none', fontSize:13, fontWeight:700, cursor:'pointer' }}>Create Member</button>
                     <button onClick={() => setShowAdd(false)} style={{ padding:'10px 16px', borderRadius:10, border:'1.5px solid rgba(226,232,240,0.8)', background:'transparent', color:'#64748B', fontSize:13, fontWeight:600, cursor:'pointer' }}>Cancel</button>
                   </div>
                 </div>
               )}
 
-              <div style={{ overflowX:'auto', borderRadius:12, border:'1px solid rgba(226,232,240,0.5)' }}>
+              <div className="touch-scroll" style={{ overflowX:'auto', borderRadius:12, border:'1px solid rgba(226,232,240,0.5)' }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', minWidth:640 }}>
                   <thead>
                     <tr style={{ background:'rgba(248,250,252,0.8)' }}>
-                      {['Name','Role','Department','Email','Status','Actions'].map(h => (
+                      {['Name','Role','Department','Email','Status'].map(h => (
                         <th key={h} style={{ padding:'11px 14px', textAlign:'left', fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid rgba(226,232,240,0.5)' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {staff.map((m, i) => {
-                      const rc  = ROLE_COLORS[m.role] || '#64748B'
-                      const isEd = editId === m.id
+                    {staffLoading ? (
+                      <tr><td colSpan={5} style={{ padding:20, textAlign:'center', color:'#94A3B8', fontSize:12 }}>Loading staff from database...</td></tr>
+                    ) : staff.length === 0 ? (
+                      <tr><td colSpan={5} style={{ padding:20, textAlign:'center', color:'#94A3B8', fontSize:12 }}>No staff registered. Add above to create.</td></tr>
+                    ) : staff.map((m, i) => {
+                      const rc = ROLE_COLORS[m.role] || '#64748B'
                       return (
-                        <tr key={m.id} className="animate-fade-up" style={{ animationDelay:`${i*40}ms`, transition:'background 0.15s' }}
-                          onMouseEnter={e => { if(!isEd) e.currentTarget.style.background='rgba(124,58,237,0.025)' }}
-                          onMouseLeave={e => { if(!isEd) e.currentTarget.style.background='transparent' }}
-                        >
+                        <tr key={m.id || i} className="animate-fade-up" style={{ animationDelay:`${i*40}ms`, transition:'background 0.15s' }}>
                           <td style={{ padding:'13px 14px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
-                            {isEd
-                              ? <input value={editForm.name} onChange={e => setEditForm({...editForm,name:e.target.value})} style={{ ...inp, width:130, padding:'6px 10px', fontSize:12 }}/>
-                              : <div style={{ display:'flex', alignItems:'center', gap:9 }}>
-                                  <div style={{ width:32, height:32, borderRadius:'50%', background:`linear-gradient(135deg,${rc},${rc}99)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'white', flexShrink:0, boxShadow:`0 3px 10px ${rc}35`, transition:'transform 0.2s' }}
-                                    onMouseEnter={e => e.currentTarget.style.transform='scale(1.1)'}
-                                    onMouseLeave={e => e.currentTarget.style.transform='scale(1)'}
-                                  >{m.name.charAt(0)}</div>
-                                  <span style={{ fontSize:13, fontWeight:600, color:'#0F172A' }}>{m.name}</span>
-                                </div>
-                            }
+                            <div style={{ display:'flex', alignItems:'center', gap:9 }}>
+                              <div style={{ width:32, height:32, borderRadius:'50%', background:`linear-gradient(135deg,${rc},${rc}99)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'white', flexShrink:0, boxShadow:`0 3px 10px ${rc}35` }}>
+                                {m.name?.charAt(0) || 'U'}
+                              </div>
+                              <span style={{ fontSize:13, fontWeight:600, color:'#0F172A' }}>{m.name}</span>
+                            </div>
                           </td>
                           <td style={{ padding:'13px 14px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
-                            {isEd
-                              ? <select value={editForm.role} onChange={e => setEditForm({...editForm,role:e.target.value})} style={{ ...sel, width:120, padding:'6px 10px', fontSize:12 }}>{ROLES_L.map(r=><option key={r}>{r}</option>)}</select>
-                              : <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:7, background:`${rc}14`, color:rc, border:`1px solid ${rc}28` }}>{m.role}</span>
-                            }
+                            <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:7, background:`${rc}14`, color:rc, border:`1px solid ${rc}28` }}>{m.role}</span>
                           </td>
-                          <td style={{ padding:'13px 14px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
-                            {isEd
-                              ? <select value={editForm.dept} onChange={e => setEditForm({...editForm,dept:e.target.value})} style={{ ...sel, width:140, padding:'6px 10px', fontSize:12 }}>{DEPTS_L.map(d=><option key={d}>{d}</option>)}</select>
-                              : <span style={{ fontSize:12, color:'#64748B' }}>{m.dept}</span>
-                            }
+                          <td style={{ padding:'13px 14px', borderBottom:'1px solid rgba(226,232,240,0.3)', fontSize:12, color:'#64748B' }}>
+                            {m.dept}
                           </td>
                           <td style={{ padding:'13px 14px', borderBottom:'1px solid rgba(226,232,240,0.3)', fontSize:12, color:'#94A3B8' }}>{m.email}</td>
                           <td style={{ padding:'13px 14px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
@@ -553,24 +860,6 @@ export default function AdminDashboard() {
                               {m.status==='Active' && <span className="pulse-dot" style={{ width:5, height:5, borderRadius:'50%', background:'#059669' }}/>}
                               {m.status}
                             </span>
-                          </td>
-                          <td style={{ padding:'13px 14px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
-                            {isEd
-                              ? <div style={{ display:'flex', gap:6 }}>
-                                  <button onClick={() => { setStaff(s => s.map(x => x.id===editId?{...x,...editForm}:x)); setEditId(null) }} style={{ padding:'5px 11px', borderRadius:8, border:'none', background:'#059669', color:'white', fontSize:11, cursor:'pointer', fontWeight:700, boxShadow:'0 2px 8px rgba(5,150,105,0.25)' }}>Save</button>
-                                  <button onClick={() => setEditId(null)} style={{ padding:'5px 10px', borderRadius:8, border:'1px solid rgba(226,232,240,0.8)', background:'transparent', color:'#64748B', fontSize:11, cursor:'pointer' }}>×</button>
-                                </div>
-                              : <div style={{ display:'flex', gap:6 }}>
-                                  <button onClick={() => { setEditId(m.id); setEditForm({ name:m.name, role:m.role, dept:m.dept }) }} style={{ padding:'5px 10px', borderRadius:8, border:'1px solid rgba(124,58,237,0.2)', background:'rgba(124,58,237,0.07)', color:'#7C3AED', fontSize:11, cursor:'pointer', fontWeight:600, transition:'all 0.15s' }}
-                                    onMouseEnter={e => e.currentTarget.style.background='rgba(124,58,237,0.14)'}
-                                    onMouseLeave={e => e.currentTarget.style.background='rgba(124,58,237,0.07)'}
-                                  >Edit</button>
-                                  <button onClick={() => setStaff(s => s.filter(x => x.id!==m.id))} style={{ padding:'5px 10px', borderRadius:8, border:'1px solid rgba(225,29,72,0.2)', background:'rgba(225,29,72,0.06)', color:'#E11D48', fontSize:11, cursor:'pointer', fontWeight:600, transition:'all 0.15s' }}
-                                    onMouseEnter={e => e.currentTarget.style.background='rgba(225,29,72,0.12)'}
-                                    onMouseLeave={e => e.currentTarget.style.background='rgba(225,29,72,0.06)'}
-                                  >Remove</button>
-                                </div>
-                            }
                           </td>
                         </tr>
                       )

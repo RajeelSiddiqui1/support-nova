@@ -391,13 +391,13 @@ export default function SubmitPage() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Navbar title="Submit a Complaint" subtitle="Official Customer Intake Webform with AI Pre-Validation" />
 
-        <main style={{ flex: 1, padding: 28, overflowY: 'auto' }}>
+        <main className="responsive-main-padding" style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
           <div style={{ maxWidth: 760, margin: '0 auto' }}>
 
             {/* Form Container */}
             <form onSubmit={handleSubmit}>
-              <div style={{ ...glass, padding: 28, background: '#FFF' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingBottom: 14, borderBottom: '1px solid #F1F5F9' }}>
+              <div style={{ ...glass, padding: 22, background: '#FFF' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingBottom: 14, borderBottom: '1px solid #F1F5F9', flexWrap: 'wrap', gap: 10 }}>
                   <div>
                     <h3 style={{ fontSize: 17, fontWeight: 800, color: '#0F172A', margin: 0 }}>Complaint Webform</h3>
                     <p style={{ fontSize: 12, color: '#64748B', margin: '2px 0 0' }}>Fill out the details below to register your issue</p>
@@ -424,7 +424,7 @@ export default function SubmitPage() {
                 </Field>
 
                 {/* Row 1: Product/Service & Order ID */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="responsive-form-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <Field label="Product / Service Name" required error={errors.product_service}>
                     <input
                       type="text"
@@ -449,7 +449,7 @@ export default function SubmitPage() {
                 </div>
 
                 {/* Row 2: Category & Department */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="responsive-form-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <Field label="Complaint Category" required error={errors.category_id}>
                     <select
                       value={form.category_id}

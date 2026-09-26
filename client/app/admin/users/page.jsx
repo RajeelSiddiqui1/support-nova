@@ -313,10 +313,10 @@ export default function UsersPage() {
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
         <Navbar title="User & Staff Hierarchy Management" subtitle="Dynamic role hierarchy, department routing, and manager assignment" />
 
-        <main style={{ flex:1, padding:22, overflowY:'auto', display:'flex', flexDirection:'column', gap:18 }}>
+        <main className="responsive-main-padding" style={{ flex:1, padding:22, overflowY:'auto', display:'flex', flexDirection:'column', gap:18 }}>
 
           {/* Stats Bar */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:13 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:13 }}>
             <StatCard title="Total Staff"       value={users.filter(u => u.role !== 'CUSTOMER').length} subtitle="Staff accounts"   icon={Users}       color="violet"  delay={0}   />
             <StatCard title="Active Managers"   value={users.filter(u => u.role === 'MANAGER' && u.status === 'ACTIVE').length} subtitle="Supervising depts" icon={Crown} color="amber"   delay={60}  />
             <StatCard title="Support Agents"    value={users.filter(u => u.role === 'AGENT').length} subtitle="Frontline claimers" icon={UserCheck}   color="emerald" delay={120} />
@@ -326,7 +326,7 @@ export default function UsersPage() {
           {/* Create Staff Modal */}
           {showCreateModal && (
             <div style={{ position:'fixed', inset:0, zIndex:300, background:'rgba(15,23,42,0.6)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-              <div className="animate-scale-in" style={{ ...glass(), maxWidth:500, width:'100%', padding:26 }}>
+              <div className="animate-scale-in" style={{ ...glass(), maxWidth:'min(500px, 94vw)', width:'100%', padding:'22px 18px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
                   <div style={{ display:'flex', gap:10, alignItems:'center' }}>
                     <div style={{ width:38, height:38, borderRadius:12, background:'linear-gradient(135deg,#7C3AED,#4F46E5)', display:'flex', alignItems:'center', justifyContent:'center', color:'white' }}>
@@ -359,7 +359,7 @@ export default function UsersPage() {
                   </div>
                 ) : (
                   <form onSubmit={handleCreateStaff}>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+                    <div className="responsive-form-2col" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                       <div>
                         <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Full Name *</label>
                         <input required value={staffForm.name} onChange={e => setStaffForm({ ...staffForm, name: e.target.value })} placeholder="e.g. Tariq Khan" style={{ width:'100%', padding:'9px 12px', borderRadius:10, border:'1.5px solid rgba(226,232,240,0.8)', background:'rgba(248,250,252,0.9)', fontSize:13, outline:'none' }} />
@@ -457,7 +457,7 @@ export default function UsersPage() {
           {/* Edit Staff Modal */}
           {editModalUser && (
             <div style={{ position:'fixed', inset:0, zIndex:300, background:'rgba(15,23,42,0.6)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-              <div className="animate-scale-in" style={{ ...glass(), maxWidth:500, width:'100%', padding:26 }}>
+              <div className="animate-scale-in" style={{ ...glass(), maxWidth:'min(500px, 94vw)', width:'100%', padding:'22px 18px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
                   <div style={{ display:'flex', gap:10, alignItems:'center' }}>
                     <div style={{ width:38, height:38, borderRadius:12, background:'linear-gradient(135deg,#2563EB,#1D4ED8)', display:'flex', alignItems:'center', justifyContent:'center', color:'white' }}>
@@ -474,7 +474,7 @@ export default function UsersPage() {
                 </div>
 
                 <form onSubmit={handleUpdateStaff}>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+                  <div className="responsive-form-2col" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                     <div>
                       <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Full Name *</label>
                       <input required value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} style={{ width:'100%', padding:'9px 12px', borderRadius:10, border:'1.5px solid rgba(226,232,240,0.8)', background:'rgba(248,250,252,0.9)', fontSize:13, outline:'none' }} />
@@ -566,7 +566,7 @@ export default function UsersPage() {
           {/* Deactivation Modal */}
           {deactModalUser && (
             <div style={{ position:'fixed', inset:0, zIndex:300, background:'rgba(15,23,42,0.6)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-              <div className="animate-scale-in" style={{ ...glass(), maxWidth:450, width:'100%', padding:24, border:'1px solid rgba(225,29,72,0.3)' }}>
+              <div className="animate-scale-in" style={{ ...glass(), maxWidth:'min(450px, 94vw)', width:'100%', padding:'22px 18px', border:'1px solid rgba(225,29,72,0.3)' }}>
                 <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:14 }}>
                   <div style={{ width:38, height:38, borderRadius:10, background:'#FFF1F2', display:'flex', alignItems:'center', justifyContent:'center' }}>
                     <AlertTriangle size={20} color="#E11D48" />
@@ -641,7 +641,7 @@ export default function UsersPage() {
               </div>
             </div>
 
-            <div style={{ overflowX:'auto', borderRadius:12, border:'1px solid rgba(226,232,240,0.5)' }}>
+            <div className="touch-scroll" style={{ overflowX:'auto', borderRadius:12, border:'1px solid rgba(226,232,240,0.5)' }}>
               <table style={{ width:'100%', borderCollapse:'collapse', minWidth:800 }}>
                 <thead>
                   <tr style={{ background:'rgba(248,250,252,0.8)' }}>

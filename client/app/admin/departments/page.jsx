@@ -212,7 +212,7 @@ export default function DepartmentsPage() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' }}>
         <Navbar title="Department Management" subtitle="Create, edit, and organize system departments & user assignments" />
 
-        <main style={{ padding: '24px 32px', flex: 1 }}>
+        <main className="responsive-main-padding" style={{ padding: '24px 32px', flex: 1 }}>
 
           {/* Toast Notification */}
           {toastMsg && (
@@ -228,7 +228,7 @@ export default function DepartmentsPage() {
           )}
 
           {/* Page Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
             <div>
               <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.5px' }}>
                 Departments Directory
@@ -238,7 +238,7 @@ export default function DepartmentsPage() {
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <button
                 onClick={fetchDepartments}
                 style={{
@@ -267,7 +267,7 @@ export default function DepartmentsPage() {
           </div>
 
           {/* Stats Bar */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 24 }}>
             <StatCard label="Total Departments" value={totalDepts} icon={Building2} iconBg="#F5F3FF" iconColor="#7C3AED" />
             <StatCard label="Active Departments" value={activeDepts} icon={CheckCircle} iconBg="#ECFDF5" iconColor="#059669" />
             <StatCard label="Inactive / Suspended" value={totalDepts - activeDepts} icon={XCircle} iconBg="#FEF2F2" iconColor="#EF4444" />
@@ -275,8 +275,8 @@ export default function DepartmentsPage() {
           </div>
 
           {/* Search & Filter */}
-          <div style={{ ...glass(), padding: '16px 20px', marginBottom: 24, display: 'flex', gap: 16, alignItems: 'center' }}>
-            <div style={{ position: 'relative', flex: 1 }}>
+          <div style={{ ...glass(), padding: '16px 20px', marginBottom: 24, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', flex: '1 1 200px' }}>
               <Search size={16} color="#94A3B8" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
@@ -309,7 +309,7 @@ export default function DepartmentsPage() {
           </div>
 
           {/* Departments Grid Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
             {filteredDepartments.map((dept) => (
               <div
                 key={dept.dept_id}
@@ -402,9 +402,9 @@ export default function DepartmentsPage() {
       {showCreateModal && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 480, padding: 28, background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(480px, 94vw)', padding: '24px 20px', background: '#FFF' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -503,9 +503,9 @@ export default function DepartmentsPage() {
       {editDept && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 480, padding: 28, background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(480px, 94vw)', padding: '24px 20px', background: '#FFF' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -600,9 +600,9 @@ export default function DepartmentsPage() {
       {deleteDept && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 420, padding: 28, background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(420px, 94vw)', padding: '24px 20px', background: '#FFF' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <div style={{ width: 42, height: 42, borderRadius: 12, background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <AlertCircle size={22} color="#EF4444" />

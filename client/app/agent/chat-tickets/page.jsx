@@ -138,7 +138,7 @@ export default function AgentChatTicketsPage() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Navbar title="Agent Chat Complaints Landing Queue" subtitle="Manage Guided Chat tickets with Qdrant Cloud RAG Intelligence" />
 
-        <main style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
+        <main className="responsive-main-padding" style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
           
           {/* Toast Notification */}
           {toastMsg && (
@@ -153,7 +153,7 @@ export default function AgentChatTicketsPage() {
           )}
 
           {/* Stats Bar */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14, marginBottom: 20 }}>
             <StatCard title="Chat Tickets Total" value={tickets.length} subtitle="Guided Chat Channel" icon={MessageSquare} color="purple" delay={0} />
             <StatCard title="In Triage" value={tickets.filter(t => t.status === 'In Triage').length} subtitle="Needs Review" icon={Clock} color="amber" delay={80} />
             <StatCard title="In Progress" value={tickets.filter(t => t.status === 'In Progress').length} subtitle="Active SLA" icon={Zap} color="blue" delay={160} />
@@ -207,7 +207,7 @@ export default function AgentChatTicketsPage() {
               </select>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 5,
                 background: wsConnected ? '#ECFDF5' : '#FEF2F2',
@@ -230,7 +230,7 @@ export default function AgentChatTicketsPage() {
 
           {/* Tickets Directory Table */}
           <div style={{ ...glass, background: '#FFF', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
               <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', margin: 0 }}>
                 Chat Channel Complaints ({filteredTickets.length})
               </h3>
@@ -249,7 +249,7 @@ export default function AgentChatTicketsPage() {
                 No Chat channel complaints found matching criteria.
               </div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <div className="touch-scroll" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
@@ -325,8 +325,8 @@ export default function AgentChatTicketsPage() {
 
           {/* Ticket Detail & Status Update Modal */}
           {selectedTicket && (
-            <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-              <div style={{ ...glass, background: '#FFF', width: '100%', maxWidth: 760, maxHeight: '90vh', overflowY: 'auto', padding: 24, position: 'relative' }}>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+              <div style={{ ...glass, background: '#FFF', width: '100%', maxWidth: 'min(760px, 94vw)', maxHeight: '90vh', overflowY: 'auto', padding: '24px 18px', position: 'relative' }}>
                 
                 {/* Close Button */}
                 <button
@@ -336,7 +336,7 @@ export default function AgentChatTicketsPage() {
                   <X size={16} />
                 </button>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 6, background: '#7C3AED15', color: '#7C3AED', fontFamily: 'monospace' }}>
                     {selectedTicket.ticket_id}
                   </span>
@@ -350,7 +350,7 @@ export default function AgentChatTicketsPage() {
                 </h2>
 
                 {/* Customer Details Box */}
-                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: 14, marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12.5 }}>
+                <div className="responsive-form-2col" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: 14, marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12.5 }}>
                   <div>Customer Name: <strong>{selectedTicket.customer_name || 'Customer'}</strong></div>
                   <div>Customer ID: <strong style={{ color: '#7C3AED' }}>{selectedTicket.customer_id || 'USR-LOCAL'}</strong></div>
                   <div>Customer Email: <strong>{selectedTicket.customer_email || 'n/a'}</strong></div>
@@ -367,7 +367,7 @@ export default function AgentChatTicketsPage() {
 
                 {/* AI Pipeline & Qdrant RAG Breakdown */}
                 <div style={{ background: '#F5F3FF', border: '1px solid #7C3AED30', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                     <span style={{ fontSize: 12, fontWeight: 800, color: '#7C3AED', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Zap size={15} /> Qdrant Cloud RAG + Groq AI Analysis
                     </span>
@@ -376,7 +376,7 @@ export default function AgentChatTicketsPage() {
                     </span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 12, marginBottom: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, fontSize: 12, marginBottom: 10 }}>
                     <div>Category: <strong>{selectedTicket.genai_output?.issue_category || 'Delivery'}</strong></div>
                     <div>Sentiment: <strong>{selectedTicket.genai_output?.sentiment || 'Negative'}</strong></div>
                     <div>Urgency: <strong>{selectedTicket.genai_output?.urgency || 'High'}</strong></div>
@@ -409,14 +409,14 @@ export default function AgentChatTicketsPage() {
                     Update Status & Auto-Dispatch Email to Customer:
                   </label>
 
-                  <div style={{ display: 'flex', gap: 10 }}>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     {STATUS_OPTIONS.map(s => (
                       <button
                         key={s}
                         disabled={updating}
                         onClick={() => handleStatusUpdate(s)}
                         style={{
-                          flex: 1, padding: '10px', borderRadius: 10, border: selectedTicket.status === s ? '2px solid #7C3AED' : '1px solid #CBD5E1',
+                          flex: '1 1 120px', padding: '10px', borderRadius: 10, border: selectedTicket.status === s ? '2px solid #7C3AED' : '1px solid #CBD5E1',
                           background: selectedTicket.status === s ? '#7C3AED' : '#FFF', color: selectedTicket.status === s ? '#FFF' : '#334155',
                           fontSize: 12.5, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s'
                         }}

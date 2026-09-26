@@ -8,7 +8,7 @@ import {
   Ticket, ArrowLeft, CheckCircle, AlertTriangle, ShieldCheck, Scale,
   User, Building, Clock, Mail, MessageSquare, Zap, RefreshCw,
   ArrowRightLeft, AlertCircle, Calendar, Hash, FileText, Check, X,
-  Shield, UserCheck, UserX, ExternalLink, HelpCircle
+  Shield, UserCheck, UserX, ExternalLink, HelpCircle, Menu
 } from 'lucide-react'
 
 import { API_BASE } from '../../../lib/api'
@@ -279,8 +279,33 @@ export default function TicketDetailPage({ params: propParams }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh', overflowY: 'auto' }}>
         
         {/* Top Header Bar */}
-        <div style={{ background: '#FFF', borderBottom: '1px solid #E2E8F0', padding: '14px 26px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ background: '#FFF', borderBottom: '1px solid #E2E8F0', padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              className="sidebar-toggle-btn"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('toggle-supportnova-sidebar'))
+                }
+              }}
+              aria-label="Toggle Sidebar Menu"
+              style={{
+                display: 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                border: '1px solid #E2E8F0',
+                background: '#FFF',
+                color: '#0F172A',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+            >
+              <Menu size={18} />
+            </button>
+
             <Link
               href="/admin/tickets"
               style={{
@@ -293,7 +318,7 @@ export default function TicketDetailPage({ params: propParams }) {
             </Link>
             <div style={{ width: 1, height: 20, background: '#E2E8F0' }} />
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <h1 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: 0 }}>
                   Ticket 360° Audit & Investigation Dossier
                 </h1>
@@ -307,7 +332,7 @@ export default function TicketDetailPage({ params: propParams }) {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               background: wsConnected ? '#ECFDF5' : '#FEF2F2',
@@ -342,7 +367,7 @@ export default function TicketDetailPage({ params: propParams }) {
         )}
 
         {/* Main Content Area */}
-        <main style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 18, flex: 1 }}>
+        <main className="responsive-main-padding" style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 18, flex: 1 }}>
           
           {loading ? (
             <div style={{ ...glass, padding: 60, textAlign: 'center', color: '#94A3B8' }}>
@@ -455,7 +480,7 @@ export default function TicketDetailPage({ params: propParams }) {
                 </div>
 
                 {/* Sub-Tabs Navigation */}
-                <div style={{ display: 'flex', gap: 6, borderTop: '1px solid #F1F5F9', paddingTop: 12 }}>
+                <div className="touch-scroll no-scrollbar" style={{ display: 'flex', gap: 6, borderTop: '1px solid #F1F5F9', paddingTop: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch', whiteSpace: 'nowrap' }}>
                   {[
                     ['overview', '📌 Complaint & Customer'],
                     ['pipeline', '🔬 GenAI & Python Ground-Truth'],
@@ -467,7 +492,7 @@ export default function TicketDetailPage({ params: propParams }) {
                       onClick={() => setActiveTab(k)}
                       style={{
                         padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                        border: 'none',
+                        border: 'none', flexShrink: 0,
                         background: activeTab === k ? '#7C3AED' : '#F1F5F9',
                         color: activeTab === k ? '#FFF' : '#64748B',
                         transition: 'all 0.15s'
@@ -481,7 +506,7 @@ export default function TicketDetailPage({ params: propParams }) {
 
               {/* ── TAB 1: OVERVIEW ── */}
               {activeTab === 'overview' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
                   {/* Left Column: Complaint Text & Metadata */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     <div style={{ ...glass, padding: 20 }}>
@@ -574,7 +599,7 @@ export default function TicketDetailPage({ params: propParams }) {
 
               {/* ── TAB 2: PIPELINE INTELLIGENCE (GENAI & PYTHON GROUND TRUTH) ── */}
               {activeTab === 'pipeline' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
                   {/* Pipeline 1: GenAI */}
                   <div style={{ ...glass, padding: 20 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>

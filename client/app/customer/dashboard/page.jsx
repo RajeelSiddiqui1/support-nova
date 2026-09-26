@@ -226,36 +226,38 @@ export default function CustomerDashboard() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
         <Navbar title="Customer Portal" subtitle="Manage and track your complaints" />
 
-        <main style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <main className="responsive-main-padding" style={{ flex: 1, padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
           {/* Welcome Banner */}
           <div className="animate-fade-up" style={{
             ...glass,
-            padding: '22px 26px',
+            padding: '20px 22px',
             background: 'linear-gradient(135deg,rgba(124,58,237,0.08),rgba(79,70,229,0.04))',
             border: '1px solid rgba(124,58,237,0.15)',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14,
           }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <h2 style={{ fontSize: 19, fontWeight: 700, color: '#0F172A', margin: 0 }}>Welcome back, {user.name} 👋</h2>
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  background: wsConnected ? '#ECFDF5' : '#FEF2F2',
-                  color: wsConnected ? '#059669' : '#DC2626',
-                  border: wsConnected ? '1px solid #A7F3D0' : '1px solid #FECACA',
-                  fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6
-                }}>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: wsConnected ? '#10B981' : '#EF4444', display: 'inline-block' }} />
-                  {wsConnected ? 'Live Updates Active' : 'WS Reconnecting'}
-                </span>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <h2 style={{ fontSize: 18, fontWeight: 700, color: '#0F172A', margin: 0 }}>Welcome back, {user.name} 👋</h2>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    background: wsConnected ? '#ECFDF5' : '#FEF2F2',
+                    color: wsConnected ? '#059669' : '#DC2626',
+                    border: wsConnected ? '1px solid #A7F3D0' : '1px solid #FECACA',
+                    fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6
+                  }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: wsConnected ? '#10B981' : '#EF4444', display: 'inline-block' }} />
+                    {wsConnected ? 'Live Updates Active' : 'WS Reconnecting'}
+                  </span>
+                </div>
+                <p style={{ color: '#64748B', fontSize: 13, margin: '5px 0 0' }}>
+                  You have <span style={{ color: '#D97706', fontWeight: 600 }}>{activeTickets} active tickets</span>.
+                </p>
               </div>
-              <p style={{ color: '#64748B', fontSize: 13, margin: '5px 0 0' }}>
-                You have <span style={{ color: '#D97706', fontWeight: 600 }}>{activeTickets} active tickets</span>.
-              </p>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link href="/customer/chat" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 7,
-                padding: '10px 18px', borderRadius: 11, textDecoration: 'none',
+                padding: '9px 16px', borderRadius: 11, textDecoration: 'none',
                 background: 'linear-gradient(135deg,#059669,#10B981)',
                 color: 'white', fontSize: 13, fontWeight: 600,
                 boxShadow: '0 4px 16px rgba(5,150,105,0.25)',
@@ -266,7 +268,7 @@ export default function CustomerDashboard() {
 
               <Link href="/customer/submit" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 7,
-                padding: '10px 18px', borderRadius: 11, textDecoration: 'none',
+                padding: '9px 16px', borderRadius: 11, textDecoration: 'none',
                 background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
                 color: 'white', fontSize: 13, fontWeight: 600,
                 boxShadow: '0 4px 16px rgba(124,58,237,0.3)',
@@ -278,7 +280,7 @@ export default function CustomerDashboard() {
           </div>
 
           {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12 }}>
             <StatCard title="Total Submitted" value={tickets.length} subtitle="All time" icon={Ticket} color="violet" delay={0} />
             <StatCard title="Active Tickets"  value={activeTickets} subtitle="Pending" icon={Clock} color="amber" delay={80} />
             <StatCard title="Resolved" value={resolvedTickets} subtitle="Closed" icon={CheckCircle} color="emerald" delay={160} />
@@ -286,10 +288,10 @@ export default function CustomerDashboard() {
           </div>
 
           {/* Table + Sidebar */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16 }}>
+          <div className="customer-dashboard-split" style={{ gap: 16 }}>
 
             {/* Ticket Table */}
-            <div className="animate-fade-up d200" style={{ ...glass, padding: 22 }}>
+            <div className="animate-fade-up d200" style={{ ...glass, padding: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
                 <div>
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0F172A' }}>My Complaint History</h3>
@@ -311,7 +313,7 @@ export default function CustomerDashboard() {
                 </div>
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
+              <div className="touch-scroll" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
                   <thead>
                     <tr>
@@ -427,11 +429,11 @@ export default function CustomerDashboard() {
           <div style={{
             position: 'fixed', inset: 0, zIndex: 9999,
             background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(8px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
           }}>
             <div style={{
-              ...glass, background: '#FFFFFF', width: '100%', maxWidth: 720,
-              maxHeight: '90vh', overflowY: 'auto', padding: 26, position: 'relative',
+              ...glass, background: '#FFFFFF', width: 'min(720px, 94vw)',
+              maxHeight: '90vh', overflowY: 'auto', padding: '22px 18px', position: 'relative',
               borderRadius: 20, boxShadow: '0 20px 50px rgba(0,0,0,0.2)'
             }}>
               {/* Header */}

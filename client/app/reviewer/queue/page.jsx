@@ -6,7 +6,8 @@ import StatCard from '../../components/StatCard'
 import {
   Scale, ShieldAlert, CheckCircle, AlertTriangle, Zap, XCircle,
   User, UserX, UserCheck, ArrowRightLeft, RefreshCw, FileText, Mail, History,
-  Clock, ExternalLink, Eye, ShieldCheck, Check, AlertCircle, Info, X, Radio
+  Clock, ExternalLink, Eye, ShieldCheck, Check, AlertCircle, Info, X, Radio,
+  Menu, ChevronLeft
 } from 'lucide-react'
 import { useRealtimeRefresh } from '../../lib/useWebSocket'
 
@@ -40,6 +41,7 @@ export default function ReviewerQueue() {
   const [agentWorkload, setWorkload]      = useState([])
   const [totalViolations, setViolations]  = useState(0)
   const [totalWarnings, setWarnings]      = useState(0)
+  const [mobileTab, setMobileTab]         = useState('queue') // 'queue' or 'workbench' on mobile
 
   // Revoke & Reassign Modal State
   const [showRevokeModal, setShowRevoke]   = useState(false)
@@ -372,15 +374,41 @@ export default function ReviewerQueue() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh', overflow: 'hidden' }}>
         
         {/* Top Navbar & Supervisor Switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', background: '#FFF', borderBottom: '1px solid #E2E8F0', flexShrink: 0 }}>
-          <div>
-            <h1 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: 0 }}>Manager Audit & Policy Enforcement Workbench</h1>
-            <p style={{ fontSize: 11, color: '#64748B', margin: '2px 0 0' }}>Real-time agent monitoring, policy violation audit, and access revocation</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: '#FFF', borderBottom: '1px solid #E2E8F0', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('toggle-supportnova-sidebar'))}
+              className="sidebar-toggle-btn"
+              aria-label="Toggle navigation menu"
+              style={{
+                background: 'rgba(248,250,252,0.9)',
+                border: '1px solid rgba(226,232,240,0.8)',
+                cursor: 'pointer',
+                color: '#475569',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 7,
+                borderRadius: 9,
+                flexShrink: 0,
+              }}
+            >
+              <Menu size={18} />
+            </button>
+            <div style={{ minWidth: 0 }}>
+              <h1 style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Manager Audit & Reviewer Workbench
+              </h1>
+              <p className="hide-on-mobile" style={{ fontSize: 11, color: '#64748B', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Real-time agent monitoring, policy violation audit, and access revocation
+              </p>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {/* Live WebSocket Status Indicator */}
             <div
+              className="hide-on-mobile"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -404,26 +432,56 @@ export default function ReviewerQueue() {
                   boxShadow: isLiveWs ? '0 0 8px #10B981' : undefined
                 }}
               />
-              {isLiveWs ? 'Live Sync Active' : 'Connecting...'}
+              {isLiveWs ? 'Live Sync' : 'Connecting...'}
             </div>
 
             {/* Logged-In Manager Profile Display */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#F8FAFC', padding: '6px 14px', borderRadius: 10, border: '1.5px solid #E2E8F0' }}>
-            <UserCheck size={16} color="#7C3AED" />
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: '#0F172A' }}>
-                {currentManager?.name || 'Department Manager'}
-              </span>
-              <span style={{ fontSize: 10, color: '#64748B', fontWeight: 600 }}>
-                {currentManager?.email || 'manager@company.com'} · {currentManager?.role || 'MANAGER'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F8FAFC', padding: '6px 12px', borderRadius: 10, border: '1.5px solid #E2E8F0' }}>
+              <UserCheck size={16} color="#7C3AED" />
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#0F172A' }}>
+                  {currentManager?.name || 'Department Manager'}
+                </span>
+                <span className="hide-on-mobile" style={{ fontSize: 10, color: '#64748B', fontWeight: 600 }}>
+                  {currentManager?.email || 'manager@company.com'} · {currentManager?.role || 'MANAGER'}
+                </span>
+              </div>
+              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: '#EFF6FF', color: '#2563EB', fontWeight: 800 }}>
+                {currentManager?.department || 'Dept'}
               </span>
             </div>
-            <span style={{ fontSize: 11, padding: '2px 10px', borderRadius: 6, background: '#EFF6FF', color: '#2563EB', fontWeight: 800, marginLeft: 6 }}>
-              Dept: {currentManager?.department || 'Department'}
-            </span>
           </div>
         </div>
-      </div>
+
+        {/* Mobile Sub-Navigation Bar between Queue and Workbench */}
+        <div className="show-on-mobile-flex" style={{ display: 'none', background: '#FFF', borderBottom: '1px solid #E2E8F0', padding: '6px 12px', gap: 8, flexShrink: 0 }}>
+          <button
+            onClick={() => setMobileTab('queue')}
+            style={{
+              flex: 1, padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+              border: 'none', cursor: 'pointer',
+              background: mobileTab === 'queue' ? '#7C3AED' : '#F1F5F9',
+              color: mobileTab === 'queue' ? '#FFF' : '#64748B',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              transition: 'all 0.15s'
+            }}
+          >
+            ⚖️ Queue ({filteredTickets.length})
+          </button>
+          <button
+            onClick={() => setMobileTab('workbench')}
+            style={{
+              flex: 1, padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+              border: 'none', cursor: 'pointer',
+              background: mobileTab === 'workbench' ? '#7C3AED' : '#F1F5F9',
+              color: mobileTab === 'workbench' ? '#FFF' : '#64748B',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              transition: 'all 0.15s'
+            }}
+          >
+            🛡️ Workbench {selectedTicket ? `[${selectedTicket.ticket_id}]` : ''}
+          </button>
+        </div>
 
         {/* Action Confirmation Banner */}
         {actionAlert && (
@@ -657,10 +715,10 @@ export default function ReviewerQueue() {
           )}
 
           {/* Two-Column Audit Workbench: Left Tickets List, Right Detail Audit */}
-          <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 16, alignItems: 'flex-start', flex: 1, minHeight: 0 }}>
+          <div className="responsive-split-stack" style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 16, alignItems: 'flex-start', flex: 1, minHeight: 0 }}>
             
             {/* ── LEFT: Department Ticket Queue ── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className={`agent-queue-col ${mobileTab === 'workbench' ? 'hide-on-mobile' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               
               {/* Department Scope Selector */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: '#FFF', padding: '8px 12px', borderRadius: 10, border: '1px solid #E2E8F0' }}>
@@ -718,7 +776,10 @@ export default function ReviewerQueue() {
                   return (
                     <div
                       key={t.ticket_id}
-                      onClick={() => setSelected(t)}
+                      onClick={() => {
+                        setSelected(t)
+                        setMobileTab('workbench')
+                      }}
                       style={{
                         ...glass, padding: 13, cursor: 'pointer',
                         border: isSel ? '2px solid #7C3AED' : isViolation ? '1.5px solid #FCA5A5' : '1px solid #E2E8F0',
@@ -765,7 +826,23 @@ export default function ReviewerQueue() {
 
             {/* ── RIGHT: Supervisor Detail & Compliance Workbench ── */}
             {selectedTicket ? (
-              <div style={{ ...glass, padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div
+                className={`agent-workbench-col ${mobileTab === 'queue' ? 'hide-on-mobile' : ''}`}
+                style={{ ...glass, padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}
+              >
+                {/* Back to Queue Button for Mobile */}
+                <button
+                  className="show-on-mobile-flex"
+                  onClick={() => setMobileTab('queue')}
+                  style={{
+                    display: 'none', alignItems: 'center', gap: 6,
+                    padding: '6px 12px', borderRadius: 8, background: '#EFF6FF',
+                    border: '1px solid #BFDBFE', fontSize: 12, fontWeight: 700,
+                    color: '#2563EB', cursor: 'pointer', width: 'fit-content'
+                  }}
+                >
+                  <ChevronLeft size={16} /> Back to Audit Queue
+                </button>
                 
                 {/* Header Bar */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8, paddingBottom: 14, borderBottom: '1px solid #E2E8F0' }}>
