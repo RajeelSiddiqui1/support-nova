@@ -18,23 +18,16 @@ const cleanQuotes = (s) => {
   return clean
 }
 
-const glass = {
-  background: 'rgba(255,255,255,0.85)',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
-  border: '1px solid rgba(255,255,255,0.9)',
-  borderRadius: 16,
-  boxShadow: '0 4px 24px rgba(148,163,184,0.1)'
-}
+const glass = { background: 'var(--nw-surface)', border: '1px solid var(--nw-border)', borderRadius: 16, boxShadow: '0 4px 24px rgba(11,14,20,0.3)' }
 
 const inputStyle = {
   width: '100%',
   padding: '10px 14px',
   borderRadius: 10,
   outline: 'none',
-  border: '1.5px solid rgba(226,232,240,0.8)',
-  background: 'rgba(248,250,252,0.9)',
-  color: '#0F172A',
+  border: '1.5px solid var(--nw-border)',
+  background: 'var(--nw-elevated)',
+  color: 'var(--nw-text-primary)',
   fontSize: 13,
   fontFamily: 'Inter, sans-serif',
   transition: 'all 0.2s',
@@ -43,7 +36,7 @@ const inputStyle = {
 function Field({ label, required, children, error }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--nw-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
         {label} {required && <span style={{ color: '#E11D48' }}>*</span>}
       </label>
       {children}
@@ -309,32 +302,32 @@ export default function SubmitPage() {
 
   if (createdTicket) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh', background: '#F8FAFC' }}>
+      <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--nw-elevated)' }}>
         <Sidebar role="customer" />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Navbar title="Submit Complaint" subtitle="Intelligent Intake Engine" />
           <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-            <div style={{ ...glass, padding: '44px 36px', textAlign: 'center', maxWidth: 480, width: '100%', background: '#FFF' }}>
+            <div style={{ ...glass, padding: '44px 36px', textAlign: 'center', maxWidth: 480, width: '100%', background: 'var(--nw-surface)' }}>
               <div style={{
-                width: 68, height: 68, borderRadius: '50%', background: '#ECFDF5',
+                width: 68, height: 68, borderRadius: '50%', background: 'var(--nw-success-dim)',
                 border: '2px solid rgba(5,150,105,0.25)', margin: '0 auto 18px', display: 'flex',
                 alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 8px rgba(5,150,105,0.08)'
               }}>
                 <CheckCircle size={32} color="#059669" />
               </div>
 
-              <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', marginBottom: 8 }}>
+              <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--nw-text-primary)', marginBottom: 8 }}>
                 Complaint Registered Successfully!
               </h2>
 
-              <p style={{ color: '#64748B', fontSize: 13, lineHeight: 1.6, marginBottom: 22 }}>
+              <p style={{ color: 'var(--nw-text-muted)', fontSize: 13, lineHeight: 1.6, marginBottom: 22 }}>
                 Your complaint has been submitted and evaluated by the <strong style={{ color: '#7C3AED' }}>Dual AI Pipeline</strong>. An automated confirmation email has been dispatched to <strong>{createdTicket.customer_email || form.customer_email}</strong>.
               </p>
 
-              <div style={{ background: '#F5F3FF', border: '1px solid #7C3AED30', borderRadius: 12, padding: 18, marginBottom: 22, textAlign: 'left' }}>
+              <div style={{ background: 'var(--nw-accent-dim)', border: '1px solid #7C3AED30', borderRadius: 12, padding: 18, marginBottom: 22, textAlign: 'left' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase' }}>Ticket ID</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#059669', background: '#ECFDF5', padding: '2px 8px', borderRadius: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase' }}>Ticket ID</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#059669', background: 'var(--nw-success-dim)', padding: '2px 8px', borderRadius: 6 }}>
                     {createdTicket.status || 'In Triage'}
                   </span>
                 </div>
@@ -342,7 +335,7 @@ export default function SubmitPage() {
                   {createdTicket.ticket_id}
                 </p>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#475569', borderTop: '1px solid #E2E8F0', paddingTop: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--nw-text-secondary)', borderTop: '1px solid var(--nw-border)', paddingTop: 10 }}>
                   <span>Department: <strong>{createdTicket.customer_department || form.department}</strong></span>
                   <span>Order Ref: <strong>{createdTicket.order_id || form.order_id}</strong></span>
                 </div>
@@ -361,8 +354,8 @@ export default function SubmitPage() {
                     setFiles([])
                   }}
                   style={{
-                    padding: '10px 18px', borderRadius: 10, border: '1px solid #CBD5E1', background: '#FFF',
-                    color: '#475569', fontSize: 13, cursor: 'pointer', fontWeight: 600
+                    padding: '10px 18px', borderRadius: 10, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-surface)',
+                    color: 'var(--nw-text-secondary)', fontSize: 13, cursor: 'pointer', fontWeight: 600
                   }}
                 >
                   Submit Another
@@ -385,7 +378,7 @@ export default function SubmitPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#F8FAFC' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--nw-elevated)' }}>
       <Sidebar role="customer" />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -396,14 +389,14 @@ export default function SubmitPage() {
 
             {/* Form Container */}
             <form onSubmit={handleSubmit}>
-              <div style={{ ...glass, padding: 22, background: '#FFF' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingBottom: 14, borderBottom: '1px solid #F1F5F9', flexWrap: 'wrap', gap: 10 }}>
+              <div style={{ ...glass, padding: 22, background: 'var(--nw-surface)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingBottom: 14, borderBottom: '1px solid var(--nw-border)', flexWrap: 'wrap', gap: 10 }}>
                   <div>
-                    <h3 style={{ fontSize: 17, fontWeight: 800, color: '#0F172A', margin: 0 }}>Complaint Webform</h3>
-                    <p style={{ fontSize: 12, color: '#64748B', margin: '2px 0 0' }}>Fill out the details below to register your issue</p>
+                    <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0 }}>Complaint Webform</h3>
+                    <p style={{ fontSize: 12, color: 'var(--nw-text-muted)', margin: '2px 0 0' }}>Fill out the details below to register your issue</p>
                   </div>
 
-                  <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: '#F5F3FF', color: '#7C3AED' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: 'var(--nw-accent-dim)', color: '#7C3AED' }}>
                     🤖 AI Dual Pipeline Enabled
                   </span>
                 </div>
@@ -418,7 +411,7 @@ export default function SubmitPage() {
                     onChange={e => { setForm({ ...form, title: e.target.value }); setErrors({ ...errors, title: '' }); }}
                     style={{
                       ...inputStyle,
-                      borderColor: errors.title ? '#EF4444' : 'rgba(226,232,240,0.8)'
+                      borderColor: errors.title ? '#EF4444' : 'var(--nw-border)'
                     }}
                   />
                 </Field>
@@ -432,7 +425,7 @@ export default function SubmitPage() {
                       placeholder="e.g. Wireless Headphones Pro, Express Delivery Service"
                       value={form.product_service}
                       onChange={e => { setForm({ ...form, product_service: e.target.value }); setErrors({ ...errors, product_service: '' }); }}
-                      style={{ ...inputStyle, borderColor: errors.product_service ? '#EF4444' : 'rgba(226,232,240,0.8)' }}
+                      style={{ ...inputStyle, borderColor: errors.product_service ? '#EF4444' : 'var(--nw-border)' }}
                     />
                   </Field>
 
@@ -443,7 +436,7 @@ export default function SubmitPage() {
                       placeholder="e.g. ORD-78234, TXN-9941"
                       value={form.order_id}
                       onChange={e => { setForm({ ...form, order_id: e.target.value }); setErrors({ ...errors, order_id: '' }); }}
-                      style={{ ...inputStyle, borderColor: errors.order_id ? '#EF4444' : 'rgba(226,232,240,0.8)' }}
+                      style={{ ...inputStyle, borderColor: errors.order_id ? '#EF4444' : 'var(--nw-border)' }}
                     />
                   </Field>
                 </div>
@@ -454,7 +447,7 @@ export default function SubmitPage() {
                     <select
                       value={form.category_id}
                       onChange={e => setForm({ ...form, category_id: e.target.value })}
-                      style={{ ...inputStyle, cursor: 'pointer', background: '#FFF' }}
+                      style={{ ...inputStyle, cursor: 'pointer', background: 'var(--nw-surface)' }}
                     >
                       {categories.map(category => (
                         <option key={category.cat_id} value={category.cat_id}>{category.name}</option>
@@ -469,7 +462,7 @@ export default function SubmitPage() {
                         const selected = departments.find(department => department.dept_id === e.target.value)
                         setForm({ ...form, department_id: e.target.value, department: selected?.name || '' })
                       }}
-                      style={{ ...inputStyle, cursor: 'pointer', background: '#FFF' }}
+                      style={{ ...inputStyle, cursor: 'pointer', background: 'var(--nw-surface)' }}
                     >
                       {departments.map(department => (
                         <option key={department.dept_id} value={department.dept_id}>{department.name}</option>
@@ -486,7 +479,7 @@ export default function SubmitPage() {
                       placeholder="Your full name"
                       value={cleanQuotes(form.customer_name)}
                       onChange={e => setForm({ ...form, customer_name: cleanQuotes(e.target.value) })}
-                      style={{ ...inputStyle, background: '#FFF' }}
+                      style={{ ...inputStyle, background: 'var(--nw-surface)' }}
                     />
                   </Field>
 
@@ -496,7 +489,7 @@ export default function SubmitPage() {
                       placeholder="email@example.com"
                       value={cleanQuotes(form.customer_email)}
                       onChange={e => setForm({ ...form, customer_email: cleanQuotes(e.target.value) })}
-                      style={{ ...inputStyle, background: '#FFF' }}
+                      style={{ ...inputStyle, background: 'var(--nw-surface)' }}
                     />
                   </Field>
 
@@ -505,7 +498,7 @@ export default function SubmitPage() {
                       type="date"
                       value={form.incident_date}
                       onChange={e => setForm({ ...form, incident_date: e.target.value })}
-                      style={{ ...inputStyle, background: '#FFF' }}
+                      style={{ ...inputStyle, background: 'var(--nw-surface)' }}
                     />
                   </Field>
                 </div>
@@ -518,13 +511,13 @@ export default function SubmitPage() {
                     placeholder="Explain in detail: what happened, when, and expected outcome. Include tracking numbers or transaction codes..."
                     value={form.description}
                     onChange={e => { setForm({ ...form, description: e.target.value }); setErrors({ ...errors, description: '' }); }}
-                    style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6, borderColor: errors.description ? '#EF4444' : 'rgba(226,232,240,0.8)' }}
+                    style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6, borderColor: errors.description ? '#EF4444' : 'var(--nw-border)' }}
                   />
                 </Field>
 
                 {/* Document Upload */}
                 <div style={{ marginBottom: 20 }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--nw-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
                     Supporting Documents / Receipts (Optional)
                   </label>
                   <div
@@ -540,10 +533,10 @@ export default function SubmitPage() {
                     }}
                   >
                     <Upload size={22} color="#7C3AED" style={{ margin: '0 auto 8px', display: 'block' }} />
-                    <p style={{ fontSize: 13, color: '#475569', margin: '0 0 4px', fontWeight: 600 }}>
+                    <p style={{ fontSize: 13, color: 'var(--nw-text-secondary)', margin: '0 0 4px', fontWeight: 600 }}>
                       Drop receipt PDF/Images or <span style={{ color: '#7C3AED' }}>Browse Files</span>
                     </p>
-                    <p style={{ fontSize: 11, color: '#94A3B8', margin: 0 }}>Supports PDF, PNG, JPG up to 5 files (10MB max)</p>
+                    <p style={{ fontSize: 11, color: 'var(--nw-text-muted)', margin: 0 }}>Supports PDF, PNG, JPG up to 5 files (10MB max)</p>
                     <input id="fi" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={pickFile} />
                   </div>
 
@@ -552,8 +545,8 @@ export default function SubmitPage() {
                       {files.map((f, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 12px', borderRadius: 9, background: f.status === 'uploading' ? '#EFF6FF' : '#ECFDF5', border: '1px solid #10B98130' }}>
                           <FileText size={14} color={f.status === 'uploading' ? '#2563EB' : '#059669'} />
-                          <span style={{ flex: 1, fontSize: 12, color: '#0F172A', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-                          <span style={{ fontSize: 10, color: '#64748B' }}>{(f.size / 1024).toFixed(0)} KB</span>
+                          <span style={{ flex: 1, fontSize: 12, color: 'var(--nw-text-primary)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                          <span style={{ fontSize: 10, color: 'var(--nw-text-muted)' }}>{(f.size / 1024).toFixed(0)} KB</span>
                           <span style={{
                             fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6,
                             background: f.status === 'uploaded' ? '#D1FAE5' : f.status === 'uploading' ? '#DBEAFE' : '#F1F5F9',
@@ -561,7 +554,7 @@ export default function SubmitPage() {
                           }}>
                             {f.status === 'uploaded' ? '☁️ S3 Stored' : f.status === 'uploading' ? 'Uploading...' : 'Attached'}
                           </span>
-                          <button type="button" onClick={() => setFiles(files.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
+                          <button type="button" onClick={() => setFiles(files.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--nw-text-muted)' }}>
                             <X size={14} />
                           </button>
                         </div>
@@ -571,12 +564,12 @@ export default function SubmitPage() {
                 </div>
 
                 {/* Action Submit */}
-                <div style={{ paddingTop: 18, borderTop: '1px solid #F1F5F9', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                <div style={{ paddingTop: 18, borderTop: '1px solid var(--nw-border)', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
                   <a
                     href="/customer/dashboard"
                     style={{
-                      padding: '10px 18px', borderRadius: 10, border: '1px solid #CBD5E1', background: '#FFF',
-                      color: '#475569', fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center'
+                      padding: '10px 18px', borderRadius: 10, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-surface)',
+                      color: 'var(--nw-text-secondary)', fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center'
                     }}
                   >
                     Cancel

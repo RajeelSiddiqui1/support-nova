@@ -12,15 +12,7 @@ import {
 } from 'lucide-react'
 import { useRealtimeRefresh } from '../../lib/useWebSocket'
 
-const glass = (extra = {}) => ({
-  background: 'rgba(255,255,255,0.82)',
-  backdropFilter: 'blur(24px)',
-  WebkitBackdropFilter: 'blur(24px)',
-  border: '1px solid rgba(255,255,255,0.95)',
-  borderRadius: 16,
-  boxShadow: '0 4px 28px rgba(148,163,184,0.1), 0 1px 4px rgba(148,163,184,0.06)',
-  ...extra,
-})
+const glass = (extra = {}) => ({ background: 'var(--nw-surface)', border: '1px solid var(--nw-border)', borderRadius: 16, boxShadow: '0 4px 24px rgba(11,14,20,0.3)', ...extra })
 
 const ALL_TICKETS = [
   { id:'CMP-00421', ticket_id:'CMP-00421', title:'Order delayed by 8 days — no update from delivery partner',        customer:'Rajeev Khan',   dept:'Logistics',   cat:'Delivery Issue',  status:'In Triage', p:'P0', date:'Sep 23, 2026', sla:'1h 20m', risk:88, match:true,  agent:'Zara Ahmed'   },
@@ -37,14 +29,20 @@ const PIPELINE_DATA = {
 }
 
 const STATUS_COLORS = {
-  'In Triage': { bg:'#FFFBEB', c:'#D97706', border:'rgba(217,119,6,0.22)', dot:'#D97706' },
-  'In Progress':{ bg:'#EFF6FF', c:'#2563EB', border:'rgba(37,99,235,0.22)', dot:'#2563EB' },
-  'AI Review':  { bg:'#F5F3FF', c:'#7C3AED', border:'rgba(124,58,237,0.22)', dot:'#7C3AED' },
-  'Resolved':   { bg:'#ECFDF5', c:'#059669', border:'rgba(5,150,105,0.22)',  dot:'#059669' },
-  'Escalated':  { bg:'#FFF1F2', c:'#E11D48', border:'rgba(225,29,72,0.22)',  dot:'#E11D48' },
-  'Closed':     { bg:'#F8FAFC', c:'#94A3B8', border:'rgba(148,163,184,0.2)', dot:'#CBD5E1' },
+  'In Triage':   { bg: 'var(--nw-warning-dim)', c: 'var(--nw-warning)', border: 'rgba(217,164,65,0.3)', dot: 'var(--nw-warning)' },
+  'In Progress': { bg: 'var(--nw-info-dim)',    c: 'var(--nw-info)',    border: 'rgba(74,155,201,0.3)', dot: 'var(--nw-info)' },
+  'AI Review':   { bg: 'var(--nw-accent-dim)',  c: 'var(--nw-accent)',  border: 'rgba(201,111,74,0.3)', dot: 'var(--nw-accent)' },
+  'Resolved':    { bg: 'var(--nw-success-dim)', c: 'var(--nw-success)', border: 'rgba(79,166,137,0.3)', dot: 'var(--nw-success)' },
+  'Escalated':   { bg: 'var(--nw-danger-dim)',  c: 'var(--nw-danger)',  border: 'rgba(193,73,91,0.3)',  dot: 'var(--nw-danger)' },
+  'Closed':      { bg: 'rgba(154,156,165,0.1)', c: 'var(--nw-text-muted)', border: 'var(--nw-border)', dot: 'var(--nw-text-muted)' },
 }
-const P_COLORS = { P0:{bg:'#FFF1F2',c:'#E11D48'}, P1:{bg:'#FFFBEB',c:'#D97706'}, P2:{bg:'#EFF6FF',c:'#2563EB'}, P3:{bg:'#F8FAFC',c:'#64748B'} }
+const P_COLORS = {
+  P0: { bg: 'var(--nw-danger-dim)',  c: '#E8758A' },
+  P1: { bg: 'var(--nw-warning-dim)', c: '#E8B56B' },
+  P2: { bg: 'var(--nw-info-dim)',    c: '#72B4D8' },
+  P3: { bg: 'rgba(154,156,165,0.1)', c: 'var(--nw-text-muted)' }
+}
+
 
 import { API_BASE } from '../../lib/api'
 
@@ -267,7 +265,7 @@ export default function TicketsPage() {
   const auditHistory = selTicket?.assigned_agent_history || selTicket?.assignedAgentHistory || []
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'linear-gradient(135deg,#F8FAFC 0%,#EEF2FF 60%,#F0FDF4 100%)' }}>
+    <div style={{ display:'flex', minHeight:'100vh', background: 'var(--nw-base)' }}>
       <Sidebar role="admin" userName="Admin Nova" userEmail="admin@company.com" />
 
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
@@ -288,33 +286,33 @@ export default function TicketsPage() {
 
         {/* Admin Reassign Modal */}
         {showReassignModal && (
-          <div style={{ position:'fixed', inset:0, zIndex:400, background:'rgba(15,23,42,0.6)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ position:'fixed', inset:0, zIndex:400, background:'var(--nw-overlay)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
             <div className="animate-scale-in" style={{ ...glass(), maxWidth:480, width:'100%', padding:24 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                 <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                  <div style={{ width:34, height:34, borderRadius:10, background:'#EFF6FF', display:'flex', alignItems:'center', justifyContent:'center', color:'#2563EB' }}>
+                  <div style={{ width:34, height:34, borderRadius:10, background: 'var(--nw-info-dim)', display:'flex', alignItems:'center', justifyContent:'center', color:'#2563EB' }}>
                     <ArrowRightLeft size={18} />
                   </div>
                   <div>
-                    <h3 style={{ fontSize:15, fontWeight:700, color:'#0F172A', margin:0 }}>Admin Reassign Ticket [{selTicket?.ticket_id}]</h3>
-                    <p style={{ fontSize:11, color:'#64748B', margin:'2px 0 0' }}>Assign to any agent across departments (Admin Override)</p>
+                    <h3 style={{ fontSize:15, fontWeight:700, color: 'var(--nw-text-primary)', margin:0 }}>Admin Reassign Ticket [{selTicket?.ticket_id}]</h3>
+                    <p style={{ fontSize:11, color: 'var(--nw-text-muted)', margin:'2px 0 0' }}>Assign to any agent across departments (Admin Override)</p>
                   </div>
                 </div>
-                <button onClick={() => setShowReassign(false)} style={{ background:'none', border:'none', cursor:'pointer', color:'#94A3B8' }}>
+                <button onClick={() => setShowReassign(false)} style={{ background:'none', border:'none', cursor:'pointer', color: 'var(--nw-text-muted)' }}>
                   <X size={18} />
                 </button>
               </div>
 
               <form onSubmit={handleAdminReassign}>
                 <div style={{ marginBottom:12 }}>
-                  <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>
+                  <label style={{ display:'block', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', marginBottom:5 }}>
                     Select Target Agent *
                   </label>
                   <select
                     required
                     value={reassignAgentId}
                     onChange={e => setReassignAgentId(e.target.value)}
-                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border:'1.5px solid #CBD5E1', fontSize:12.5, outline:'none', cursor:'pointer' }}
+                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border: '1px solid var(--nw-border-strong)', fontSize:12.5, outline:'none', cursor:'pointer' }}
                   >
                     <option value="">-- Choose Agent --</option>
                     {agentsList.map(a => (
@@ -326,7 +324,7 @@ export default function TicketsPage() {
                 </div>
 
                 <div style={{ marginBottom:14 }}>
-                  <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>
+                  <label style={{ display:'block', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', marginBottom:5 }}>
                     Reassignment Reason *
                   </label>
                   <input
@@ -334,16 +332,16 @@ export default function TicketsPage() {
                     value={reassignReason}
                     onChange={e => setReassignReason(e.target.value)}
                     placeholder="e.g. Admin re-routing, workload balancing"
-                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border:'1.5px solid #CBD5E1', fontSize:12.5, outline:'none' }}
+                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border: '1px solid var(--nw-border-strong)', fontSize:12.5, outline:'none' }}
                   />
                 </div>
 
-                <div style={{ background:'#EFF6FF', padding:10, borderRadius:8, fontSize:11, color:'#1E40AF', marginBottom:16 }}>
+                <div style={{ background: 'var(--nw-info-dim)', padding:10, borderRadius:8, fontSize:11, color: 'var(--nw-info)', marginBottom:16 }}>
                   📧 Note: Automated email notifications will be sent to both previous and newly assigned agents.
                 </div>
 
                 <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
-                  <button type="button" onClick={() => setShowReassign(false)} style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #CBD5E1', background:'transparent', color:'#64748B', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                  <button type="button" onClick={() => setShowReassign(false)} style={{ padding:'8px 14px', borderRadius:8, border: '1px solid var(--nw-border-strong)', background:'transparent', color: 'var(--nw-text-muted)', fontSize:12, fontWeight:600, cursor:'pointer' }}>
                     Cancel
                   </button>
                   <button type="submit" disabled={reassignLoading} style={{ padding:'8px 18px', borderRadius:8, background:'#2563EB', color:'white', border:'none', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
@@ -357,33 +355,33 @@ export default function TicketsPage() {
 
         {/* Admin Change Department Modal */}
         {showChangeDeptModal && (
-          <div style={{ position:'fixed', inset:0, zIndex:400, background:'rgba(15,23,42,0.6)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ position:'fixed', inset:0, zIndex:400, background:'var(--nw-overlay)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
             <div className="animate-scale-in" style={{ ...glass(), maxWidth:480, width:'100%', padding:24 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                 <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                  <div style={{ width:34, height:34, borderRadius:10, background:'#F5F3FF', display:'flex', alignItems:'center', justifyContent:'center', color:'#7C3AED' }}>
+                  <div style={{ width:34, height:34, borderRadius:10, background: 'var(--nw-accent-dim)', display:'flex', alignItems:'center', justifyContent:'center', color:'#7C3AED' }}>
                     <Building size={18} />
                   </div>
                   <div>
-                    <h3 style={{ fontSize:15, fontWeight:700, color:'#0F172A', margin:0 }}>Change Ticket Department [{selTicket?.ticket_id}]</h3>
-                    <p style={{ fontSize:11, color:'#64748B', margin:'2px 0 0' }}>Current Dept: <strong>{selTicket?.department}</strong></p>
+                    <h3 style={{ fontSize:15, fontWeight:700, color: 'var(--nw-text-primary)', margin:0 }}>Change Ticket Department [{selTicket?.ticket_id}]</h3>
+                    <p style={{ fontSize:11, color: 'var(--nw-text-muted)', margin:'2px 0 0' }}>Current Dept: <strong>{selTicket?.department}</strong></p>
                   </div>
                 </div>
-                <button onClick={() => setShowChangeDept(false)} style={{ background:'none', border:'none', cursor:'pointer', color:'#94A3B8' }}>
+                <button onClick={() => setShowChangeDept(false)} style={{ background:'none', border:'none', cursor:'pointer', color: 'var(--nw-text-muted)' }}>
                   <X size={18} />
                 </button>
               </div>
 
               <form onSubmit={handleAdminChangeDept}>
                 <div style={{ marginBottom:12 }}>
-                  <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>
+                  <label style={{ display:'block', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', marginBottom:5 }}>
                     New Department *
                   </label>
                   <select
                     required
                     value={changeDeptId}
                     onChange={e => setChangeDeptId(e.target.value)}
-                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border:'1.5px solid #CBD5E1', fontSize:12.5, outline:'none', cursor:'pointer' }}
+                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border: '1px solid var(--nw-border-strong)', fontSize:12.5, outline:'none', cursor:'pointer' }}
                   >
                     <option value="">-- Select New Department --</option>
                     {deptsList.map(d => (
@@ -395,7 +393,7 @@ export default function TicketsPage() {
                 </div>
 
                 <div style={{ marginBottom:14 }}>
-                  <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>
+                  <label style={{ display:'block', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', marginBottom:5 }}>
                     Department Override Reason *
                   </label>
                   <input
@@ -403,16 +401,16 @@ export default function TicketsPage() {
                     value={changeDeptReason}
                     onChange={e => setChangeDeptReason(e.target.value)}
                     placeholder="e.g. AI/Customer mismatch, transferred to engineering"
-                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border:'1.5px solid #CBD5E1', fontSize:12.5, outline:'none' }}
+                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border: '1px solid var(--nw-border-strong)', fontSize:12.5, outline:'none' }}
                   />
                 </div>
 
-                <div style={{ background:'#FFFBEB', padding:10, borderRadius:8, fontSize:11, color:'#B45309', marginBottom:16 }}>
+                <div style={{ background: 'var(--nw-warning-dim)', padding:10, borderRadius:8, fontSize:11, color:'#B45309', marginBottom:16 }}>
                   ⚠️ Note: Changing the department resets agent assignment and places the ticket in the new department's shared pool. The relevant Department Manager will be notified via email.
                 </div>
 
                 <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
-                  <button type="button" onClick={() => setShowChangeDept(false)} style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #CBD5E1', background:'transparent', color:'#64748B', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                  <button type="button" onClick={() => setShowChangeDept(false)} style={{ padding:'8px 14px', borderRadius:8, border: '1px solid var(--nw-border-strong)', background:'transparent', color: 'var(--nw-text-muted)', fontSize:12, fontWeight:600, cursor:'pointer' }}>
                     Cancel
                   </button>
                   <button type="submit" disabled={changeDeptLoading} style={{ padding:'8px 18px', borderRadius:8, background:'#7C3AED', color:'white', border:'none', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
@@ -432,7 +430,7 @@ export default function TicketsPage() {
               onClick={() => setViewMode('tickets')}
               style={{
                 padding: '9px 18px', borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: 'pointer',
-                border: viewMode === 'tickets' ? '2px solid #7C3AED' : '1px solid #CBD5E1',
+                border: viewMode === 'tickets' ? '2px solid #7C3AED' : '1px solid var(--nw-border-strong)',
                 background: viewMode === 'tickets' ? '#7C3AED' : '#FFF',
                 color: viewMode === 'tickets' ? '#FFF' : '#64748B',
                 display: 'flex', alignItems: 'center', gap: 8,
@@ -446,7 +444,7 @@ export default function TicketsPage() {
               onClick={() => { setViewMode('agents'); fetchAgentsOverview(); }}
               style={{
                 padding: '9px 18px', borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: 'pointer',
-                border: viewMode === 'agents' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                border: viewMode === 'agents' ? '2px solid #2563EB' : '1px solid var(--nw-border-strong)',
                 background: viewMode === 'agents' ? '#2563EB' : '#FFF',
                 color: viewMode === 'agents' ? '#FFF' : '#64748B',
                 display: 'flex', alignItems: 'center', gap: 8,
@@ -505,21 +503,21 @@ export default function TicketsPage() {
           {/* Filter Bar */}
           <div style={{ ...glass(), padding:'14px 18px', display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', justifyContent:'space-between' }}>
             <div style={{ display:'flex', gap:8, alignItems:'center', flex:1, minWidth:260, flexWrap:'wrap' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(248,250,252,0.9)', border:'1px solid rgba(226,232,240,0.8)', borderRadius:10, padding:'6px 12px', flex:1, minWidth:180, maxWidth:320 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:7, background:'var(--nw-elevated)', border:'1px solid var(--nw-border)', borderRadius:10, padding:'6px 12px', flex:1, minWidth:180, maxWidth:320 }}>
                 <Search size={13} color="#94A3B8"/>
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search ID, customer, title…" style={{ background:'none', border:'none', outline:'none', fontSize:12.5, color:'#0F172A', width:'100%' }}/>
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search ID, customer, title…" style={{ background:'none', border:'none', outline:'none', fontSize:12.5, color: 'var(--nw-text-primary)', width:'100%' }}/>
               </div>
 
-              <select value={statusF} onChange={e => setStatusF(e.target.value)} style={{ padding:'7px 11px', borderRadius:9, border:'1px solid rgba(226,232,240,0.8)', background:'rgba(248,250,252,0.9)', fontSize:12, outline:'none', cursor:'pointer' }}>
+              <select value={statusF} onChange={e => setStatusF(e.target.value)} style={{ padding:'7px 11px', borderRadius:9, border:'1px solid var(--nw-border)', background:'var(--nw-elevated)', fontSize:12, outline:'none', cursor:'pointer' }}>
                 {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
 
-              <select value={channelF} onChange={e => setChannelF(e.target.value)} style={{ padding:'7px 11px', borderRadius:9, border:'1px solid rgba(226,232,240,0.8)', background:'rgba(248,250,252,0.9)', fontSize:12, outline:'none', cursor:'pointer' }}>
+              <select value={channelF} onChange={e => setChannelF(e.target.value)} style={{ padding:'7px 11px', borderRadius:9, border:'1px solid var(--nw-border)', background:'var(--nw-elevated)', fontSize:12, outline:'none', cursor:'pointer' }}>
                 {CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
 
-            <button onClick={fetchTickets} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:9, border:'1px solid rgba(226,232,240,0.8)', background:'#FFF', fontSize:12, fontWeight:600, color:'#64748B', cursor:'pointer' }}>
+            <button onClick={fetchTickets} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:9, border:'1px solid var(--nw-border)', background: 'var(--nw-surface)', fontSize:12, fontWeight:600, color: 'var(--nw-text-muted)', cursor:'pointer' }}>
               <RefreshCw size={12} className={loading ? 'spin' : ''} /> Refresh
             </button>
           </div>
@@ -532,9 +530,9 @@ export default function TicketsPage() {
               <div className="touch-scroll" style={{ overflowX:'auto' }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', minWidth:700 }}>
                   <thead>
-                    <tr style={{ background:'rgba(248,250,252,0.8)' }}>
+                    <tr style={{ background:'var(--nw-elevated)' }}>
                       {['ID','Title','Customer','Dept','Assigned Agent','Channel','Priority','Status','Actions'].map(h => (
-                        <th key={h} style={{ padding:'10px 12px', textAlign:'left', fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid rgba(226,232,240,0.5)' }}>{h}</th>
+                        <th key={h} style={{ padding:'10px 12px', textAlign:'left', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid var(--nw-border)' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -554,47 +552,47 @@ export default function TicketsPage() {
                           onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background='transparent' }}
                           onClick={() => { setSel(isSelected ? null : t); setActiveTab('pipeline') }}
                         >
-                          <td style={{ padding:'12px 12px', borderBottom:'1px solid rgba(226,232,240,0.3)', fontFamily:'monospace', fontSize:11, color:'#7C3AED', fontWeight:700, whiteSpace:'nowrap' }}>{tId}</td>
-                          <td style={{ padding:'12px 12px', borderBottom:'1px solid rgba(226,232,240,0.3)', maxWidth:200 }}>
-                            <div style={{ fontSize:12, fontWeight:500, color:'#0F172A', lineHeight:1.4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.title}</div>
-                            <div style={{ fontSize:10, color:'#94A3B8', marginTop:2 }}>{t.category || t.cat || 'General'} · Ref: {t.order_id || 'N/A'}</div>
+                          <td style={{ padding:'12px 12px', borderBottom:'1px solid var(--nw-border)', fontFamily:'monospace', fontSize:11, color:'#7C3AED', fontWeight:700, whiteSpace:'nowrap' }}>{tId}</td>
+                          <td style={{ padding:'12px 12px', borderBottom:'1px solid var(--nw-border)', maxWidth:200 }}>
+                            <div style={{ fontSize:12, fontWeight:500, color: 'var(--nw-text-primary)', lineHeight:1.4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.title}</div>
+                            <div style={{ fontSize:10, color: 'var(--nw-text-muted)', marginTop:2 }}>{t.category || t.cat || 'General'} · Ref: {t.order_id || 'N/A'}</div>
                           </td>
-                          <td style={{ padding:'12px 12px', borderBottom:'1px solid rgba(226,232,240,0.3)', fontSize:12, color:'#64748B', whiteSpace:'nowrap' }}>
-                            <div style={{ fontWeight:700, color:'#0F172A' }}>{tCust}</div>
-                            <div style={{ fontSize:10, color:'#94A3B8' }}>{t.customer_email || ''}</div>
+                          <td style={{ padding:'12px 12px', borderBottom:'1px solid var(--nw-border)', fontSize:12, color: 'var(--nw-text-muted)', whiteSpace:'nowrap' }}>
+                            <div style={{ fontWeight:700, color: 'var(--nw-text-primary)' }}>{tCust}</div>
+                            <div style={{ fontSize:10, color: 'var(--nw-text-muted)' }}>{t.customer_email || ''}</div>
                           </td>
-                          <td style={{ padding:'12px 12px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
-                            <span style={{ fontSize:11, color:'#334155', background:'rgba(248,250,252,0.8)', padding:'2px 8px', borderRadius:6, border:'1px solid rgba(226,232,240,0.6)', fontWeight: 600 }}>
+                          <td style={{ padding:'12px 12px', borderBottom:'1px solid var(--nw-border)' }}>
+                            <span style={{ fontSize:11, color: 'var(--nw-text-secondary)', background:'var(--nw-elevated)', padding:'2px 8px', borderRadius:6, border:'1px solid var(--nw-border)', fontWeight: 600 }}>
                               {t.department || t.customer_department || t.dept || 'Logistics'}
-                              {t.department_id ? <span style={{ marginLeft: 4, fontFamily: 'monospace', fontSize: 10, color: '#059669', background: '#ECFDF5', padding: '1px 5px', borderRadius: 4 }}>{t.department_id}</span> : null}
+                              {t.department_id ? <span style={{ marginLeft: 4, fontFamily: 'monospace', fontSize: 10, color: '#059669', background: 'var(--nw-success-dim)', padding: '1px 5px', borderRadius: 4 }}>{t.department_id}</span> : null}
                             </span>
                           </td>
-                          <td style={{ padding:'12px 12px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
+                          <td style={{ padding:'12px 12px', borderBottom:'1px solid var(--nw-border)' }}>
                             {t.assigned_agent || t.assigned_agent_id ? (
-                              <span style={{ fontSize:11, color:'#059669', fontWeight:600, background:'#ECFDF5', padding:'2px 8px', borderRadius:6, border:'1px solid #A7F3D0' }}>
+                              <span style={{ fontSize:11, color:'#059669', fontWeight:600, background: 'var(--nw-success-dim)', padding:'2px 8px', borderRadius:6, border: '1px solid rgba(79,166,137,0.3)' }}>
                                 👤 {t.assigned_agent || t.assigned_agent_id}
                               </span>
                             ) : (
-                              <span style={{ fontSize:10.5, color:'#D97706', fontWeight:700, background:'#FFFBEB', padding:'2px 8px', borderRadius:6, border:'1px solid #FDE68A' }}>
+                              <span style={{ fontSize:10.5, color:'#D97706', fontWeight:700, background: 'var(--nw-warning-dim)', padding:'2px 8px', borderRadius:6, border: '1px solid rgba(217,164,65,0.3)' }}>
                                 ⚡ Unassigned
                               </span>
                             )}
                           </td>
-                          <td style={{ padding:'12px 12px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
+                          <td style={{ padding:'12px 12px', borderBottom:'1px solid var(--nw-border)' }}>
                             <span style={{ fontSize:10, fontWeight:700, padding:'3px 8px', borderRadius:12, background: tChannel === 'Chat' ? '#F5F3FF' : tChannel === 'Email' ? '#FEF3C7' : '#EFF6FF', color: tChannel === 'Chat' ? '#7C3AED' : tChannel === 'Email' ? '#D97706' : '#2563EB' }}>
                               {tChannel === 'Chat' ? '💬 Chat' : tChannel === 'Email' ? '📧 Email' : '📄 Web Form'}
                             </span>
                           </td>
-                          <td style={{ padding:'12px 12px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
+                          <td style={{ padding:'12px 12px', borderBottom:'1px solid var(--nw-border)' }}>
                             <span style={{ fontFamily:'monospace', fontSize:11, fontWeight:700, padding:'2px 7px', borderRadius:6, background:pc.bg, color:pc.c }}>{t.priority || t.p || 'P2'}</span>
                           </td>
-                          <td style={{ padding:'12px 12px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
+                          <td style={{ padding:'12px 12px', borderBottom:'1px solid var(--nw-border)' }}>
                             <span style={{ padding:'3px 9px', borderRadius:99, fontSize:11, fontWeight:600, background:sc.bg, color:sc.c, border:`1px solid ${sc.border}`, whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:4 }}>
                               <span className="pulse-dot" style={{ width:5, height:5, borderRadius:'50%', background:sc.dot, flexShrink:0 }} />
                               {t.status}
                             </span>
                           </td>
-                          <td style={{ padding:'12px 12px', borderBottom:'1px solid rgba(226,232,240,0.3)', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding:'12px 12px', borderBottom:'1px solid var(--nw-border)', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                               <Link
                                 href={`/admin/tickets/${tId}`}
@@ -612,7 +610,7 @@ export default function TicketsPage() {
                                 style={{
                                   display:'inline-flex', alignItems:'center', gap:3, fontSize:11, fontWeight:600,
                                   color: isSelected?'#7C3AED':'#64748B', background: isSelected?'rgba(124,58,237,0.1)':'#F1F5F9',
-                                  padding:'5px 8px', borderRadius:8, border:'1px solid rgba(226,232,240,0.7)', cursor:'pointer'
+                                  padding:'5px 8px', borderRadius:8, border:'1px solid var(--nw-border)', cursor:'pointer'
                                 }}
                               >
                                 Peek
@@ -631,10 +629,10 @@ export default function TicketsPage() {
             {selTicket && (
               <div className="animate-slide-left ticket-detail-panel" style={glass({ padding:0, alignSelf:'flex-start', maxHeight:'calc(100vh - 120px)', display:'flex', flexDirection:'column', overflow:'hidden' })}>
                 {/* Header */}
-                <div style={{ padding:'18px 20px', background:'linear-gradient(135deg,rgba(124,58,237,0.07),rgba(79,70,229,0.03))', borderBottom:'1px solid rgba(226,232,240,0.5)', position:'relative', flexShrink:0 }}>
-                  <button onClick={() => setSel(null)} style={{ position:'absolute', top:13, right:13, background:'rgba(255,255,255,0.8)', border:'1px solid rgba(226,232,240,0.6)', borderRadius:8, width:26, height:26, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#64748B', transition:'all 0.15s' }}
+                <div style={{ padding:'18px 20px', background:'linear-gradient(135deg,rgba(124,58,237,0.07),rgba(79,70,229,0.03))', borderBottom:'1px solid var(--nw-border)', position:'relative', flexShrink:0 }}>
+                  <button onClick={() => setSel(null)} style={{ position:'absolute', top:13, right:13, background:'var(--nw-surface)', border:'1px solid var(--nw-border)', borderRadius:8, width:26, height:26, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color: 'var(--nw-text-muted)', transition:'all 0.15s' }}
                     onMouseEnter={e => { e.currentTarget.style.background='#FFF1F2'; e.currentTarget.style.color='#E11D48' }}
-                    onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.8)'; e.currentTarget.style.color='#64748B' }}
+                    onMouseLeave={e => { e.currentTarget.style.background='var(--nw-surface)'; e.currentTarget.style.color='#64748B' }}
                   >
                     <X size={12} />
                   </button>
@@ -650,9 +648,9 @@ export default function TicketsPage() {
                       <span key="s" style={{ fontSize:10, padding:'2px 8px', borderRadius:99, background:sc.bg, color:sc.c, border:`1px solid ${sc.border}`, fontWeight:600 }}>{selTicket.status}</span>
                     ))}
                   </div>
-                  <p style={{ fontSize:13, fontWeight:600, color:'#0F172A', lineHeight:1.4, marginBottom:10 }}>{selTicket.title}</p>
+                  <p style={{ fontSize:13, fontWeight:600, color: 'var(--nw-text-primary)', lineHeight:1.4, marginBottom:10 }}>{selTicket.title}</p>
                   
-                  <div style={{ background: '#FFF', border: '1px solid #E2E8F0', borderRadius: 8, padding: 10, fontSize: 11.5, color: '#334155', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
+                  <div style={{ background: 'var(--nw-surface)', border: '1px solid var(--nw-border)', borderRadius: 8, padding: 10, fontSize: 11.5, color: 'var(--nw-text-secondary)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
                     <div>Customer: <strong>{selTicket.customer_name || selTicket.customer || 'Customer'}</strong></div>
                     <div>Email: <strong>{selTicket.customer_email || 'N/A'}</strong></div>
                     <div>Dept: <strong>{selTicket.department || selTicket.customer_department || selTicket.dept || 'General'}</strong></div>
@@ -685,7 +683,7 @@ export default function TicketsPage() {
                       }}
                       style={{
                         padding:'5px 10px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
-                        background:'#EFF6FF', color:'#2563EB', border:'1px solid #BFDBFE',
+                        background: 'var(--nw-info-dim)', color:'#2563EB', border: '1px solid rgba(74,155,201,0.3)',
                         display:'flex', alignItems:'center', gap:4
                       }}
                     >
@@ -700,7 +698,7 @@ export default function TicketsPage() {
                       }}
                       style={{
                         padding:'5px 10px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
-                        background:'#FAF5FF', color:'#7C3AED', border:'1px solid #DDD6FE',
+                        background: 'var(--nw-accent-dim)', color:'#7C3AED', border: '1px solid rgba(201,111,74,0.3)',
                         display:'flex', alignItems:'center', gap:4
                       }}
                     >
@@ -710,7 +708,7 @@ export default function TicketsPage() {
                 </div>
 
                 {/* AI Match Banner */}
-                <div style={{ padding:'10px 18px', background: selTicket.match ? 'rgba(5,150,105,0.06)' : 'rgba(217,119,6,0.06)', borderBottom:'1px solid rgba(226,232,240,0.4)', display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                <div style={{ padding:'10px 18px', background: selTicket.match ? 'rgba(5,150,105,0.06)' : 'rgba(217,119,6,0.06)', borderBottom:'1px solid var(--nw-border)', display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
                   {selTicket.match
                     ? <><CheckCircle size={14} color="#059669"/><span style={{ fontWeight:700, color:'#059669', fontSize:12 }}>VERIFIED MATCH</span></>
                     : <><AlertTriangle size={14} color="#D97706"/><span style={{ fontWeight:700, color:'#D97706', fontSize:12 }}>MISMATCH DETECTED</span></>
@@ -718,7 +716,7 @@ export default function TicketsPage() {
                 </div>
 
                 {/* Tabs */}
-                <div style={{ display:'flex', gap:2, padding:'10px 18px', borderBottom:'1px solid rgba(226,232,240,0.4)', flexShrink:0 }}>
+                <div style={{ display:'flex', gap:2, padding:'10px 18px', borderBottom:'1px solid var(--nw-border)', flexShrink:0 }}>
                   {[
                     ['pipeline','🔬 Pipeline'],
                     ['audit',`📜 Audit Trail (${auditHistory.length})`],
@@ -742,24 +740,24 @@ export default function TicketsPage() {
                     pipeline ? (
                       <div className="animate-fade-in">
                         {/* GenAI */}
-                        <div style={{ padding:14, borderRadius:12, background:'linear-gradient(135deg,rgba(124,58,237,0.07),rgba(248,250,252,0.8))', border:'1px solid rgba(124,58,237,0.18)', marginBottom:12 }}>
+                        <div style={{ padding:14, borderRadius:12, background:'linear-gradient(135deg,rgba(124,58,237,0.07),var(--nw-elevated))', border:'1px solid rgba(124,58,237,0.18)', marginBottom:12 }}>
                           <div style={{ display:'flex', gap:7, alignItems:'center', marginBottom:11 }}>
                             <Zap size={13} color="#7C3AED"/>
                             <p style={{ fontSize:10, fontWeight:700, color:'#7C3AED', textTransform:'uppercase', letterSpacing:'0.06em' }}>GenAI Pipeline 1</p>
                           </div>
                           {[['Issue',pipeline.genai.issue],['Sentiment',pipeline.genai.sentiment],['Priority',pipeline.genai.priority],['Dept',pipeline.genai.dept]].map(([k,v]) => (
                             <div key={k} style={{ marginBottom:8 }}>
-                              <span style={{ fontSize:10, color:'#94A3B8', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>{k}: </span>
-                              <span style={{ fontSize:12, color:'#334155', fontWeight:500 }}>{v}</span>
+                              <span style={{ fontSize:10, color: 'var(--nw-text-muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>{k}: </span>
+                              <span style={{ fontSize:12, color: 'var(--nw-text-secondary)', fontWeight:500 }}>{v}</span>
                             </div>
                           ))}
-                          <div style={{ marginTop:10, padding:'10px', borderRadius:9, background:'rgba(255,255,255,0.7)', border:'1px solid rgba(124,58,237,0.12)' }}>
-                            <p style={{ fontSize:10, color:'#94A3B8', fontWeight:700, textTransform:'uppercase', marginBottom:5 }}>Draft Response</p>
-                            <p style={{ fontSize:11, color:'#64748B', lineHeight:1.7 }}>{pipeline.genai.draft}</p>
+                          <div style={{ marginTop:10, padding:'10px', borderRadius:9, background:'var(--nw-surface)', border:'1px solid rgba(124,58,237,0.12)' }}>
+                            <p style={{ fontSize:10, color: 'var(--nw-text-muted)', fontWeight:700, textTransform:'uppercase', marginBottom:5 }}>Draft Response</p>
+                            <p style={{ fontSize:11, color: 'var(--nw-text-muted)', lineHeight:1.7 }}>{pipeline.genai.draft}</p>
                           </div>
                         </div>
                         {/* Python GT */}
-                        <div style={{ padding:14, borderRadius:12, background:'linear-gradient(135deg,rgba(5,150,105,0.07),rgba(248,250,252,0.8))', border:'1px solid rgba(5,150,105,0.18)' }}>
+                        <div style={{ padding:14, borderRadius:12, background:'linear-gradient(135deg,rgba(5,150,105,0.07),var(--nw-elevated))', border:'1px solid rgba(5,150,105,0.18)' }}>
                           <div style={{ display:'flex', gap:7, alignItems:'center', marginBottom:11 }}>
                             <ShieldCheck size={13} color="#059669"/>
                             <p style={{ fontSize:10, fontWeight:700, color:'#059669', textTransform:'uppercase', letterSpacing:'0.06em' }}>Python Ground-Truth</p>
@@ -770,13 +768,13 @@ export default function TicketsPage() {
                             {pipeline.python.escalation && <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px', borderRadius:6, background:'rgba(225,29,72,0.1)', color:'#E11D48', border:'1px solid rgba(225,29,72,0.2)' }}>🚨 Escalation Required</span>}
                             {pipeline.python.refund && <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px', borderRadius:6, background:'rgba(5,150,105,0.1)', color:'#059669', border:'1px solid rgba(5,150,105,0.2)' }}>✓ Refund Eligible</span>}
                           </div>
-                          <p style={{ fontSize:10, color:'#94A3B8', fontFamily:'monospace' }}>Ref: {pipeline.python.policy}</p>
+                          <p style={{ fontSize:10, color: 'var(--nw-text-muted)', fontFamily:'monospace' }}>Ref: {pipeline.python.policy}</p>
                         </div>
                       </div>
                     ) : (
                       <div style={{ textAlign:'center', padding:'30px 16px' }}>
-                        <Zap size={28} color="#CBD5E1" style={{ margin:'0 auto 12px', display:'block' }}/>
-                        <p style={{ fontSize:13, color:'#94A3B8' }}>Pipeline data not available for this ticket</p>
+                        <Zap size={28} color="var(--nw-border-strong)" style={{ margin:'0 auto 12px', display:'block' }}/>
+                        <p style={{ fontSize:13, color: 'var(--nw-text-muted)' }}>Pipeline data not available for this ticket</p>
                       </div>
                     )
                   )}
@@ -786,15 +784,15 @@ export default function TicketsPage() {
                     <div className="animate-fade-in">
                       <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:10 }}>
                         <History size={14} color="#7C3AED" />
-                        <span style={{ fontSize:11, fontWeight:700, color:'#0F172A', textTransform:'uppercase' }}>Audit History Trail</span>
+                        <span style={{ fontSize:11, fontWeight:700, color: 'var(--nw-text-primary)', textTransform:'uppercase' }}>Audit History Trail</span>
                       </div>
 
                       {auditHistory.length === 0 ? (
-                        <p style={{ fontSize:12, color:'#94A3B8' }}>No assignment actions recorded yet for this ticket.</p>
+                        <p style={{ fontSize:12, color: 'var(--nw-text-muted)' }}>No assignment actions recorded yet for this ticket.</p>
                       ) : (
                         <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                           {auditHistory.map((ev, i) => (
-                            <div key={i} style={{ padding:10, borderRadius:8, background:'#F8FAFC', border:'1px solid #E2E8F0', fontSize:11.5 }}>
+                            <div key={i} style={{ padding:10, borderRadius:8, background: 'var(--nw-elevated)', border: '1px solid var(--nw-border)', fontSize:11.5 }}>
                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
                                 <span style={{
                                   fontSize:10, fontWeight:800, padding:'2px 6px', borderRadius:4,
@@ -803,19 +801,19 @@ export default function TicketsPage() {
                                 }}>
                                   {ev.action}
                                 </span>
-                                <span style={{ fontSize:10, color:'#94A3B8', fontFamily:'monospace' }}>
+                                <span style={{ fontSize:10, color: 'var(--nw-text-muted)', fontFamily:'monospace' }}>
                                   {ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString() : 'Just now'}
                                 </span>
                               </div>
                               <div>Agent: <strong>{ev.agent_name || ev.agent_id || 'N/A'}</strong></div>
                               {ev.reassigned_by_name && (
-                                <div style={{ color:'#64748B' }}>By: <strong>{ev.reassigned_by_name}</strong> ({ev.reassigned_by_role})</div>
+                                <div style={{ color: 'var(--nw-text-muted)' }}>By: <strong>{ev.reassigned_by_name}</strong> ({ev.reassigned_by_role})</div>
                               )}
                               {ev.reason && (
-                                <div style={{ color:'#64748B', marginTop:2 }}>Reason: {ev.reason}</div>
+                                <div style={{ color: 'var(--nw-text-muted)', marginTop:2 }}>Reason: {ev.reason}</div>
                               )}
                               {ev.old_department && ev.new_department && (
-                                <div style={{ color:'#1E40AF', marginTop:2 }}>Dept: {ev.old_department} ➔ {ev.new_department}</div>
+                                <div style={{ color: 'var(--nw-info)', marginTop:2 }}>Dept: {ev.old_department} ➔ {ev.new_department}</div>
                               )}
                             </div>
                           ))}
@@ -837,14 +835,14 @@ export default function TicketsPage() {
                         ['Assigned Agent', selTicket.assigned_agent || selTicket.assigned_agent_id || 'Unassigned'],
                         ['Submitted', selTicket.incident_date || selTicket.date || 'Today'],
                       ].map(([k,v]) => (
-                        <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'9px 0', borderBottom:'1px solid rgba(226,232,240,0.4)' }}>
-                          <span style={{ fontSize:12, color:'#94A3B8', fontWeight:500 }}>{k}</span>
-                          <span style={{ fontSize:12, color:'#0F172A', fontWeight:600, textAlign:'right' }}>{v}</span>
+                        <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'9px 0', borderBottom:'1px solid var(--nw-border)' }}>
+                          <span style={{ fontSize:12, color: 'var(--nw-text-muted)', fontWeight:500 }}>{k}</span>
+                          <span style={{ fontSize:12, color: 'var(--nw-text-primary)', fontWeight:600, textAlign:'right' }}>{v}</span>
                         </div>
                       ))}
                       <div style={{ marginTop:14 }}>
-                        <span style={{ fontSize:11, fontWeight:700, color:'#64748B', textTransform:'uppercase' }}>Complaint Description:</span>
-                        <p style={{ fontSize:12, color:'#334155', lineHeight:1.6, background:'#F8FAFC', padding:10, borderRadius:8, marginTop:4 }}>
+                        <span style={{ fontSize:11, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase' }}>Complaint Description:</span>
+                        <p style={{ fontSize:12, color: 'var(--nw-text-secondary)', lineHeight:1.6, background: 'var(--nw-elevated)', padding:10, borderRadius:8, marginTop:4 }}>
                           {selTicket.description || 'No detailed description provided.'}
                         </p>
                       </div>
@@ -854,7 +852,7 @@ export default function TicketsPage() {
                   {/* Response Tab */}
                   {activeTab === 'response' && (
                     <div className="animate-fade-in">
-                      <p style={{ fontSize:12, color:'#64748B', lineHeight:1.7, marginBottom:14 }}>
+                      <p style={{ fontSize:12, color: 'var(--nw-text-muted)', lineHeight:1.7, marginBottom:14 }}>
                         {pipeline?.genai.draft || selTicket.draft_response || 'No draft response generated yet for this ticket.'}
                       </p>
                     </div>
@@ -917,20 +915,20 @@ export default function TicketsPage() {
               {/* Agent Filter & Controls */}
               <div style={{ ...glass(), padding: '14px 18px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, minWidth: 260 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(248,250,252,0.9)', border: '1px solid rgba(226,232,240,0.8)', borderRadius: 10, padding: '6px 12px', flex: 1, maxWidth: 320 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--nw-elevated)', border: '1px solid var(--nw-border)', borderRadius: 10, padding: '6px 12px', flex: 1, maxWidth: 320 }}>
                     <Search size={13} color="#94A3B8" />
                     <input
                       value={agentSearch}
                       onChange={e => setAgentSearch(e.target.value)}
                       placeholder="Search agent name, email, role..."
-                      style={{ background: 'none', border: 'none', outline: 'none', fontSize: 12.5, color: '#0F172A', width: '100%' }}
+                      style={{ background: 'none', border: 'none', outline: 'none', fontSize: 12.5, color: 'var(--nw-text-primary)', width: '100%' }}
                     />
                   </div>
 
                   <select
                     value={agentDeptFilter}
                     onChange={e => setAgentDeptFilter(e.target.value)}
-                    style={{ padding: '7px 11px', borderRadius: 9, border: '1px solid rgba(226,232,240,0.8)', background: 'rgba(248,250,252,0.9)', fontSize: 12, outline: 'none', cursor: 'pointer' }}
+                    style={{ padding: '7px 11px', borderRadius: 9, border: '1px solid var(--nw-border)', background: 'var(--nw-elevated)', fontSize: 12, outline: 'none', cursor: 'pointer' }}
                   >
                     <option value="ALL">All Departments</option>
                     <option value="Customer Support">Customer Support</option>
@@ -944,7 +942,7 @@ export default function TicketsPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <button
                     onClick={fetchAgentsOverview}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, border: '1px solid rgba(226,232,240,0.8)', background: '#FFF', fontSize: 12, fontWeight: 600, color: '#64748B', cursor: 'pointer' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, border: '1px solid var(--nw-border)', background: 'var(--nw-surface)', fontSize: 12, fontWeight: 600, color: 'var(--nw-text-muted)', cursor: 'pointer' }}
                   >
                     <RefreshCw size={12} className={agentsLoading ? 'spin' : ''} /> Refresh Live Roster
                   </button>
@@ -977,7 +975,7 @@ export default function TicketsPage() {
                           flexDirection: 'column',
                           gap: 14,
                           position: 'relative',
-                          border: isBusy ? '1px solid #BFDBFE' : '1px solid rgba(226,232,240,0.8)',
+                          border: isBusy ? '1px solid #BFDBFE' : '1px solid var(--nw-border)',
                           boxShadow: isBusy ? '0 4px 16px -2px rgba(37,99,235,0.06)' : undefined,
                         }}
                       >
@@ -1005,7 +1003,7 @@ export default function TicketsPage() {
                             </div>
                             <div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span style={{ fontWeight: 800, fontSize: 14, color: '#0F172A' }}>{agent.name}</span>
+                                <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--nw-text-primary)' }}>{agent.name}</span>
                                 <span
                                   style={{
                                     fontSize: 9.5,
@@ -1013,16 +1011,16 @@ export default function TicketsPage() {
                                     textTransform: 'uppercase',
                                     padding: '1.5px 6px',
                                     borderRadius: 4,
-                                    background: '#F1F5F9',
-                                    color: '#475569',
+                                    background: 'var(--nw-elevated)',
+                                    color: 'var(--nw-text-secondary)',
                                   }}
                                 >
                                   {agent.role}
                                 </span>
                               </div>
-                              <div style={{ fontSize: 11, color: '#64748B' }}>{agent.email}</div>
-                              <div style={{ fontSize: 10.5, color: '#94A3B8', marginTop: 2 }}>
-                                Dept: <strong style={{ color: '#475569' }}>{agent.department || 'General'}</strong>
+                              <div style={{ fontSize: 11, color: 'var(--nw-text-muted)' }}>{agent.email}</div>
+                              <div style={{ fontSize: 10.5, color: 'var(--nw-text-muted)', marginTop: 2 }}>
+                                Dept: <strong style={{ color: 'var(--nw-text-secondary)' }}>{agent.department || 'General'}</strong>
                                 {agent.reporting_manager && (
                                   <span style={{ marginLeft: 6 }}>• Lead: {agent.reporting_manager}</span>
                                 )}
@@ -1043,7 +1041,7 @@ export default function TicketsPage() {
                                 borderRadius: 99,
                                 background: isBusy ? '#EFF6FF' : '#F8FAFC',
                                 color: isBusy ? '#2563EB' : '#64748B',
-                                border: isBusy ? '1px solid #BFDBFE' : '1px solid #E2E8F0',
+                                border: isBusy ? '1px solid #BFDBFE' : '1px solid var(--nw-border)',
                               }}
                             >
                               <span
@@ -1063,8 +1061,8 @@ export default function TicketsPage() {
                                 style={{
                                   fontSize: 9.5,
                                   fontWeight: 700,
-                                  background: '#FEF2F2',
-                                  color: '#DC2626',
+                                  background: 'var(--nw-danger-dim)',
+                                  color: '#E8758A',
                                   border: '1px solid #FECACA',
                                   padding: '2px 6px',
                                   borderRadius: 4,
@@ -1082,8 +1080,8 @@ export default function TicketsPage() {
                             display: 'grid',
                             gridTemplateColumns: 'repeat(3, 1fr)',
                             gap: 8,
-                            background: 'rgba(248,250,252,0.9)',
-                            border: '1px solid #E2E8F0',
+                            background: 'var(--nw-elevated)',
+                            border: '1px solid var(--nw-border)',
                             borderRadius: 10,
                             padding: '8px 12px',
                             textAlign: 'center',
@@ -1091,22 +1089,22 @@ export default function TicketsPage() {
                         >
                           <div>
                             <div style={{ fontSize: 16, fontWeight: 800, color: '#2563EB' }}>{agent.active_count}</div>
-                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Active</div>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase' }}>Active</div>
                           </div>
-                          <div style={{ borderLeft: '1px solid #E2E8F0', borderRight: '1px solid #E2E8F0' }}>
+                          <div style={{ borderLeft: '1px solid var(--nw-border)', borderRight: '1px solid var(--nw-border)' }}>
                             <div style={{ fontSize: 16, fontWeight: 800, color: '#059669' }}>{agent.resolved_count}</div>
-                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Resolved</div>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase' }}>Resolved</div>
                           </div>
                           <div>
-                            <div style={{ fontSize: 16, fontWeight: 800, color: '#0F172A' }}>{agent.total_assigned}</div>
-                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Lifetime</div>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--nw-text-primary)' }}>{agent.total_assigned}</div>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase' }}>Lifetime</div>
                           </div>
                         </div>
 
                         {/* Current Work ("کس کا کیا کام ہو رہا ہے") */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--nw-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                               Current Workload ({agent.active_tickets.length})
                             </span>
                             {agent.active_tickets.length > 0 && (
@@ -1118,12 +1116,12 @@ export default function TicketsPage() {
                             <div
                               style={{
                                 padding: '12px',
-                                background: '#F8FAFC',
-                                border: '1px dashed #CBD5E1',
+                                background: 'var(--nw-elevated)',
+                                border: '1px dashed var(--nw-border-strong)',
                                 borderRadius: 8,
                                 textAlign: 'center',
                                 fontSize: 11.5,
-                                color: '#94A3B8',
+                                color: 'var(--nw-text-muted)',
                               }}
                             >
                               No active tickets assigned right now. Available for new assignments.
@@ -1140,8 +1138,8 @@ export default function TicketsPage() {
                                     justifyContent: 'space-between',
                                     padding: '7px 10px',
                                     borderRadius: 7,
-                                    background: '#FFF',
-                                    border: '1px solid #E2E8F0',
+                                    background: 'var(--nw-surface)',
+                                    border: '1px solid var(--nw-border)',
                                     textDecoration: 'none',
                                     transition: 'all 0.15s ease',
                                   }}
@@ -1151,7 +1149,7 @@ export default function TicketsPage() {
                                     <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 11, color: '#2563EB', flexShrink: 0 }}>
                                       {t.ticket_id}
                                     </span>
-                                    <span style={{ fontSize: 11.5, color: '#1E293B', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    <span style={{ fontSize: 11.5, color: 'var(--nw-text-primary)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                       {t.title || 'Untitled Ticket'}
                                     </span>
                                   </div>
@@ -1179,7 +1177,7 @@ export default function TicketsPage() {
 
                         {/* Latest Task / Note snippet if any */}
                         {agent.current_work && agent.current_work.latest_notes && (
-                          <div style={{ padding: '8px 10px', background: '#FEF9C3', borderRadius: 7, border: '1px solid #FEF08A', fontSize: 11, color: '#854D0E' }}>
+                          <div style={{ padding: '8px 10px', background: 'var(--nw-warning-dim)', borderRadius: 7, border: '1px solid rgba(217,164,65,0.3)', fontSize: 11, color: '#854D0E' }}>
                             <strong style={{ fontWeight: 700 }}>Latest Activity Note:</strong> {agent.current_work.latest_notes}
                           </div>
                         )}
@@ -1189,9 +1187,9 @@ export default function TicketsPage() {
               </div>
 
               {agentsOverview.agents.length === 0 && !agentsLoading && (
-                <div style={{ ...glass(), padding: 36, textAlign: 'center', color: '#64748B' }}>
+                <div style={{ ...glass(), padding: 36, textAlign: 'center', color: 'var(--nw-text-muted)' }}>
                   <Users size={36} color="#94A3B8" style={{ margin: '0 auto 12px' }} />
-                  <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A' }}>No agents found in roster</div>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--nw-text-primary)' }}>No agents found in roster</div>
                   <div style={{ fontSize: 12, marginTop: 4 }}>Agents created in the system or database will appear here automatically.</div>
                 </div>
               )}

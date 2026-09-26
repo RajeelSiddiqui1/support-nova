@@ -13,21 +13,15 @@ import { useRealtimeRefresh } from '../../lib/useWebSocket'
 
 import { API_BASE } from '../../lib/api'
 
-const glass = {
-  background: 'rgba(255,255,255,0.85)',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
-  border: '1px solid rgba(255,255,255,0.9)',
-  borderRadius: 14,
-  boxShadow: '0 4px 20px rgba(148,163,184,0.1)'
-}
+const glass = { background: 'var(--nw-surface)', border: '1px solid var(--nw-border)', borderRadius: 16, boxShadow: '0 4px 24px rgba(11,14,20,0.3)' }
 
 const P_COLORS = {
-  P0: { bg: '#FFF1F2', c: '#E11D48', label: 'P0 Critical' },
-  P1: { bg: '#FFFBEB', c: '#D97706', label: 'P1 High' },
-  P2: { bg: '#EFF6FF', c: '#2563EB', label: 'P2 Medium' },
-  P3: { bg: '#F8FAFC', c: '#64748B', label: 'P3 Low' },
+  P0: { bg: 'var(--nw-danger-dim)',  c: '#E8758A', label: 'P0 Critical' },
+  P1: { bg: 'var(--nw-warning-dim)', c: '#E8B56B', label: 'P1 High' },
+  P2: { bg: 'var(--nw-info-dim)',    c: '#72B4D8', label: 'P2 Medium' },
+  P3: { bg: 'rgba(154,156,165,0.1)', c: 'var(--nw-text-muted)', label: 'P3 Low' },
 }
+
 
 const FILTERS = ['All', 'Violations', 'Warnings', 'Compliant', 'Active Queue', 'Unassigned']
 
@@ -368,23 +362,23 @@ export default function ReviewerQueue() {
   const pythonRule = selectedTicket?.python_rule_output || {}
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg,#F8FAFC 0%,#EEF2FF 60%,#F0FDF4 100%)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--nw-base)' }}>
       <Sidebar role="reviewer" userName={currentManager?.name || 'Department Manager'} userEmail={currentManager?.email || 'manager@company.com'} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh', overflow: 'hidden' }}>
         
         {/* Top Navbar & Supervisor Switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: '#FFF', borderBottom: '1px solid #E2E8F0', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: 'var(--nw-surface)', borderBottom: '1px solid var(--nw-border)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('toggle-supportnova-sidebar'))}
               className="sidebar-toggle-btn"
               aria-label="Toggle navigation menu"
               style={{
-                background: 'rgba(248,250,252,0.9)',
-                border: '1px solid rgba(226,232,240,0.8)',
+                background: 'var(--nw-elevated)',
+                border: '1px solid var(--nw-border)',
                 cursor: 'pointer',
-                color: '#475569',
+                color: 'var(--nw-text-secondary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -396,10 +390,10 @@ export default function ReviewerQueue() {
               <Menu size={18} />
             </button>
             <div style={{ minWidth: 0 }}>
-              <h1 style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <h1 style={{ fontSize: 15, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 Manager Audit & Reviewer Workbench
               </h1>
-              <p className="hide-on-mobile" style={{ fontSize: 11, color: '#64748B', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p className="hide-on-mobile" style={{ fontSize: 11, color: 'var(--nw-text-muted)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 Real-time agent monitoring, policy violation audit, and access revocation
               </p>
             </div>
@@ -436,17 +430,17 @@ export default function ReviewerQueue() {
             </div>
 
             {/* Logged-In Manager Profile Display */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F8FAFC', padding: '6px 12px', borderRadius: 10, border: '1.5px solid #E2E8F0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--nw-elevated)', padding: '6px 12px', borderRadius: 10, border: '1px solid var(--nw-border-strong)' }}>
               <UserCheck size={16} color="#7C3AED" />
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: 12, fontWeight: 800, color: '#0F172A' }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--nw-text-primary)' }}>
                   {currentManager?.name || 'Department Manager'}
                 </span>
-                <span className="hide-on-mobile" style={{ fontSize: 10, color: '#64748B', fontWeight: 600 }}>
+                <span className="hide-on-mobile" style={{ fontSize: 10, color: 'var(--nw-text-muted)', fontWeight: 600 }}>
                   {currentManager?.email || 'manager@company.com'} · {currentManager?.role || 'MANAGER'}
                 </span>
               </div>
-              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: '#EFF6FF', color: '#2563EB', fontWeight: 800 }}>
+              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'var(--nw-info-dim)', color: '#2563EB', fontWeight: 800 }}>
                 {currentManager?.department || 'Dept'}
               </span>
             </div>
@@ -454,7 +448,7 @@ export default function ReviewerQueue() {
         </div>
 
         {/* Mobile Sub-Navigation Bar between Queue and Workbench */}
-        <div className="show-on-mobile-flex" style={{ display: 'none', background: '#FFF', borderBottom: '1px solid #E2E8F0', padding: '6px 12px', gap: 8, flexShrink: 0 }}>
+        <div className="show-on-mobile-flex" style={{ display: 'none', background: 'var(--nw-surface)', borderBottom: '1px solid var(--nw-border)', padding: '6px 12px', gap: 8, flexShrink: 0 }}>
           <button
             onClick={() => setMobileTab('queue')}
             style={{
@@ -493,8 +487,8 @@ export default function ReviewerQueue() {
 
         {/* Revoke Access & Reassign Modal */}
         {showRevokeModal && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div className="animate-scale-in" style={{ ...glass, maxWidth: 540, width: '100%', padding: 24, background: '#FFF' }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'var(--nw-overlay)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div className="animate-scale-in" style={{ ...glass, maxWidth: 540, width: '100%', padding: 24, background: 'var(--nw-surface)' }}>
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -502,19 +496,19 @@ export default function ReviewerQueue() {
                     {revokeMode === 'pool' ? <Zap size={20} /> : <UserX size={20} />}
                   </div>
                   <div>
-                    <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                    <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0 }}>
                       {revokeMode === 'pool' ? 'Revoke Access & Release to Open Pool' : 'Revoke Access & Reassign Ticket'}
                     </h3>
-                    <p style={{ fontSize: 11, color: '#64748B', margin: '2px 0 0' }}>Ticket: <strong>[{selectedTicket?.ticket_id}]</strong></p>
+                    <p style={{ fontSize: 11, color: 'var(--nw-text-muted)', margin: '2px 0 0' }}>Ticket: <strong>[{selectedTicket?.ticket_id}]</strong></p>
                   </div>
                 </div>
-                <button onClick={() => setShowRevoke(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
+                <button onClick={() => setShowRevoke(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--nw-text-muted)' }}>
                   <X size={18} />
                 </button>
               </div>
 
               {/* Mode Switcher Tabs */}
-              <div style={{ display: 'flex', gap: 6, marginBottom: 14, background: '#F1F5F9', padding: 4, borderRadius: 10 }}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 14, background: 'var(--nw-elevated)', padding: 4, borderRadius: 10 }}>
                 <button
                   type="button"
                   onClick={() => setRevokeMode('reassign')}
@@ -544,7 +538,7 @@ export default function ReviewerQueue() {
               </div>
 
               {/* Notice of Removal */}
-              <div style={{ background: '#FEF2F2', borderLeft: '4px solid #EF4444', padding: '10px 14px', borderRadius: 6, marginBottom: 14 }}>
+              <div style={{ background: 'var(--nw-danger-dim)', borderLeft: '4px solid #EF4444', padding: '10px 14px', borderRadius: 6, marginBottom: 14 }}>
                 <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#991B1B' }}>
                   Agent to be Removed: {selectedTicket?.assigned_agent || 'Unassigned'} ({selectedTicket?.assigned_agent_email || 'No email'})
                 </p>
@@ -554,7 +548,7 @@ export default function ReviewerQueue() {
               </div>
 
               {revokeMode === 'pool' && (
-                <div style={{ background: '#FFFBEB', borderLeft: '4px solid #F59E0B', padding: '10px 14px', borderRadius: 6, marginBottom: 14 }}>
+                <div style={{ background: 'var(--nw-warning-dim)', borderLeft: '4px solid #F59E0B', padding: '10px 14px', borderRadius: 6, marginBottom: 14 }}>
                   <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: '#92400E' }}>
                     ⚡ Open Department Pool (50+ Agents Queue):
                   </p>
@@ -568,14 +562,14 @@ export default function ReviewerQueue() {
                 {/* Replacement Agent Selection (Only for Reassign mode) */}
                 {revokeMode === 'reassign' && (
                   <div style={{ marginBottom: 14 }}>
-                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 5 }}>
+                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase', marginBottom: 5 }}>
                       Select Replacement Agent in {currentManager?.department} *
                     </label>
                     <select
                       required
                       value={newAgentId}
                       onChange={e => setNewAgentId(e.target.value)}
-                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 12.5, outline: 'none', cursor: 'pointer' }}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--nw-border-strong)', fontSize: 12.5, outline: 'none', cursor: 'pointer' }}
                     >
                       <option value="">-- Choose New Assignee --</option>
                       {deptAgents.filter(a => a.user_id !== selectedTicket?.assigned_agent_id).map(a => (
@@ -589,7 +583,7 @@ export default function ReviewerQueue() {
 
                 {/* Mandatory Reason for Revocation */}
                 <div style={{ marginBottom: 14 }}>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#DC2626', textTransform: 'uppercase', marginBottom: 5 }}>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#E8758A', textTransform: 'uppercase', marginBottom: 5 }}>
                     Mandatory Reason for Revocation & Removal *
                   </label>
                   <textarea
@@ -598,20 +592,21 @@ export default function ReviewerQueue() {
                     value={revokeReason}
                     onChange={e => setRevokeReason(e.target.value)}
                     placeholder="e.g. Non-compliance with Policy DEL-POL-04: Issued unverified discount exceeding 10% limit. Escalation required."
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #FCA5A5', background: '#FFF8F8', fontSize: 12, outline: 'none', resize: 'vertical' }}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(193,73,91,0.3)', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 12, outline: 'none', resize: 'vertical' }}
+
                   />
-                  <p style={{ fontSize: 10.5, color: '#64748B', margin: '4px 0 0' }}>
+                  <p style={{ fontSize: 10.5, color: 'var(--nw-text-muted)', margin: '4px 0 0' }}>
                     This explicit reason will be sent directly via email to the removed agent and permanently stamped in the audit trail.
                   </p>
                 </div>
 
                 {/* Email dispatch notice */}
-                <div style={{ background: '#EFF6FF', padding: 10, borderRadius: 8, fontSize: 11, color: '#1E40AF', marginBottom: 16 }}>
+                <div style={{ background: 'var(--nw-info-dim)', padding: 10, borderRadius: 8, fontSize: 11, color: 'var(--nw-info)', marginBottom: 16 }}>
                   📧 <strong>Automated Notifications:</strong> {revokeMode === 'pool' ? 'The removed agent will receive an immediate email stating the removal reason.' : 'Both the removed agent and the newly appointed agent will receive immediate email notifications.'}
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                  <button type="button" onClick={() => setShowRevoke(false)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #CBD5E1', background: 'transparent', color: '#64748B', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  <button type="button" onClick={() => setShowRevoke(false)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--nw-border-strong)', background: 'transparent', color: 'var(--nw-text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                     Cancel
                   </button>
                   <button type="submit" disabled={revokeLoading} style={{ padding: '8px 18px', borderRadius: 8, background: revokeMode === 'pool' ? '#D97706' : '#DC2626', color: 'white', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -625,33 +620,33 @@ export default function ReviewerQueue() {
 
         {/* Assign to Reviewer Modal (Cross-Department) */}
         {showAssignRevModal && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div className="animate-scale-in" style={{ ...glass, maxWidth: 500, width: '100%', padding: 24, background: '#FFF' }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'var(--nw-overlay)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div className="animate-scale-in" style={{ ...glass, maxWidth: 500, width: '100%', padding: 24, background: 'var(--nw-surface)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7C3AED' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--nw-accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7C3AED' }}>
                     <ArrowRightLeft size={20} />
                   </div>
                   <div>
-                    <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', margin: 0 }}>Assign Ticket to Another Reviewer</h3>
-                    <p style={{ fontSize: 11, color: '#64748B', margin: '2px 0 0' }}>Ticket: <strong>[{selectedTicket?.ticket_id}]</strong></p>
+                    <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0 }}>Assign Ticket to Another Reviewer</h3>
+                    <p style={{ fontSize: 11, color: 'var(--nw-text-muted)', margin: '2px 0 0' }}>Ticket: <strong>[{selectedTicket?.ticket_id}]</strong></p>
                   </div>
                 </div>
-                <button onClick={() => setShowAssignRevModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
+                <button onClick={() => setShowAssignRevModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--nw-text-muted)' }}>
                   <X size={18} />
                 </button>
               </div>
 
               <form onSubmit={handleAssignReviewerSubmit}>
                 <div style={{ marginBottom: 14 }}>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: 5 }}>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--nw-text-secondary)', textTransform: 'uppercase', marginBottom: 5 }}>
                     Select Target Reviewer (Cross-Department) *
                   </label>
                   <select
                     required
                     value={targetReviewerId}
                     onChange={e => setTargetReviewerId(e.target.value)}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 13, outline: 'none', background: '#F8FAFC' }}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none', background: 'var(--nw-elevated)' }}
                   >
                     <option value="">-- Choose Active Reviewer --</option>
                     {reviewersList.map(r => (
@@ -663,19 +658,19 @@ export default function ReviewerQueue() {
                 </div>
 
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: 5 }}>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--nw-text-secondary)', textTransform: 'uppercase', marginBottom: 5 }}>
                     Reassignment Reason (Optional)
                   </label>
                   <input
                     value={assignRevReason}
                     onChange={e => setAssignRevReason(e.target.value)}
                     placeholder="e.g. Workload balancing, specialized product review"
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 12.5, outline: 'none' }}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--nw-border-strong)', fontSize: 12.5, outline: 'none' }}
                   />
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                  <button type="button" onClick={() => setShowAssignRevModal(false)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #CBD5E1', background: 'transparent', color: '#64748B', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  <button type="button" onClick={() => setShowAssignRevModal(false)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--nw-border-strong)', background: 'transparent', color: 'var(--nw-text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                     Cancel
                   </button>
                   <button type="submit" disabled={assignRevLoading} style={{ padding: '8px 18px', borderRadius: 8, background: '#7C3AED', color: 'white', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -701,13 +696,13 @@ export default function ReviewerQueue() {
           {/* Department Workload Summary Bar */}
           {agentWorkload.length > 0 && (
             <div style={{ ...glass, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 14, overflowX: 'auto' }}>
-              <span style={{ fontSize: 11, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Agent Workload:</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--nw-text-muted)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Agent Workload:</span>
               {agentWorkload.map(a => (
-                <div key={a.agent_id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F8FAFC', padding: '4px 10px', borderRadius: 8, border: '1px solid #E2E8F0', whiteSpace: 'nowrap' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>{a.agent_name}</span>
-                  <span style={{ fontSize: 10.5, fontWeight: 800, padding: '1px 6px', borderRadius: 4, background: '#EFF6FF', color: '#2563EB' }}>{a.ticket_count} tickets</span>
+                <div key={a.agent_id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--nw-elevated)', padding: '4px 10px', borderRadius: 8, border: '1px solid var(--nw-border)', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--nw-text-primary)' }}>{a.agent_name}</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 800, padding: '1px 6px', borderRadius: 4, background: 'var(--nw-info-dim)', color: '#2563EB' }}>{a.ticket_count} tickets</span>
                   {a.violations > 0 && (
-                    <span style={{ fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 4, background: '#FEE2E2', color: '#DC2626' }}>{a.violations} violations</span>
+                    <span style={{ fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 4, background: 'var(--nw-danger-dim)', color: '#E8758A' }}>{a.violations} violations</span>
                   )}
                 </div>
               ))}
@@ -721,12 +716,12 @@ export default function ReviewerQueue() {
             <div className={`agent-queue-col ${mobileTab === 'workbench' ? 'hide-on-mobile' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               
               {/* Department Scope Selector */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: '#FFF', padding: '8px 12px', borderRadius: 10, border: '1px solid #E2E8F0' }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: '#475569', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Department Scope:</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'var(--nw-surface)', padding: '8px 12px', borderRadius: 10, border: '1px solid var(--nw-border)' }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--nw-text-secondary)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Department Scope:</span>
                 <select
                   value={deptFilter}
                   onChange={e => setDeptFilter(e.target.value)}
-                  style={{ flex: 1, padding: '5px 8px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 11.5, fontWeight: 700, outline: 'none', background: '#F8FAFC', color: '#1E293B' }}
+                  style={{ flex: 1, padding: '5px 8px', borderRadius: 8, border: '1px solid var(--nw-border-strong)', fontSize: 11.5, fontWeight: 700, outline: 'none', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)' }}
                 >
                   <option value="All">🌐 All Departments (Global Review)</option>
                   {departmentsList.map(d => (
@@ -745,7 +740,7 @@ export default function ReviewerQueue() {
                     onClick={() => setFilter(f)}
                     style={{
                       padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                      border: filter === f ? '1.5px solid #7C3AED' : '1px solid #CBD5E1',
+                      border: filter === f ? '1.5px solid #7C3AED' : '1px solid var(--nw-border-strong)',
                       background: filter === f ? '#F5F3FF' : '#FFF',
                       color: filter === f ? '#7C3AED' : '#64748B',
                     }}
@@ -757,12 +752,12 @@ export default function ReviewerQueue() {
 
               {/* Tickets List */}
               {loading ? (
-                <div style={{ textAlign: 'center', padding: 30, color: '#94A3B8' }}>
+                <div style={{ textAlign: 'center', padding: 30, color: 'var(--nw-text-muted)' }}>
                   <RefreshCw size={20} className="spin" style={{ margin: '0 auto 8px' }} />
                   <p style={{ fontSize: 12 }}>Loading department tickets...</p>
                 </div>
               ) : filteredTickets.length === 0 ? (
-                <div style={{ ...glass, padding: 30, textAlign: 'center', color: '#94A3B8' }}>
+                <div style={{ ...glass, padding: 30, textAlign: 'center', color: 'var(--nw-text-muted)' }}>
                   <CheckCircle size={28} color="#10B981" style={{ margin: '0 auto 8px' }} />
                   <p style={{ fontSize: 12, fontWeight: 700 }}>No tickets matching {filter} filter.</p>
                 </div>
@@ -782,8 +777,8 @@ export default function ReviewerQueue() {
                       }}
                       style={{
                         ...glass, padding: 13, cursor: 'pointer',
-                        border: isSel ? '2px solid #7C3AED' : isViolation ? '1.5px solid #FCA5A5' : '1px solid #E2E8F0',
-                        background: isSel ? '#F5F3FF' : isViolation ? '#FFF5F5' : '#FFF',
+                        border: isSel ? '2px solid #7C3AED' : isViolation ? '1.5px solid #FCA5A5' : '1px solid var(--nw-border)',
+                        background: isSel ? '#F5F3FF' : isViolation ? 'var(--nw-danger-dim)' : '#FFF',
                         transition: 'all 0.15s'
                       }}
                     >
@@ -803,7 +798,7 @@ export default function ReviewerQueue() {
                         </div>
                       </div>
 
-                      <h4 style={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A', margin: '0 0 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <h4 style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--nw-text-primary)', margin: '0 0 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {t.title}
                       </h4>
 
@@ -811,7 +806,7 @@ export default function ReviewerQueue() {
                         <span style={{ color: t.assigned_agent_id ? '#059669' : '#D97706', fontWeight: 700 }}>
                           👤 {t.assigned_agent || '⚡ Unassigned Pool'}
                         </span>
-                        <span style={{ color: '#64748B', fontWeight: 600 }}>{t.status}</span>
+                        <span style={{ color: 'var(--nw-text-muted)', fontWeight: 600 }}>{t.status}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, marginTop: 3 }}>
                         <span style={{ color: t.assigned_reviewer_id ? '#7C3AED' : '#94A3B8', fontWeight: 700 }}>
@@ -836,8 +831,8 @@ export default function ReviewerQueue() {
                   onClick={() => setMobileTab('queue')}
                   style={{
                     display: 'none', alignItems: 'center', gap: 6,
-                    padding: '6px 12px', borderRadius: 8, background: '#EFF6FF',
-                    border: '1px solid #BFDBFE', fontSize: 12, fontWeight: 700,
+                    padding: '6px 12px', borderRadius: 8, background: 'var(--nw-info-dim)',
+                    border: '1px solid rgba(74,155,201,0.3)', fontSize: 12, fontWeight: 700,
                     color: '#2563EB', cursor: 'pointer', width: 'fit-content'
                   }}
                 >
@@ -845,22 +840,22 @@ export default function ReviewerQueue() {
                 </button>
                 
                 {/* Header Bar */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8, paddingBottom: 14, borderBottom: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8, paddingBottom: 14, borderBottom: '1px solid var(--nw-border)' }}>
                   <div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
                       <span style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 800, color: '#7C3AED' }}>{selectedTicket.ticket_id}</span>
                       <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 6, background: P_COLORS[selectedTicket.priority]?.bg, color: P_COLORS[selectedTicket.priority]?.c }}>
                         {selectedTicket.priority}
                       </span>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#F1F5F9', color: '#475569' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'var(--nw-elevated)', color: 'var(--nw-text-secondary)' }}>
                         Channel: {selectedTicket.channel || 'Web Form'}
                       </span>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#ECFDF5', color: '#059669' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'var(--nw-success-dim)', color: '#059669' }}>
                         Dept: {selectedTicket.department}
                       </span>
                     </div>
-                    <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', margin: 0 }}>{selectedTicket.title}</h3>
-                    <p style={{ fontSize: 11.5, color: '#64748B', margin: '3px 0 0' }}>Customer: <strong>{selectedTicket.customer_name || 'Customer'}</strong> ({selectedTicket.customer_email || '—'})</p>
+                    <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--nw-text-primary)', margin: 0 }}>{selectedTicket.title}</h3>
+                    <p style={{ fontSize: 11.5, color: 'var(--nw-text-muted)', margin: '3px 0 0' }}>Customer: <strong>{selectedTicket.customer_name || 'Customer'}</strong> ({selectedTicket.customer_email || '—'})</p>
                   </div>
 
                   {/* Action Buttons: Release to Open Pool & Revoke/Reassign */}
@@ -873,7 +868,7 @@ export default function ReviewerQueue() {
                         cursor: selectedTicket.assigned_agent_id ? 'pointer' : 'not-allowed',
                         background: selectedTicket.assigned_agent_id ? '#FFFBEB' : '#F1F5F9',
                         color: selectedTicket.assigned_agent_id ? '#D97706' : '#94A3B8',
-                        border: selectedTicket.assigned_agent_id ? '1.5px solid #FCD34D' : '1px solid #CBD5E1',
+                        border: selectedTicket.assigned_agent_id ? '1.5px solid #FCD34D' : '1px solid var(--nw-border-strong)',
                         display: 'flex', alignItems: 'center', gap: 6,
                         opacity: selectedTicket.assigned_agent_id ? 1 : 0.6
                       }}
@@ -896,14 +891,14 @@ export default function ReviewerQueue() {
                 </div>
 
                 {/* 0. REVIEWER WORKSPACE ACTIONS & OWNERSHIP */}
-                <div style={{ padding: '12px 16px', borderRadius: 10, background: '#F5F3FF', border: '1.5px solid #DDD6FE', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                <div style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--nw-accent-dim)', border: '1px solid rgba(201,111,74,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 34, height: 34, borderRadius: 8, background: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', flexShrink: 0 }}>
                       <Scale size={18} />
                     </div>
                     <div>
                       <div style={{ fontSize: 10.5, fontWeight: 800, color: '#6D28D9', textTransform: 'uppercase' }}>Reviewer Ownership</div>
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1E1B4B' }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--nw-text-secondary)' }}>
                         {selectedTicket.assigned_reviewer_name ? (
                           <span>Assigned Reviewer: <strong style={{ color: '#7C3AED' }}>{selectedTicket.assigned_reviewer_name}</strong></span>
                         ) : (
@@ -930,7 +925,7 @@ export default function ReviewerQueue() {
                       onClick={() => setShowAssignRevModal(true)}
                       style={{
                         padding: '7px 13px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-                        background: '#FFF', color: '#7C3AED', border: '1.5px solid #7C3AED', display: 'flex', alignItems: 'center', gap: 6
+                        background: 'var(--nw-surface)', color: '#7C3AED', border: '1.5px solid #7C3AED', display: 'flex', alignItems: 'center', gap: 6
                       }}
                       title="Transfer ticket to another active reviewer"
                     >
@@ -955,38 +950,38 @@ export default function ReviewerQueue() {
                 </div>
 
                 {/* 1. AGENT WORKING ACTIVITY & ACTIONS TAKEN */}
-                <div style={{ padding: 14, borderRadius: 10, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                <div style={{ padding: 14, borderRadius: 10, background: 'var(--nw-elevated)', border: '1px solid var(--nw-border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <User size={15} color="#2563EB" />
-                      <span style={{ fontSize: 11, fontWeight: 800, color: '#1E40AF', textTransform: 'uppercase' }}>Assigned Agent Activity</span>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--nw-info)', textTransform: 'uppercase' }}>Assigned Agent Activity</span>
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#EFF6FF', color: '#2563EB' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'var(--nw-info-dim)', color: '#2563EB' }}>
                       Status: {selectedTicket.status}
                     </span>
                   </div>
 
-                  <p style={{ fontSize: 12, color: '#334155', margin: '0 0 8px' }}>
+                  <p style={{ fontSize: 12, color: 'var(--nw-text-secondary)', margin: '0 0 8px' }}>
                     Agent: <strong>{selectedTicket.assigned_agent || 'Unassigned'}</strong> {selectedTicket.assigned_agent_email ? `(${selectedTicket.assigned_agent_email})` : ''}
                   </p>
 
                   <div style={{ marginBottom: 8 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Agent Resolution Notes:</span>
-                    <div style={{ background: '#FFF', padding: '8px 12px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 12, color: '#0F172A', marginTop: 4, minHeight: 36 }}>
-                      {selectedTicket.agent_notes || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>No notes logged yet by agent.</span>}
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase' }}>Agent Resolution Notes:</span>
+                    <div style={{ background: 'var(--nw-surface)', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--nw-border-strong)', fontSize: 12, color: 'var(--nw-text-primary)', marginTop: 4, minHeight: 36 }}>
+                      {selectedTicket.agent_notes || <span style={{ color: 'var(--nw-text-muted)', fontStyle: 'italic' }}>No notes logged yet by agent.</span>}
                     </div>
                   </div>
 
                   <div>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Drafted / Sent Customer Reply:</span>
-                    <div style={{ background: '#FFF', padding: '8px 12px', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: 12, color: '#334155', marginTop: 4, lineHeight: 1.5, maxHeight: 110, overflowY: 'auto' }}>
-                      {selectedTicket.draft_response || selectedTicket.genai_output?.draft_response || <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>No draft reply generated.</span>}
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase' }}>Drafted / Sent Customer Reply:</span>
+                    <div style={{ background: 'var(--nw-surface)', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--nw-border-strong)', fontSize: 12, color: 'var(--nw-text-secondary)', marginTop: 4, lineHeight: 1.5, maxHeight: 110, overflowY: 'auto' }}>
+                      {selectedTicket.draft_response || selectedTicket.genai_output?.draft_response || <span style={{ color: 'var(--nw-text-muted)', fontStyle: 'italic' }}>No draft reply generated.</span>}
                     </div>
                   </div>
                 </div>
 
                 {/* 2. POLICY COMPLIANCE MATRIX */}
-                <div style={{ padding: 14, borderRadius: 10, background: compliance.status === 'VIOLATION' ? '#FFF5F5' : compliance.status === 'RISK_WARNING' ? '#FFFBEB' : '#F0FDF4', border: compliance.status === 'VIOLATION' ? '1.5px solid #FCA5A5' : compliance.status === 'RISK_WARNING' ? '1.5px solid #FDE68A' : '1px solid #BBF7D0' }}>
+                <div style={{ padding: 14, borderRadius: 10, background: compliance.status === 'VIOLATION' ? 'var(--nw-danger-dim)' : compliance.status === 'RISK_WARNING' ? '#FFFBEB' : '#F0FDF4', border: compliance.status === 'VIOLATION' ? '1.5px solid #FCA5A5' : compliance.status === 'RISK_WARNING' ? '1.5px solid #FDE68A' : '1px solid #BBF7D0' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Scale size={15} color={compliance.status === 'VIOLATION' ? '#DC2626' : compliance.status === 'RISK_WARNING' ? '#D97706' : '#15803D'} />
@@ -1001,7 +996,7 @@ export default function ReviewerQueue() {
 
                   {/* Violations / Warnings Display */}
                   {compliance.violations && compliance.violations.length > 0 && (
-                    <div style={{ background: '#FEE2E2', padding: 10, borderRadius: 8, marginBottom: 10, border: '1px solid #F87171' }}>
+                    <div style={{ background: 'var(--nw-danger-dim)', padding: 10, borderRadius: 8, marginBottom: 10, border: '1px solid rgba(193,73,91,0.3)' }}>
                       <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 800, color: '#991B1B' }}>🚨 Policy Violations Detected:</p>
                       {compliance.violations.map((v, i) => (
                         <p key={i} style={{ margin: '2px 0', fontSize: 11.5, color: '#7F1D1D', fontWeight: 600 }}>• {v}</p>
@@ -1010,7 +1005,7 @@ export default function ReviewerQueue() {
                   )}
 
                   {compliance.warnings && compliance.warnings.length > 0 && (
-                    <div style={{ background: '#FEF3C7', padding: 10, borderRadius: 8, marginBottom: 10, border: '1px solid #FCD34D' }}>
+                    <div style={{ background: 'var(--nw-warning-dim)', padding: 10, borderRadius: 8, marginBottom: 10, border: '1px solid rgba(217,164,65,0.3)' }}>
                       <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 800, color: '#92400E' }}>⚠️ Compliance Warnings:</p>
                       {compliance.warnings.map((w, i) => (
                         <p key={i} style={{ margin: '2px 0', fontSize: 11.5, color: '#78350F' }}>• {w}</p>
@@ -1021,18 +1016,18 @@ export default function ReviewerQueue() {
                   {/* Deterministic Rule Breakdown */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 11.5 }}>
                     <div>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Matched Rule:</span>
-                      <p style={{ margin: '2px 0 6px', fontWeight: 700, color: '#0F172A' }}>{pythonRule.matched_rule_id || 'DEL-POL-04: General Policy Verification'}</p>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Refund Eligibility:</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase' }}>Matched Rule:</span>
+                      <p style={{ margin: '2px 0 6px', fontWeight: 700, color: 'var(--nw-text-primary)' }}>{pythonRule.matched_rule_id || 'DEL-POL-04: General Policy Verification'}</p>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase' }}>Refund Eligibility:</span>
                       <p style={{ margin: '2px 0', fontWeight: 700, color: pythonRule.refund_eligible ? '#059669' : '#DC2626' }}>
                         {pythonRule.refund_eligible ? '✓ Refund Permitted' : '✗ Strictly Non-Refundable'}
                       </p>
                     </div>
 
                     <div>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Policy Reference:</span>
-                      <p style={{ margin: '2px 0 6px', color: '#475569' }}>{pythonRule.policy_reference || 'Resolution Standard Operating Procedure v1.0'}</p>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Escalation Required:</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase' }}>Policy Reference:</span>
+                      <p style={{ margin: '2px 0 6px', color: 'var(--nw-text-secondary)' }}>{pythonRule.policy_reference || 'Resolution Standard Operating Procedure v1.0'}</p>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase' }}>Escalation Required:</span>
                       <p style={{ margin: '2px 0', fontWeight: 700, color: pythonRule.escalation_required ? '#DC2626' : '#64748B' }}>
                         {pythonRule.escalation_required ? '⚠️ Mandatory Manager Escalation' : 'Standard Agent Resolution'}
                       </p>
@@ -1044,11 +1039,11 @@ export default function ReviewerQueue() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                     <History size={15} color="#7C3AED" />
-                    <span style={{ fontSize: 11, fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Ticket Assignment & Revocation Audit History</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--nw-text-secondary)', textTransform: 'uppercase' }}>Ticket Assignment & Revocation Audit History</span>
                   </div>
 
                   {revokedAgents.length > 0 && (
-                    <div style={{ background: '#FFF1F2', border: '1px solid #FECDD3', padding: '10px 14px', borderRadius: 8, marginBottom: 10 }}>
+                    <div style={{ background: 'var(--nw-danger-dim)', border: '1px solid rgba(193,73,91,0.3)', padding: '10px 14px', borderRadius: 8, marginBottom: 10 }}>
                       <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 800, color: '#BE123C' }}>⛔ Revoked Agent Archive (Access Terminated):</p>
                       {revokedAgents.map((r, i) => (
                         <div key={i} style={{ fontSize: 11, color: '#9F1239', borderBottom: i < revokedAgents.length - 1 ? '1px solid #FFE4E6' : 'none', padding: '4px 0' }}>
@@ -1061,17 +1056,17 @@ export default function ReviewerQueue() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 150, overflowY: 'auto' }}>
                     {history.length === 0 ? (
-                      <p style={{ fontSize: 11.5, color: '#94A3B8', fontStyle: 'italic' }}>No reassignment or claiming events logged yet.</p>
+                      <p style={{ fontSize: 11.5, color: 'var(--nw-text-muted)', fontStyle: 'italic' }}>No reassignment or claiming events logged yet.</p>
                     ) : (
                       history.slice().reverse().map((h, i) => (
-                        <div key={i} style={{ padding: '6px 10px', borderRadius: 6, background: h.action === 'REVOKED_AND_REASSIGNED' ? '#FEF2F2' : '#F8FAFC', border: '1px solid #E2E8F0', fontSize: 11 }}>
+                        <div key={i} style={{ padding: '6px 10px', borderRadius: 6, background: h.action === 'REVOKED_AND_REASSIGNED' ? '#FEF2F2' : '#F8FAFC', border: '1px solid var(--nw-border)', fontSize: 11 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontWeight: 800, color: h.action === 'REVOKED_AND_REASSIGNED' ? '#DC2626' : '#7C3AED' }}>
                               {h.action === 'REVOKED_AND_REASSIGNED' ? '⛔ ACCESS REVOKED & REASSIGNED' : h.action}
                             </span>
-                            <span style={{ color: '#94A3B8', fontSize: 10 }}>{h.timestamp ? h.timestamp.slice(0, 16) : ''}</span>
+                            <span style={{ color: 'var(--nw-text-muted)', fontSize: 10 }}>{h.timestamp ? h.timestamp.slice(0, 16) : ''}</span>
                           </div>
-                          <p style={{ margin: '2px 0 0', color: '#334155' }}>
+                          <p style={{ margin: '2px 0 0', color: 'var(--nw-text-secondary)' }}>
                             {h.previous_agent_name && (
                               <span>From <strong>{h.previous_agent_name}</strong> ➔ </span>
                             )}
@@ -1079,7 +1074,7 @@ export default function ReviewerQueue() {
                             {h.reassigned_by_name && ` by ${h.reassigned_by_name}`}
                           </p>
                           {h.reason && (
-                            <p style={{ margin: '2px 0 0', color: '#DC2626', fontStyle: 'italic' }}>Reason: {h.reason}</p>
+                            <p style={{ margin: '2px 0 0', color: '#E8758A', fontStyle: 'italic' }}>Reason: {h.reason}</p>
                           )}
                         </div>
                       ))
@@ -1089,7 +1084,7 @@ export default function ReviewerQueue() {
 
               </div>
             ) : (
-              <div style={{ ...glass, padding: 40, textAlign: 'center', color: '#94A3B8' }}>
+              <div style={{ ...glass, padding: 40, textAlign: 'center', color: 'var(--nw-text-muted)' }}>
                 <Eye size={32} style={{ margin: '0 auto 8px' }} />
                 <p style={{ fontSize: 13, fontWeight: 600 }}>Select a ticket from the department queue to audit agent activity and verify policy compliance.</p>
               </div>

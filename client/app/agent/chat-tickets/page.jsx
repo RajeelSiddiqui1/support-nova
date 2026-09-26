@@ -11,14 +11,7 @@ import {
 
 import { API_BASE } from '../../lib/api'
 
-const glass = {
-  background: 'rgba(255,255,255,0.85)',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
-  border: '1px solid rgba(255,255,255,0.9)',
-  borderRadius: 14,
-  boxShadow: '0 4px 20px rgba(148,163,184,0.1)'
-}
+const glass = { background: 'var(--nw-surface)', border: '1px solid var(--nw-border)', borderRadius: 16, boxShadow: '0 4px 24px rgba(11,14,20,0.3)' }
 
 const STATUS_OPTIONS = ['In Triage', 'In Progress', 'Resolved', 'Closed']
 
@@ -132,7 +125,7 @@ export default function AgentChatTicketsPage() {
   const uniqueCustomers = Array.from(new Set(tickets.map(t => t.customer_email || t.customer_id).filter(Boolean)))
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#F8FAFC' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--nw-elevated)' }}>
       <Sidebar role="agent" />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -161,7 +154,7 @@ export default function AgentChatTicketsPage() {
           </div>
 
           {/* Filter Bar */}
-          <div style={{ ...glass, padding: 18, marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', background: '#FFF' }}>
+          <div style={{ ...glass, padding: 18, marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', background: 'var(--nw-surface)' }}>
             
             {/* Search Input */}
             <div style={{ position: 'relative', flex: 1, minWidth: 240 }}>
@@ -171,18 +164,18 @@ export default function AgentChatTicketsPage() {
                 placeholder="Search ticket ID, title, order reference..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                style={{ width: '100%', padding: '9px 12px 9px 36px', borderRadius: 10, border: '1px solid #CBD5E1', outline: 'none', fontSize: 13 }}
+                style={{ width: '100%', padding: '9px 12px 9px 36px', borderRadius: 10, border: '1px solid var(--nw-border-strong)', outline: 'none', fontSize: 13 }}
               />
             </div>
 
             {/* Filter by Customer ID / Email */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <User size={15} color="#7C3AED" />
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Customer:</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)' }}>Customer:</span>
               <select
                 value={customerFilter}
                 onChange={e => setCustomerFilter(e.target.value)}
-                style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #CBD5E1', fontSize: 12.5, outline: 'none', background: '#FFF' }}
+                style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid var(--nw-border-strong)', fontSize: 12.5, outline: 'none', background: 'var(--nw-surface)' }}
               >
                 <option value="">All Customers</option>
                 {uniqueCustomers.map(c => (
@@ -194,11 +187,11 @@ export default function AgentChatTicketsPage() {
             {/* Filter by Status */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Filter size={15} color="#7C3AED" />
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Status:</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)' }}>Status:</span>
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
-                style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #CBD5E1', fontSize: 12.5, outline: 'none', background: '#FFF' }}
+                style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid var(--nw-border-strong)', fontSize: 12.5, outline: 'none', background: 'var(--nw-surface)' }}
               >
                 <option value="All">All Statuses</option>
                 {STATUS_OPTIONS.map(s => (
@@ -221,7 +214,7 @@ export default function AgentChatTicketsPage() {
 
               <button
                 onClick={() => fetchChatTickets(false)}
-                style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #CBD5E1', background: '#FFF', color: '#475569', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-surface)', color: 'var(--nw-text-secondary)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
               >
                 <RefreshCw size={14} /> Refresh
               </button>
@@ -229,30 +222,30 @@ export default function AgentChatTicketsPage() {
           </div>
 
           {/* Tickets Directory Table */}
-          <div style={{ ...glass, background: '#FFF', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', margin: 0 }}>
+          <div style={{ ...glass, background: 'var(--nw-surface)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--nw-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0 }}>
                 Chat Channel Complaints ({filteredTickets.length})
               </h3>
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#F5F3FF', color: '#7C3AED' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'var(--nw-accent-dim)', color: '#7C3AED' }}>
                 💬 Channel: Chat
               </span>
             </div>
 
             {loading ? (
-              <div style={{ padding: 40, textAlign: 'center', color: '#64748B' }}>
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--nw-text-muted)' }}>
                 <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 10px', display: 'block' }} />
                 Loading Chat tickets...
               </div>
             ) : filteredTickets.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--nw-text-muted)' }}>
                 No Chat channel complaints found matching criteria.
               </div>
             ) : (
               <div className="touch-scroll" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
                   <thead>
-                    <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
+                    <tr style={{ background: 'var(--nw-elevated)', borderBottom: '1px solid var(--nw-border)', color: 'var(--nw-text-muted)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
                       <th style={{ padding: '12px 16px' }}>Ticket ID</th>
                       <th style={{ padding: '12px 16px' }}>Customer ID & Email</th>
                       <th style={{ padding: '12px 16px' }}>Title & Order ID</th>
@@ -267,24 +260,24 @@ export default function AgentChatTicketsPage() {
                     {filteredTickets.map(t => {
                       const pMeta = P_COLORS[t.priority || 'P2'] || P_COLORS.P2
                       return (
-                        <tr key={t.ticket_id} style={{ borderBottom: '1px solid #F1F5F9', transition: 'all 0.15s' }}>
+                        <tr key={t.ticket_id} style={{ borderBottom: '1px solid var(--nw-border)', transition: 'all 0.15s' }}>
                           <td style={{ padding: '14px 16px', fontWeight: 800, color: '#7C3AED', fontFamily: 'monospace' }}>
                             {t.ticket_id}
                           </td>
                           <td style={{ padding: '14px 16px' }}>
-                            <div style={{ fontWeight: 700, color: '#0F172A' }}>{t.customer_name || 'Customer'}</div>
+                            <div style={{ fontWeight: 700, color: 'var(--nw-text-primary)' }}>{t.customer_name || 'Customer'}</div>
                             <div style={{ fontSize: 11, color: '#7C3AED', fontWeight: 700 }}>ID: {t.customer_id || 'USR-LOCAL'}</div>
-                            <div style={{ fontSize: 11, color: '#64748B' }}>{t.customer_email || 'n/a'}</div>
+                            <div style={{ fontSize: 11, color: 'var(--nw-text-muted)' }}>{t.customer_email || 'n/a'}</div>
                           </td>
                           <td style={{ padding: '14px 16px', maxWidth: 240 }}>
-                            <div style={{ fontWeight: 700, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
-                            <div style={{ fontSize: 11, color: '#64748B' }}>Order Ref: <strong>{t.order_id || 'N/A'}</strong></div>
+                            <div style={{ fontWeight: 700, color: 'var(--nw-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
+                            <div style={{ fontSize: 11, color: 'var(--nw-text-muted)' }}>Order Ref: <strong>{t.order_id || 'N/A'}</strong></div>
                           </td>
-                          <td style={{ padding: '14px 16px', fontWeight: 600, color: '#334155' }}>
+                          <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--nw-text-secondary)' }}>
                             {t.customer_department || t.department || 'Logistics'}
                           </td>
                           <td style={{ padding: '14px 16px' }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 12, background: '#F5F3FF', color: '#7C3AED' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 12, background: 'var(--nw-accent-dim)', color: '#7C3AED' }}>
                               💬 Chat
                             </span>
                           </td>
@@ -325,13 +318,13 @@ export default function AgentChatTicketsPage() {
 
           {/* Ticket Detail & Status Update Modal */}
           {selectedTicket && (
-            <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-              <div style={{ ...glass, background: '#FFF', width: '100%', maxWidth: 'min(760px, 94vw)', maxHeight: '90vh', overflowY: 'auto', padding: '24px 18px', position: 'relative' }}>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'var(--nw-overlay)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+              <div style={{ ...glass, background: 'var(--nw-surface)', width: '100%', maxWidth: 'min(760px, 94vw)', maxHeight: '90vh', overflowY: 'auto', padding: '24px 18px', position: 'relative' }}>
                 
                 {/* Close Button */}
                 <button
                   onClick={() => setSelectedTicket(null)}
-                  style={{ position: 'absolute', top: 18, right: 18, border: 'none', background: '#F1F5F9', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ position: 'absolute', top: 18, right: 18, border: 'none', background: 'var(--nw-elevated)', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   <X size={16} />
                 </button>
@@ -340,17 +333,17 @@ export default function AgentChatTicketsPage() {
                   <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 6, background: '#7C3AED15', color: '#7C3AED', fontFamily: 'monospace' }}>
                     {selectedTicket.ticket_id}
                   </span>
-                  <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 12, background: '#F5F3FF', color: '#7C3AED' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 12, background: 'var(--nw-accent-dim)', color: '#7C3AED' }}>
                     💬 Channel: Chat
                   </span>
                 </div>
 
-                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', marginBottom: 12 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--nw-text-primary)', marginBottom: 12 }}>
                   {selectedTicket.title}
                 </h2>
 
                 {/* Customer Details Box */}
-                <div className="responsive-form-2col" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: 14, marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12.5 }}>
+                <div className="responsive-form-2col" style={{ background: 'var(--nw-elevated)', border: '1px solid var(--nw-border)', borderRadius: 12, padding: 14, marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 12.5 }}>
                   <div>Customer Name: <strong>{selectedTicket.customer_name || 'Customer'}</strong></div>
                   <div>Customer ID: <strong style={{ color: '#7C3AED' }}>{selectedTicket.customer_id || 'USR-LOCAL'}</strong></div>
                   <div>Customer Email: <strong>{selectedTicket.customer_email || 'n/a'}</strong></div>
@@ -359,19 +352,19 @@ export default function AgentChatTicketsPage() {
 
                 {/* Complaint Text */}
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Complaint Description</label>
-                  <p style={{ background: '#FFF', border: '1px solid #CBD5E1', padding: 12, borderRadius: 10, fontSize: 13, color: '#334155', marginTop: 4 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase' }}>Complaint Description</label>
+                  <p style={{ background: 'var(--nw-surface)', border: '1px solid var(--nw-border-strong)', padding: 12, borderRadius: 10, fontSize: 13, color: 'var(--nw-text-secondary)', marginTop: 4 }}>
                     "{selectedTicket.description}"
                   </p>
                 </div>
 
                 {/* AI Pipeline & Qdrant RAG Breakdown */}
-                <div style={{ background: '#F5F3FF', border: '1px solid #7C3AED30', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                <div style={{ background: 'var(--nw-accent-dim)', border: '1px solid #7C3AED30', borderRadius: 12, padding: 16, marginBottom: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                     <span style={{ fontSize: 12, fontWeight: 800, color: '#7C3AED', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Zap size={15} /> Qdrant Cloud RAG + Groq AI Analysis
                     </span>
-                    <span style={{ fontSize: 11, color: '#059669', background: '#ECFDF5', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
+                    <span style={{ fontSize: 11, color: '#059669', background: 'var(--nw-success-dim)', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
                       Matched Policy: {selectedTicket.genai_output?.policy_id || 'DEL-POL-04'}
                     </span>
                   </div>
@@ -387,25 +380,25 @@ export default function AgentChatTicketsPage() {
                     rows={3}
                     value={draftResp}
                     onChange={e => setDraftResp(e.target.value)}
-                    style={{ width: '100%', marginTop: 4, padding: 10, borderRadius: 8, border: '1px solid #C4B5FD', fontSize: 12.5, outline: 'none' }}
+                    style={{ width: '100%', marginTop: 4, padding: 10, borderRadius: 8, border: '1px solid rgba(201,111,74,0.3)', fontSize: 12.5, outline: 'none' }}
                   />
                 </div>
 
                 {/* Agent Notes */}
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>Agent Internal Notes</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--nw-text-secondary)', textTransform: 'uppercase' }}>Agent Internal Notes</label>
                   <input
                     type="text"
                     placeholder="Add internal resolution notes..."
                     value={agentNotes}
                     onChange={e => setAgentNotes(e.target.value)}
-                    style={{ width: '100%', marginTop: 4, padding: '10px 12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none' }}
+                    style={{ width: '100%', marginTop: 4, padding: '10px 12px', borderRadius: 8, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none' }}
                   />
                 </div>
 
                 {/* Status Update Action Buttons */}
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>
                     Update Status & Auto-Dispatch Email to Customer:
                   </label>
 
@@ -416,7 +409,7 @@ export default function AgentChatTicketsPage() {
                         disabled={updating}
                         onClick={() => handleStatusUpdate(s)}
                         style={{
-                          flex: '1 1 120px', padding: '10px', borderRadius: 10, border: selectedTicket.status === s ? '2px solid #7C3AED' : '1px solid #CBD5E1',
+                          flex: '1 1 120px', padding: '10px', borderRadius: 10, border: selectedTicket.status === s ? '2px solid #7C3AED' : '1px solid var(--nw-border-strong)',
                           background: selectedTicket.status === s ? '#7C3AED' : '#FFF', color: selectedTicket.status === s ? '#FFF' : '#334155',
                           fontSize: 12.5, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s'
                         }}

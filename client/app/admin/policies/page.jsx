@@ -10,15 +10,7 @@ import {
 
 import { API_BASE } from '../../lib/api'
 
-const glass = (extra = {}) => ({
-  background: 'rgba(255,255,255,0.82)',
-  backdropFilter: 'blur(24px)',
-  WebkitBackdropFilter: 'blur(24px)',
-  border: '1px solid rgba(255,255,255,0.95)',
-  borderRadius: 16,
-  boxShadow: '0 4px 28px rgba(148,163,184,0.1), 0 1px 4px rgba(148,163,184,0.06)',
-  ...extra,
-})
+const glass = (extra = {}) => ({ background: 'var(--nw-surface)', border: '1px solid var(--nw-border)', borderRadius: 16, boxShadow: '0 4px 24px rgba(11,14,20,0.3)', ...extra })
 
 const INITIAL_POLICIES = [
   {
@@ -381,7 +373,7 @@ export default function PoliciesPage() {
   const totalChunks = policies.reduce((acc, p) => acc + (p.chunk_count || (p.chunks ? p.chunks.length : 0)), 0)
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#F8FAFC' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--nw-elevated)' }}>
       <Sidebar role="admin" userName="Admin Nova" userEmail="admin@novawearapparel.com" />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' }}>
@@ -405,10 +397,10 @@ export default function PoliciesPage() {
           {/* Page Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.5px' }}>
+              <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0, letterSpacing: '-0.5px' }}>
                 Department Policies & KB Repository
               </h1>
-              <p style={{ fontSize: 13, color: '#64748B', margin: '4px 0 0' }}>
+              <p style={{ fontSize: 13, color: 'var(--nw-text-muted)', margin: '4px 0 0' }}>
                 AI-indexed complaint resolution policies linked with department foreign keys.
               </p>
             </div>
@@ -418,7 +410,7 @@ export default function PoliciesPage() {
                 onClick={fetchPolicies}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 11,
-                  border: '1px solid #E2E8F0', background: '#FFF', color: '#475569', fontSize: 13, fontWeight: 600,
+                  border: '1px solid var(--nw-border)', background: 'var(--nw-surface)', color: 'var(--nw-text-secondary)', fontSize: 13, fontWeight: 600,
                   cursor: 'pointer', transition: 'all 0.2s'
                 }}
               >
@@ -430,7 +422,7 @@ export default function PoliciesPage() {
                 onClick={() => { setShowManual(true); setManualErr(''); }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 11,
-                  border: '1px solid #7C3AED', background: '#F5F3FF', color: '#7C3AED', fontSize: 13, fontWeight: 700,
+                  border: '1px solid #7C3AED', background: 'var(--nw-accent-dim)', color: '#7C3AED', fontSize: 13, fontWeight: 700,
                   cursor: 'pointer', transition: 'all 0.2s'
                 }}
               >
@@ -471,8 +463,8 @@ export default function PoliciesPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
-                  width: '100%', padding: '10px 14px 10px 42px', borderRadius: 10, border: '1px solid #E2E8F0',
-                  fontSize: 13, background: '#FFF', outline: 'none'
+                  width: '100%', padding: '10px 14px 10px 42px', borderRadius: 10, border: '1px solid var(--nw-border)',
+                  fontSize: 13, background: 'var(--nw-surface)', outline: 'none'
                 }}
               />
             </div>
@@ -480,13 +472,13 @@ export default function PoliciesPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Building2 size={15} color="#64748B" />
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Department:</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--nw-text-secondary)' }}>Department:</span>
                 <select
                   value={deptFilter}
                   onChange={(e) => setDeptFilter(e.target.value)}
                   style={{
-                    padding: '9px 12px', borderRadius: 10, border: '1px solid #E2E8F0',
-                    background: '#FFF', fontSize: 13, fontWeight: 600, color: '#1E293B', outline: 'none', cursor: 'pointer'
+                    padding: '9px 12px', borderRadius: 10, border: '1px solid var(--nw-border)',
+                    background: 'var(--nw-surface)', fontSize: 13, fontWeight: 600, color: 'var(--nw-text-primary)', outline: 'none', cursor: 'pointer'
                   }}
                 >
                   <option value="All">All Departments</option>
@@ -498,13 +490,13 @@ export default function PoliciesPage() {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Filter size={15} color="#64748B" />
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Category:</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--nw-text-secondary)' }}>Category:</span>
                 <select
                   value={catFilter}
                   onChange={(e) => setCatFilter(e.target.value)}
                   style={{
-                    padding: '9px 12px', borderRadius: 10, border: '1px solid #E2E8F0',
-                    background: '#FFF', fontSize: 13, fontWeight: 600, color: '#1E293B', outline: 'none', cursor: 'pointer'
+                    padding: '9px 12px', borderRadius: 10, border: '1px solid var(--nw-border)',
+                    background: 'var(--nw-surface)', fontSize: 13, fontWeight: 600, color: 'var(--nw-text-primary)', outline: 'none', cursor: 'pointer'
                   }}
                 >
                   <option value="All">All Categories</option>
@@ -542,13 +534,13 @@ export default function PoliciesPage() {
                     {/* Badges Bar */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 800, background: '#F1F5F9', color: '#475569' }}>
+                        <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 800, background: 'var(--nw-elevated)', color: 'var(--nw-text-secondary)' }}>
                           {pol.doc_id}
                         </span>
-                        <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: '#F5F3FF', color: '#7C3AED', border: '1px solid #7C3AED25' }}>
+                        <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: 'var(--nw-accent-dim)', color: '#7C3AED', border: '1px solid #7C3AED25' }}>
                           {pol.version || 'v1.0'}
                         </span>
-                        <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: '#EFF6FF', color: '#2563EB' }}>
+                        <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: 'var(--nw-info-dim)', color: '#2563EB' }}>
                           {pol.file_type || 'PDF'}
                         </span>
                       </div>
@@ -556,19 +548,19 @@ export default function PoliciesPage() {
                       {/* Foreign Key Department Badge */}
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20,
-                        fontSize: 11, fontWeight: 700, background: '#ECFDF5', color: '#059669', border: '1px solid #05966930'
+                        fontSize: 11, fontWeight: 700, background: 'var(--nw-success-dim)', color: '#059669', border: '1px solid #05966930'
                       }}>
                         <Building2 size={12} />
                         {deptName}
                       </span>
                     </div>
 
-                    <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: '0 0 8px', lineHeight: 1.4 }} className="hover:text-purple-600">
+                    <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--nw-text-primary)', margin: '0 0 8px', lineHeight: 1.4 }} className="hover:text-purple-600">
                       {pol.title}
                     </h3>
 
                     <p style={{
-                      fontSize: 12.5, color: '#475569', lineHeight: 1.5, margin: '0 0 16px',
+                      fontSize: 12.5, color: 'var(--nw-text-secondary)', lineHeight: 1.5, margin: '0 0 16px',
                       display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden'
                     }}>
                       {pol.full_text || 'Structured policy document with AI RAG chunking enabled.'}
@@ -576,17 +568,17 @@ export default function PoliciesPage() {
                   </div>
 
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#F8FAFC', borderRadius: 10, marginBottom: 14 }}>
-                      <span style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>Category: <strong>{pol.category}</strong></span>
-                      <span style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>Extracted Chunks: <strong style={{ color: '#7C3AED' }}>{pol.chunk_count || (pol.chunks ? pol.chunks.length : 0)}</strong></span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--nw-elevated)', borderRadius: 10, marginBottom: 14 }}>
+                      <span style={{ fontSize: 11, color: 'var(--nw-text-muted)', fontWeight: 600 }}>Category: <strong>{pol.category}</strong></span>
+                      <span style={{ fontSize: 11, color: 'var(--nw-text-muted)', fontWeight: 600 }}>Extracted Chunks: <strong style={{ color: '#7C3AED' }}>{pol.chunk_count || (pol.chunks ? pol.chunks.length : 0)}</strong></span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #F1F5F9', paddingTop: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--nw-border)', paddingTop: 12 }}>
                       <button
                         onClick={() => { setViewPolicy(pol); setActiveTab('text'); }}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9,
-                          border: '1px solid #7C3AED30', background: '#F5F3FF', color: '#7C3AED', fontSize: 12, fontWeight: 700,
+                          border: '1px solid #7C3AED30', background: 'var(--nw-accent-dim)', color: '#7C3AED', fontSize: 12, fontWeight: 700,
                           cursor: 'pointer', transition: 'all 0.15s'
                         }}
                       >
@@ -609,7 +601,7 @@ export default function PoliciesPage() {
                             setEditErr('')
                           }}
                           title="Edit Policy"
-                          style={{ padding: 7, borderRadius: 8, border: '1px solid #E2E8F0', background: '#FFF', color: '#475569', cursor: 'pointer' }}
+                          style={{ padding: 7, borderRadius: 8, border: '1px solid var(--nw-border)', background: 'var(--nw-surface)', color: 'var(--nw-text-secondary)', cursor: 'pointer' }}
                         >
                           <Edit3 size={14} />
                         </button>
@@ -617,7 +609,7 @@ export default function PoliciesPage() {
                         <button
                           onClick={() => setDeletePolicy(pol)}
                           title="Delete Policy"
-                          style={{ padding: 7, borderRadius: 8, border: '1px solid #FEE2E2', background: '#FEF2F2', color: '#EF4444', cursor: 'pointer' }}
+                          style={{ padding: 7, borderRadius: 8, border: '1px solid #FEE2E2', background: 'var(--nw-danger-dim)', color: '#EF4444', cursor: 'pointer' }}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -630,9 +622,9 @@ export default function PoliciesPage() {
           </div>
 
           {filteredPolicies.length === 0 && (
-            <div style={{ ...glass(), padding: 48, textAlign: 'center', color: '#64748B' }}>
-              <BookOpen size={36} color="#CBD5E1" style={{ marginBottom: 12 }} />
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1E293B', margin: '0 0 4px' }}>No Policies Found</h3>
+            <div style={{ ...glass(), padding: 48, textAlign: 'center', color: 'var(--nw-text-muted)' }}>
+              <BookOpen size={36} color="var(--nw-border-strong)" style={{ marginBottom: 12 }} />
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--nw-text-primary)', margin: '0 0 4px' }}>No Policies Found</h3>
               <p style={{ fontSize: 13, margin: 0 }}>Try clearing your search query or department filters.</p>
             </div>
           )}
@@ -643,27 +635,27 @@ export default function PoliciesPage() {
       {/* UPLOAD PDF/DOC POLICY MODAL */}
       {showUploadModal && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
+          position: 'fixed', inset: 0, zIndex: 999, background: 'var(--nw-overlay)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 'min(520px, 94vw)', padding: '24px 18px', background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(520px, 94vw)', padding: '24px 18px', background: 'var(--nw-surface)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--nw-accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Upload size={18} color="#7C3AED" />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>Upload PDF / Doc Policy</h2>
-                  <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>Extracts text & headers matching PDF structure</p>
+                  <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0 }}>Upload PDF / Doc Policy</h2>
+                  <p style={{ fontSize: 12, color: 'var(--nw-text-muted)', margin: 0 }}>Extracts text & headers matching PDF structure</p>
                 </div>
               </div>
-              <button onClick={() => setShowUpload(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
+              <button onClick={() => setShowUpload(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--nw-text-muted)' }}>
                 <X size={18} />
               </button>
             </div>
 
             {uploadErr && (
-              <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ background: 'var(--nw-danger-dim)', border: '1px solid rgba(193,73,91,0.3)', color: '#991B1B', padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <AlertCircle size={16} />
                 <span>{uploadErr}</span>
               </div>
@@ -673,10 +665,10 @@ export default function PoliciesPage() {
 
               {/* File Drag Drop Zone */}
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Policy Document File (PDF, DOCX, TXT) *</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Policy Document File (PDF, DOCX, TXT) *</label>
                 <div style={{
-                  border: '2px dashed #CBD5E1', borderRadius: 12, padding: '24px 16px', textAlign: 'center',
-                  background: '#F8FAFC', cursor: 'pointer', transition: 'all 0.2s'
+                  border: '2px dashed var(--nw-border-strong)', borderRadius: 12, padding: '24px 16px', textAlign: 'center',
+                  background: 'var(--nw-elevated)', cursor: 'pointer', transition: 'all 0.2s'
                 }}>
                   <input
                     type="file"
@@ -692,32 +684,32 @@ export default function PoliciesPage() {
                   />
                   <label htmlFor="policy-file-input" style={{ cursor: 'pointer', display: 'block' }}>
                     <FileCode size={32} color="#7C3AED" style={{ margin: '0 auto 8px', display: 'block' }} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1E293B', display: 'block' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--nw-text-primary)', display: 'block' }}>
                       {uploadFile ? uploadFile.name : 'Click to browse or drag PDF / DOCX file here'}
                     </span>
-                    <span style={{ fontSize: 11, color: '#94A3B8' }}>Supports .pdf, .docx, .doc, .txt up to 25MB</span>
+                    <span style={{ fontSize: 11, color: 'var(--nw-text-muted)' }}>Supports .pdf, .docx, .doc, .txt up to 25MB</span>
                   </label>
                 </div>
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Policy Title</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Policy Title</label>
                 <input
                   type="text"
                   placeholder="e.g., Delivery SLA & Delayed Shipment Refund Policy"
                   value={uploadTitle}
                   onChange={(e) => setUploadTitle(e.target.value)}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none' }}
                 />
               </div>
 
               <div className="responsive-form-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Department (Foreign Key) *</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Department (Foreign Key) *</label>
                   <select
                     value={uploadDeptId}
                     onChange={(e) => setUploadDeptId(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', background: '#FFF' }}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none', background: 'var(--nw-surface)' }}
                     required
                   >
                     {departments.map(d => (
@@ -727,11 +719,11 @@ export default function PoliciesPage() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Category (Foreign Key) *</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Category (Foreign Key) *</label>
                   <select
                     value={uploadCatId}
                     onChange={(e) => setUploadCatId(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', background: '#FFF' }}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none', background: 'var(--nw-surface)' }}
                     required
                   >
                     {categoriesList.length > 0 ? (
@@ -749,7 +741,7 @@ export default function PoliciesPage() {
                 <button
                   type="button"
                   onClick={() => setShowUpload(false)}
-                  style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid #CBD5E1', background: '#FFF', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                  style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-surface)', color: 'var(--nw-text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
@@ -773,51 +765,51 @@ export default function PoliciesPage() {
       {/* MANUAL TEXT POLICY MODAL */}
       {showManualModal && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
+          position: 'fixed', inset: 0, zIndex: 999, background: 'var(--nw-overlay)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 'min(540px, 94vw)', padding: '24px 18px', background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(540px, 94vw)', padding: '24px 18px', background: 'var(--nw-surface)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--nw-accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Plus size={18} color="#7C3AED" />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>Create Text Policy</h2>
-                  <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>Add policy text directly into knowledge base</p>
+                  <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0 }}>Create Text Policy</h2>
+                  <p style={{ fontSize: 12, color: 'var(--nw-text-muted)', margin: 0 }}>Add policy text directly into knowledge base</p>
                 </div>
               </div>
-              <button onClick={() => setShowManual(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
+              <button onClick={() => setShowManual(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--nw-text-muted)' }}>
                 <X size={18} />
               </button>
             </div>
 
             {manualErr && (
-              <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 16 }}>
+              <div style={{ background: 'var(--nw-danger-dim)', border: '1px solid rgba(193,73,91,0.3)', color: '#991B1B', padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 16 }}>
                 {manualErr}
               </div>
             )}
 
             <form onSubmit={handleManualSubmit}>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Policy Title *</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Policy Title *</label>
                 <input
                   type="text"
                   placeholder="e.g., Quality Assurance Audit & Replacement Policy"
                   value={manualForm.title}
                   onChange={(e) => setManualForm({ ...manualForm, title: e.target.value })}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none' }}
                   required
                 />
               </div>
 
               <div className="responsive-form-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Department (Foreign Key) *</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Department (Foreign Key) *</label>
                   <select
                     value={manualForm.department_id}
                     onChange={(e) => setManualForm({ ...manualForm, department_id: e.target.value })}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', background: '#FFF' }}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none', background: 'var(--nw-surface)' }}
                     required
                   >
                     {departments.map(d => (
@@ -827,7 +819,7 @@ export default function PoliciesPage() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Category (Foreign Key) *</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Category (Foreign Key) *</label>
                   <select
                     value={manualForm.category_id || manualForm.category}
                     onChange={(e) => {
@@ -838,7 +830,7 @@ export default function PoliciesPage() {
                         category: selectedCat ? selectedCat.name : e.target.value
                       })
                     }}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', background: '#FFF' }}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none', background: 'var(--nw-surface)' }}
                     required
                   >
                     {categoriesList.length > 0 ? (
@@ -853,13 +845,13 @@ export default function PoliciesPage() {
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Extracted Policy Text / Content *</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Extracted Policy Text / Content *</label>
                 <textarea
                   rows={6}
                   placeholder="Paste or write full policy sections here..."
                   value={manualForm.full_text}
                   onChange={(e) => setManualForm({ ...manualForm, full_text: e.target.value })}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', resize: 'vertical' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none', resize: 'vertical' }}
                   required
                 />
               </div>
@@ -868,7 +860,7 @@ export default function PoliciesPage() {
                 <button
                   type="button"
                   onClick={() => setShowManual(false)}
-                  style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid #CBD5E1', background: '#FFF', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                  style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-surface)', color: 'var(--nw-text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
@@ -891,36 +883,36 @@ export default function PoliciesPage() {
       {/* VIEW EXTRACTED TEXT & DOCUMENT MODAL */}
       {viewPolicy && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
+          position: 'fixed', inset: 0, zIndex: 999, background: 'var(--nw-overlay)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 'min(720px, 94vw)', maxHeight: '88vh', display: 'flex', flexDirection: 'column', padding: '24px 18px', background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(720px, 94vw)', maxHeight: '88vh', display: 'flex', flexDirection: 'column', padding: '24px 18px', background: 'var(--nw-surface)' }}>
             
             {/* Modal Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                  <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 800, background: '#F1F5F9', color: '#475569' }}>
+                  <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 800, background: 'var(--nw-elevated)', color: 'var(--nw-text-secondary)' }}>
                     {viewPolicy.doc_id}
                   </span>
-                  <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#ECFDF5', color: '#059669', border: '1px solid #05966930' }}>
+                  <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: 'var(--nw-success-dim)', color: '#059669', border: '1px solid #05966930' }}>
                     <Building2 size={12} style={{ display: 'inline', marginRight: 4 }} />
                     Department: {viewPolicy.department || 'General'} ({viewPolicy.department_id || 'DEP'})
                   </span>
-                  <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: '#EFF6FF', color: '#2563EB' }}>
+                  <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: 'var(--nw-info-dim)', color: '#2563EB' }}>
                     {viewPolicy.file_type || 'PDF'}
                   </span>
                 </div>
-                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>{viewPolicy.title}</h2>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0 }}>{viewPolicy.title}</h2>
               </div>
 
-              <button onClick={() => setViewPolicy(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
+              <button onClick={() => setViewPolicy(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--nw-text-muted)' }}>
                 <X size={20} />
               </button>
             </div>
 
             {/* View Tabs Header */}
-            <div className="touch-scroll no-scrollbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', marginBottom: 16, overflowX: 'auto', whiteSpace: 'nowrap' }}>
+            <div className="touch-scroll no-scrollbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--nw-border)', marginBottom: 16, overflowX: 'auto', whiteSpace: 'nowrap' }}>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button
                   onClick={() => setActiveTab('text')}
@@ -963,7 +955,7 @@ export default function PoliciesPage() {
                 }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 8,
-                  border: '1px solid #E2E8F0', background: '#F8FAFC', color: '#475569', fontSize: 12, fontWeight: 600,
+                  border: '1px solid var(--nw-border)', background: 'var(--nw-elevated)', color: 'var(--nw-text-secondary)', fontSize: 12, fontWeight: 600,
                   cursor: 'pointer', marginBottom: 6
                 }}
               >
@@ -972,13 +964,13 @@ export default function PoliciesPage() {
             </div>
 
             {/* Tab Content Container */}
-            <div style={{ flex: 1, overflowY: 'auto', background: '#F8FAFC', borderRadius: 12, padding: 18, border: '1px solid #E2E8F0' }}>
+            <div style={{ flex: 1, overflowY: 'auto', background: 'var(--nw-elevated)', borderRadius: 12, padding: 18, border: '1px solid var(--nw-border)' }}>
               {activeTab === 'text' && (
-                <div style={{ background: '#FFF', padding: 16, borderRadius: 10, border: '1px solid #E2E8F0' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.5px' }}>
+                <div style={{ background: 'var(--nw-surface)', padding: 16, borderRadius: 10, border: '1px solid var(--nw-border)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.5px' }}>
                     Extracted Document Content
                   </div>
-                  <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace, sans-serif', fontSize: 13, color: '#1E293B', lineHeight: 1.6, margin: 0 }}>
+                  <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace, sans-serif', fontSize: 13, color: 'var(--nw-text-primary)', lineHeight: 1.6, margin: 0 }}>
                     {viewPolicy.full_text || 'No text content available.'}
                   </pre>
                 </div>
@@ -988,56 +980,56 @@ export default function PoliciesPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {viewPolicy.chunks && viewPolicy.chunks.length > 0 ? (
                     viewPolicy.chunks.map((chk, idx) => (
-                      <div key={idx} style={{ background: '#FFF', padding: 16, borderRadius: 10, border: '1px solid #E2E8F0' }}>
+                      <div key={idx} style={{ background: 'var(--nw-surface)', padding: 16, borderRadius: 10, border: '1px solid var(--nw-border)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                           <span style={{ fontSize: 11, fontWeight: 800, color: '#7C3AED' }}>{chk.chunk_id || `CHK-${idx + 1}`}</span>
-                          <span style={{ fontSize: 11, color: '#94A3B8' }}>Page {chk.page_number || 1}</span>
+                          <span style={{ fontSize: 11, color: 'var(--nw-text-muted)' }}>Page {chk.page_number || 1}</span>
                         </div>
-                        <h4 style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', margin: '0 0 6px' }}>{chk.heading || chk.section}</h4>
-                        <p style={{ fontSize: 12.5, color: '#475569', margin: 0, lineHeight: 1.5 }}>{chk.content}</p>
+                        <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--nw-text-primary)', margin: '0 0 6px' }}>{chk.heading || chk.section}</h4>
+                        <p style={{ fontSize: 12.5, color: 'var(--nw-text-secondary)', margin: 0, lineHeight: 1.5 }}>{chk.content}</p>
                       </div>
                     ))
                   ) : (
-                    <p style={{ fontSize: 13, color: '#64748B', textAlign: 'center', padding: 20 }}>No individual chunks generated yet.</p>
+                    <p style={{ fontSize: 13, color: 'var(--nw-text-muted)', textAlign: 'center', padding: 20 }}>No individual chunks generated yet.</p>
                   )}
                 </div>
               )}
 
               {activeTab === 'meta' && (
-                <div style={{ background: '#FFF', padding: 18, borderRadius: 10, border: '1px solid #E2E8F0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div style={{ background: 'var(--nw-surface)', padding: 18, borderRadius: 10, border: '1px solid var(--nw-border)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <div>
-                    <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, display: 'block' }}>Document ID</span>
-                    <strong style={{ fontSize: 13, color: '#0F172A' }}>{viewPolicy.doc_id}</strong>
+                    <span style={{ fontSize: 11, color: 'var(--nw-text-muted)', fontWeight: 600, display: 'block' }}>Document ID</span>
+                    <strong style={{ fontSize: 13, color: 'var(--nw-text-primary)' }}>{viewPolicy.doc_id}</strong>
                   </div>
 
                   <div>
-                    <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, display: 'block' }}>Department Foreign Key</span>
+                    <span style={{ fontSize: 11, color: 'var(--nw-text-muted)', fontWeight: 600, display: 'block' }}>Department Foreign Key</span>
                     <strong style={{ fontSize: 13, color: '#059669' }}>{viewPolicy.department} ({viewPolicy.department_id || 'N/A'})</strong>
                   </div>
 
                   <div>
-                    <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, display: 'block' }}>Category</span>
-                    <strong style={{ fontSize: 13, color: '#0F172A' }}>{viewPolicy.category}</strong>
+                    <span style={{ fontSize: 11, color: 'var(--nw-text-muted)', fontWeight: 600, display: 'block' }}>Category</span>
+                    <strong style={{ fontSize: 13, color: 'var(--nw-text-primary)' }}>{viewPolicy.category}</strong>
                   </div>
 
                   <div>
-                    <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, display: 'block' }}>Document Version</span>
+                    <span style={{ fontSize: 11, color: 'var(--nw-text-muted)', fontWeight: 600, display: 'block' }}>Document Version</span>
                     <strong style={{ fontSize: 13, color: '#7C3AED' }}>{viewPolicy.version || 'v1.0'}</strong>
                   </div>
 
                   <div>
-                    <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, display: 'block' }}>File Type & Size</span>
-                    <strong style={{ fontSize: 13, color: '#0F172A' }}>{viewPolicy.file_type || 'PDF'} ({viewPolicy.file_size_kb || 0} KB)</strong>
+                    <span style={{ fontSize: 11, color: 'var(--nw-text-muted)', fontWeight: 600, display: 'block' }}>File Type & Size</span>
+                    <strong style={{ fontSize: 13, color: 'var(--nw-text-primary)' }}>{viewPolicy.file_type || 'PDF'} ({viewPolicy.file_size_kb || 0} KB)</strong>
                   </div>
 
                   <div>
-                    <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, display: 'block' }}>Status</span>
+                    <span style={{ fontSize: 11, color: 'var(--nw-text-muted)', fontWeight: 600, display: 'block' }}>Status</span>
                     <strong style={{ fontSize: 13, color: '#059669' }}>{viewPolicy.status || 'Active'}</strong>
                   </div>
 
                   <div style={{ gridColumn: 'span 2' }}>
-                    <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, display: 'block' }}>Storage File Path</span>
-                    <code style={{ fontSize: 11.5, color: '#475569', background: '#F1F5F9', padding: '4px 8px', borderRadius: 6, display: 'block', marginTop: 4 }}>
+                    <span style={{ fontSize: 11, color: 'var(--nw-text-muted)', fontWeight: 600, display: 'block' }}>Storage File Path</span>
+                    <code style={{ fontSize: 11.5, color: 'var(--nw-text-secondary)', background: 'var(--nw-elevated)', padding: '4px 8px', borderRadius: 6, display: 'block', marginTop: 4 }}>
                       {viewPolicy.file_path || 'Stored in DB Memory / Text Document'}
                     </code>
                   </div>
@@ -1046,7 +1038,7 @@ export default function PoliciesPage() {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
-              <span style={{ fontSize: 12, color: '#94A3B8' }}>Clicking any card opens this document viewer</span>
+              <span style={{ fontSize: 12, color: 'var(--nw-text-muted)' }}>Clicking any card opens this document viewer</span>
               <button
                 onClick={() => setViewPolicy(null)}
                 style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: '#1E293B', color: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
@@ -1061,50 +1053,50 @@ export default function PoliciesPage() {
       {/* EDIT POLICY MODAL */}
       {editPolicy && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
+          position: 'fixed', inset: 0, zIndex: 999, background: 'var(--nw-overlay)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 'min(540px, 94vw)', padding: '24px 18px', background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(540px, 94vw)', padding: '24px 18px', background: 'var(--nw-surface)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--nw-accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Edit3 size={18} color="#7C3AED" />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>Edit Policy</h2>
-                  <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>Update document metadata or text content</p>
+                  <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0 }}>Edit Policy</h2>
+                  <p style={{ fontSize: 12, color: 'var(--nw-text-muted)', margin: 0 }}>Update document metadata or text content</p>
                 </div>
               </div>
-              <button onClick={() => setEditPolicy(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
+              <button onClick={() => setEditPolicy(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--nw-text-muted)' }}>
                 <X size={18} />
               </button>
             </div>
 
             {editErr && (
-              <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 16 }}>
+              <div style={{ background: 'var(--nw-danger-dim)', border: '1px solid rgba(193,73,91,0.3)', color: '#991B1B', padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 16 }}>
                 {editErr}
               </div>
             )}
 
             <form onSubmit={handleEditSubmit}>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Policy Title *</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Policy Title *</label>
                 <input
                   type="text"
                   value={editForm.title}
                   onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none' }}
                   required
                 />
               </div>
 
               <div className="responsive-form-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Department (Foreign Key) *</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Department (Foreign Key) *</label>
                   <select
                     value={editForm.department_id}
                     onChange={(e) => setEditForm({ ...editForm, department_id: e.target.value })}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', background: '#FFF' }}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none', background: 'var(--nw-surface)' }}
                     required
                   >
                     {departments.map(d => (
@@ -1114,7 +1106,7 @@ export default function PoliciesPage() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Category (Foreign Key) *</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Category (Foreign Key) *</label>
                   <select
                     value={editForm.category_id || editForm.category}
                     onChange={(e) => {
@@ -1125,7 +1117,7 @@ export default function PoliciesPage() {
                         category: selectedCat ? selectedCat.name : e.target.value
                       })
                     }}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', background: '#FFF' }}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none', background: 'var(--nw-surface)' }}
                     required
                   >
                     {categoriesList.length > 0 ? (
@@ -1141,22 +1133,22 @@ export default function PoliciesPage() {
 
               <div className="responsive-form-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Version</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Version</label>
                   <input
                     type="text"
                     value={editForm.version}
                     onChange={(e) => setEditForm({ ...editForm, version: e.target.value })}
                     placeholder="e.g. v2.0"
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none' }}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none' }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Status</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Status</label>
                   <select
                     value={editForm.status}
                     onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', background: '#FFF' }}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none', background: 'var(--nw-surface)' }}
                   >
                     <option value="Active">Active</option>
                     <option value="Draft">Draft</option>
@@ -1167,9 +1159,9 @@ export default function PoliciesPage() {
               </div>
 
               {/* Optional: Override Document in AWS S3 */}
-              <div style={{ marginBottom: 16, padding: '12px 14px', background: '#F8FAFC', borderRadius: 10, border: '1.5px dashed #CBD5E1' }}>
+              <div style={{ marginBottom: 16, padding: '12px 14px', background: 'var(--nw-elevated)', borderRadius: 10, border: '1.5px dashed var(--nw-border-strong)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155' }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)' }}>
                     ☁️ Override Document in AWS S3 (Optional)
                   </label>
                   {editPolicy?.s3_url && (
@@ -1178,14 +1170,14 @@ export default function PoliciesPage() {
                     </a>
                   )}
                 </div>
-                <p style={{ fontSize: 11, color: '#64748B', margin: '0 0 8px' }}>
+                <p style={{ fontSize: 11, color: 'var(--nw-text-muted)', margin: '0 0 8px' }}>
                   Upload a revised PDF/DOCX to replace the object in AWS S3 and re-extract text chunks.
                 </p>
                 <input
                   type="file"
                   accept=".pdf,.docx,.txt"
                   onChange={e => setOverrideFile(e.target.files ? e.target.files[0] : null)}
-                  style={{ fontSize: 12, color: '#334155' }}
+                  style={{ fontSize: 12, color: 'var(--nw-text-secondary)' }}
                 />
                 {overrideFile && (
                   <p style={{ fontSize: 11, color: '#059669', fontWeight: 700, margin: '6px 0 0' }}>
@@ -1195,7 +1187,7 @@ export default function PoliciesPage() {
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>
                   Override Policy Content & Requirements *
                 </label>
                 <textarea
@@ -1203,7 +1195,7 @@ export default function PoliciesPage() {
                   value={editForm.full_text}
                   onChange={(e) => setEditForm({ ...editForm, full_text: e.target.value })}
                   placeholder="Override or add policy rules, requirements, conditions, and SLAs..."
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', resize: 'vertical' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none', resize: 'vertical' }}
                   required
                 />
               </div>
@@ -1212,7 +1204,7 @@ export default function PoliciesPage() {
                 <button
                   type="button"
                   onClick={() => setEditPolicy(null)}
-                  style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid #CBD5E1', background: '#FFF', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                  style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-surface)', color: 'var(--nw-text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
@@ -1235,21 +1227,21 @@ export default function PoliciesPage() {
       {/* DELETE CONFIRMATION MODAL */}
       {deletePolicy && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
+          position: 'fixed', inset: 0, zIndex: 999, background: 'var(--nw-overlay)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 'min(420px, 94vw)', padding: '24px 18px', background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(420px, 94vw)', padding: '24px 18px', background: 'var(--nw-surface)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-              <div style={{ width: 42, height: 42, borderRadius: 12, background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: 'var(--nw-danger-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <AlertCircle size={22} color="#EF4444" />
               </div>
               <div>
-                <h3 style={{ fontSize: 17, fontWeight: 800, color: '#0F172A', margin: 0 }}>Delete Policy?</h3>
-                <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>This document will be permanently removed.</p>
+                <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0 }}>Delete Policy?</h3>
+                <p style={{ fontSize: 12, color: 'var(--nw-text-muted)', margin: 0 }}>This document will be permanently removed.</p>
               </div>
             </div>
 
-            <p style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, marginBottom: 20 }}>
+            <p style={{ fontSize: 13, color: 'var(--nw-text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
               Are you sure you want to delete policy <strong>{deletePolicy.title} ({deletePolicy.doc_id})</strong>?
             </p>
 
@@ -1257,7 +1249,7 @@ export default function PoliciesPage() {
               <button
                 type="button"
                 onClick={() => setDeletePolicy(null)}
-                style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid #CBD5E1', background: '#FFF', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-surface)', color: 'var(--nw-text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
               >
                 Cancel
               </button>

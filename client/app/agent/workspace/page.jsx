@@ -12,14 +12,7 @@ import {
 
 import { API_BASE } from '../../lib/api'
 
-const glass = {
-  background: 'rgba(255,255,255,0.85)',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
-  border: '1px solid rgba(255,255,255,0.9)',
-  borderRadius: 14,
-  boxShadow: '0 4px 20px rgba(148,163,184,0.1)'
-}
+const glass = { background: 'var(--nw-surface)', border: '1px solid var(--nw-border)', borderRadius: 16, boxShadow: '0 4px 24px rgba(11,14,20,0.3)' }
 
 const PCOLORS = {
   P0: { bg: '#FEF2F2', c: '#EF4444', label: 'P0 Critical' },
@@ -423,23 +416,23 @@ export default function AgentWorkspace() {
   const isOtherAssigned = selectedTicket?.assigned_agent_id && (selectedTicket?.assigned_agent_id !== currentAgent?.user_id) && (currentAgent?.role !== 'MANAGER' && currentAgent?.role !== 'ADMIN')
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F8FAFC' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--nw-elevated)' }}>
       <Sidebar role="agent" userName={currentAgent?.name || "Support Agent"} userEmail={currentAgent?.email || "agent@company.com"} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
         
         {/* Top Navbar with Working Agent Profile Switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: '#FFF', borderBottom: '1px solid #E2E8F0', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: 'var(--nw-surface)', borderBottom: '1px solid var(--nw-border)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('toggle-supportnova-sidebar'))}
               className="sidebar-toggle-btn"
               aria-label="Toggle navigation menu"
               style={{
-                background: 'rgba(248,250,252,0.9)',
-                border: '1px solid rgba(226,232,240,0.8)',
+                background: 'var(--nw-elevated)',
+                border: '1px solid var(--nw-border)',
                 cursor: 'pointer',
-                color: '#475569',
+                color: 'var(--nw-text-secondary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -451,34 +444,34 @@ export default function AgentWorkspace() {
               <Menu size={18} />
             </button>
             <div style={{ minWidth: 0 }}>
-              <h1 style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <h1 style={{ fontSize: 15, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 Agent Workspace & Workbench
               </h1>
-              <p className="hide-on-mobile" style={{ fontSize: 11, color: '#64748B', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p className="hide-on-mobile" style={{ fontSize: 11, color: 'var(--nw-text-muted)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 Department Routing, First-Response Auto-Claiming & Reassignment
               </p>
             </div>
           </div>
 
           {/* Currently Logged In Agent Profile Display */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F8FAFC', padding: '6px 12px', borderRadius: 10, border: '1.5px solid #E2E8F0', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--nw-elevated)', padding: '6px 12px', borderRadius: 10, border: '1px solid var(--nw-border-strong)', flexShrink: 0 }}>
             <UserCheck size={16} color="#7C3AED" />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: '#0F172A' }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--nw-text-primary)' }}>
                 {currentAgent?.name || 'Logged In Agent'}
               </span>
-              <span className="hide-on-mobile" style={{ fontSize: 10, color: '#64748B', fontWeight: 600 }}>
+              <span className="hide-on-mobile" style={{ fontSize: 10, color: 'var(--nw-text-muted)', fontWeight: 600 }}>
                 {currentAgent?.email || 'agent@company.com'} · {currentAgent?.role || 'AGENT'}
               </span>
             </div>
-            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: '#ECFDF5', color: '#059669', fontWeight: 800 }}>
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'var(--nw-success-dim)', color: '#059669', fontWeight: 800 }}>
               {currentAgent?.department || 'Dept'}
             </span>
           </div>
         </div>
 
         {/* Mobile Sub-Navigation Bar between Queue and Workbench */}
-        <div className="show-on-mobile-flex" style={{ display: 'none', background: '#FFF', borderBottom: '1px solid #E2E8F0', padding: '6px 12px', gap: 8, flexShrink: 0 }}>
+        <div className="show-on-mobile-flex" style={{ display: 'none', background: 'var(--nw-surface)', borderBottom: '1px solid var(--nw-border)', padding: '6px 12px', gap: 8, flexShrink: 0 }}>
           <button
             onClick={() => setMobileTab('queue')}
             style={{
@@ -522,33 +515,33 @@ export default function AgentWorkspace() {
 
         {/* Reassign Ticket Modal */}
         {showReassignModal && (
-          <div style={{ position:'fixed', inset:0, zIndex:400, background:'rgba(15,23,42,0.6)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-            <div className="animate-scale-in" style={{ ...glass, maxWidth:480, width:'100%', padding:24, background:'#FFF' }}>
+          <div style={{ position:'fixed', inset:0, zIndex:400, background:'var(--nw-overlay)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+            <div className="animate-scale-in" style={{ ...glass, maxWidth:480, width:'100%', padding:24, background: 'var(--nw-surface)' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                 <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                  <div style={{ width:34, height:34, borderRadius:10, background:'#EFF6FF', display:'flex', alignItems:'center', justifyContent:'center', color:'#2563EB' }}>
+                  <div style={{ width:34, height:34, borderRadius:10, background: 'var(--nw-info-dim)', display:'flex', alignItems:'center', justifyContent:'center', color:'#2563EB' }}>
                     <ArrowRightLeft size={18} />
                   </div>
                   <div>
-                    <h3 style={{ fontSize:15, fontWeight:700, color:'#0F172A', margin:0 }}>Reassign Ticket [{selectedTicket?.ticket_id}]</h3>
-                    <p style={{ fontSize:11, color:'#64748B', margin:'2px 0 0' }}>Department: <strong>{selectedTicket?.department}</strong></p>
+                    <h3 style={{ fontSize:15, fontWeight:700, color: 'var(--nw-text-primary)', margin:0 }}>Reassign Ticket [{selectedTicket?.ticket_id}]</h3>
+                    <p style={{ fontSize:11, color: 'var(--nw-text-muted)', margin:'2px 0 0' }}>Department: <strong>{selectedTicket?.department}</strong></p>
                   </div>
                 </div>
-                <button onClick={() => setShowReassign(false)} style={{ background:'none', border:'none', cursor:'pointer', color:'#94A3B8' }}>
+                <button onClick={() => setShowReassign(false)} style={{ background:'none', border:'none', cursor:'pointer', color: 'var(--nw-text-muted)' }}>
                   <X size={18} />
                 </button>
               </div>
 
               <form onSubmit={handleReassignSubmit}>
                 <div style={{ marginBottom:12 }}>
-                  <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>
+                  <label style={{ display:'block', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', marginBottom:5 }}>
                     Assign To Agent in {selectedTicket?.department} *
                   </label>
                   <select
                     required
                     value={reassignAgentId}
                     onChange={e => setReassignAgentId(e.target.value)}
-                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border:'1.5px solid #CBD5E1', fontSize:12.5, outline:'none', cursor:'pointer' }}
+                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border: '1px solid var(--nw-border-strong)', fontSize:12.5, outline:'none', cursor:'pointer' }}
                   >
                     <option value="">-- Select Target Agent --</option>
                     {deptAgents.map(a => (
@@ -560,7 +553,7 @@ export default function AgentWorkspace() {
                 </div>
 
                 <div style={{ marginBottom:14 }}>
-                  <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>
+                  <label style={{ display:'block', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', marginBottom:5 }}>
                     Reassignment Reason *
                   </label>
                   <input
@@ -568,16 +561,16 @@ export default function AgentWorkspace() {
                     value={reassignReason}
                     onChange={e => setReassignReason(e.target.value)}
                     placeholder="e.g. Workload rebalancing, specialized technical escalation"
-                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border:'1.5px solid #CBD5E1', fontSize:12.5, outline:'none' }}
+                    style={{ width:'100%', padding:'9px 12px', borderRadius:8, border: '1px solid var(--nw-border-strong)', fontSize:12.5, outline:'none' }}
                   />
                 </div>
 
-                <div style={{ background:'#EFF6FF', padding:10, borderRadius:8, fontSize:11, color:'#1E40AF', marginBottom:16 }}>
+                <div style={{ background: 'var(--nw-info-dim)', padding:10, borderRadius:8, fontSize:11, color: 'var(--nw-info)', marginBottom:16 }}>
                   📧 Note: Automated email notifications will be dispatched immediately to both the previous agent and the newly assigned agent.
                 </div>
 
                 <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
-                  <button type="button" onClick={() => setShowReassign(false)} style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #CBD5E1', background:'transparent', color:'#64748B', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                  <button type="button" onClick={() => setShowReassign(false)} style={{ padding:'8px 14px', borderRadius:8, border: '1px solid var(--nw-border-strong)', background:'transparent', color: 'var(--nw-text-muted)', fontSize:12, fontWeight:600, cursor:'pointer' }}>
                     Cancel
                   </button>
                   <button type="submit" disabled={reassignLoading} style={{ padding:'8px 18px', borderRadius:8, background:'#2563EB', color:'white', border:'none', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
@@ -594,13 +587,13 @@ export default function AgentWorkspace() {
           {/* ── LEFT: Ticket Queue (Landing Page & Shared Pool) ── */}
           <div
             className={`agent-queue-col ${mobileTab === 'workbench' ? 'hide-on-mobile' : ''}`}
-            style={{ width: 300, borderRight: '1px solid #E2E8F0', overflowY: 'auto', background: '#FFF', display: 'flex', flexDirection: 'column', flexShrink: 0 }}
+            style={{ width: 300, borderRight: '1px solid var(--nw-border)', overflowY: 'auto', background: 'var(--nw-surface)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}
           >
             
             {/* Scope Tabs: All Dept, My Queue, Unassigned */}
-            <div style={{ padding: '12px 14px', borderBottom: '1px solid #F1F5F9' }}>
+            <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--nw-border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--nw-text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   {currentAgent?.department} Queue ({filteredQueue.length})
                 </span>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -610,14 +603,14 @@ export default function AgentWorkspace() {
                     title="Poll incoming customer emails from IMAP inbox"
                     style={{
                       padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                      background: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE',
+                      background: 'var(--nw-info-dim)', color: '#2563EB', border: '1px solid rgba(74,155,201,0.3)',
                       display: 'flex', alignItems: 'center', gap: 4
                     }}
                   >
                     <Mail size={11} className={syncingEmails ? 'spin' : ''} />
                     {syncingEmails ? 'Syncing...' : 'Sync (30s)'}
                   </button>
-                  <button onClick={fetchTickets} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }} title="Refresh list">
+                  <button onClick={fetchTickets} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--nw-text-muted)' }} title="Refresh list">
                     <RefreshCw size={12} className={loading ? 'spin' : ''} />
                   </button>
                 </div>
@@ -625,7 +618,7 @@ export default function AgentWorkspace() {
 
               {/* 30s Auto Poller & WebSocket Status Badges */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, fontSize: 10 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#ECFDF5', color: '#047857', padding: '2px 8px', borderRadius: 6, fontWeight: 600, border: '1px solid #A7F3D0' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--nw-success-dim)', color: 'var(--nw-success)', padding: '2px 8px', borderRadius: 6, fontWeight: 600, border: '1px solid rgba(79,166,137,0.3)' }}>
                   <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
                   30s Poller: {syncStatusText}
                 </span>
@@ -653,7 +646,7 @@ export default function AgentWorkspace() {
                     onClick={() => setQueueScope(scopeKey)}
                     style={{
                       padding: '5px 4px', borderRadius: 6, fontSize: 10, fontWeight: 700,
-                      border: queueScope === scopeKey ? '1.5px solid #7C3AED' : '1px solid #E2E8F0',
+                      border: queueScope === scopeKey ? '1.5px solid #7C3AED' : '1px solid var(--nw-border)',
                       background: queueScope === scopeKey ? '#7C3AED' : '#F8FAFC',
                       color: queueScope === scopeKey ? '#FFF' : '#64748B',
                       cursor: 'pointer', textAlign: 'center'
@@ -672,7 +665,7 @@ export default function AgentWorkspace() {
                     onClick={() => setStatusF(st)}
                     style={{
                       padding: '2px 7px', borderRadius: 4, fontSize: 9.5, fontWeight: 700,
-                      border: '1px solid #E2E8F0',
+                      border: '1px solid var(--nw-border)',
                       background: statusFilter === st ? '#2563EB' : '#FFF',
                       color: statusFilter === st ? '#FFF' : '#64748B',
                       cursor: 'pointer'
@@ -686,7 +679,7 @@ export default function AgentWorkspace() {
 
             {/* Queue List Cards */}
             {filteredQueue.length === 0 ? (
-              <div style={{ padding: 24, textAlign: 'center', color: '#94A3B8', fontSize: 12 }}>
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--nw-text-muted)', fontSize: 12 }}>
                 <InboxEmptyIcon size={24} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.5 }} />
                 No tickets in this scope.
               </div>
@@ -706,7 +699,7 @@ export default function AgentWorkspace() {
                       setMobileTab('workbench')
                     }}
                     style={{
-                      padding: '12px 14px', borderBottom: '1px solid #F1F5F9', cursor: 'pointer',
+                      padding: '12px 14px', borderBottom: '1px solid var(--nw-border)', cursor: 'pointer',
                       background: active ? '#F5F3FF' : '#FFF',
                       borderLeft: active ? '3px solid #7C3AED' : '3px solid transparent',
                       transition: 'all 0.15s',
@@ -719,26 +712,26 @@ export default function AgentWorkspace() {
                       </div>
                     </div>
 
-                    <h4 style={{ fontSize: 12.5, fontWeight: active ? 700 : 600, color: '#0F172A', margin: '0 0 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <h4 style={{ fontSize: 12.5, fontWeight: active ? 700 : 600, color: 'var(--nw-text-primary)', margin: '0 0 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {t.title}
                     </h4>
 
                     {/* Assignment Pill */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10.5 }}>
                       {isRevokedForMe ? (
-                        <span style={{ color: '#DC2626', background: '#FEF2F2', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid #FCA5A5' }}>
+                        <span style={{ color: '#E8758A', background: 'var(--nw-danger-dim)', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid rgba(193,73,91,0.3)' }}>
                           ⛔ Access Revoked (In History)
                         </span>
                       ) : isUnassigned ? (
-                        <span style={{ color: '#D97706', background: '#FFFBEB', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid #FDE68A' }}>
+                        <span style={{ color: '#D97706', background: 'var(--nw-warning-dim)', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid rgba(217,164,65,0.3)' }}>
                           ⚡ Unassigned Pool
                         </span>
                       ) : isAssignedToMe ? (
-                        <span style={{ color: '#059669', background: '#ECFDF5', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid #A7F3D0' }}>
+                        <span style={{ color: '#059669', background: 'var(--nw-success-dim)', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid rgba(79,166,137,0.3)' }}>
                           ✓ Assigned to You
                         </span>
                       ) : (
-                        <span style={{ color: '#64748B', background: '#F1F5F9', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
+                        <span style={{ color: 'var(--nw-text-muted)', background: 'var(--nw-elevated)', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
                           👤 {t.assigned_agent || t.assigned_agent_id}
                         </span>
                       )}
@@ -769,8 +762,8 @@ export default function AgentWorkspace() {
                 onClick={() => setMobileTab('queue')}
                 style={{
                   display: 'none', alignItems: 'center', gap: 6,
-                  padding: '6px 12px', borderRadius: 8, background: '#EFF6FF',
-                  border: '1px solid #BFDBFE', fontSize: 12, fontWeight: 700,
+                  padding: '6px 12px', borderRadius: 8, background: 'var(--nw-info-dim)',
+                  border: '1px solid rgba(74,155,201,0.3)', fontSize: 12, fontWeight: 700,
                   color: '#2563EB', cursor: 'pointer', width: 'fit-content'
                 }}
               >
@@ -779,10 +772,10 @@ export default function AgentWorkspace() {
 
               {/* Access Revocation Banner */}
               {isRevoked && (
-                <div style={{ background: '#FEF2F2', border: '1.5px solid #F87171', padding: '14px 18px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 14, color: '#991B1B', boxShadow: '0 2px 10px rgba(220,38,38,0.1)' }}>
+                <div style={{ background: 'var(--nw-danger-dim)', border: '1px solid rgba(193,73,91,0.3)', padding: '14px 18px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 14, color: '#991B1B', boxShadow: '0 2px 10px rgba(220,38,38,0.1)' }}>
                   <ShieldAlert size={26} color="#DC2626" style={{ flexShrink: 0 }} />
                   <div>
-                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#DC2626' }}>⛔ ACCESS REVOKED BY MANAGEMENT</h4>
+                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#E8758A' }}>⛔ ACCESS REVOKED BY MANAGEMENT</h4>
                     <p style={{ margin: '4px 0 0', fontSize: 12, color: '#7F1D1D', lineHeight: 1.5 }}>
                       Your assignment to Ticket <strong>[{selectedTicket.ticket_id}]</strong> was revoked by <strong>{revokedDetail?.revoked_by_name || 'Department Manager'}</strong>.
                       {revokedDetail?.reason && <span> Reason: <em>"{revokedDetail.reason}"</em>.</span>}
@@ -798,24 +791,24 @@ export default function AgentWorkspace() {
               )}
 
               {/* Ticket Summary Bar */}
-              <div style={{ ...glass, background: '#FFF', padding: 18 }}>
+              <div style={{ ...glass, background: 'var(--nw-surface)', padding: 18 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#7C3AED', fontWeight: 800 }}>{selectedTicket.ticket_id}</span>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: PCOLORS[selectedTicket.priority]?.bg, color: PCOLORS[selectedTicket.priority]?.c }}>
                       {PCOLORS[selectedTicket.priority]?.label || selectedTicket.priority}
                     </span>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#F1F5F9', color: '#475569' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'var(--nw-elevated)', color: 'var(--nw-text-secondary)' }}>
                       Channel: {selectedTicket.channel || 'Web Form'}
                     </span>
 
                     {/* Assignment Badge */}
                     {selectedTicket.assigned_agent_id ? (
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'var(--nw-success-dim)', color: '#059669', border: '1px solid rgba(79,166,137,0.3)', display: 'flex', alignItems: 'center', gap: 4 }}>
                         <UserCheck size={12} /> Assigned: {selectedTicket.assigned_agent || selectedTicket.assigned_agent_id}
                       </span>
                     ) : (
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#FFFBEB', color: '#D97706', border: '1px solid #FDE68A' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'var(--nw-warning-dim)', color: '#D97706', border: '1px solid rgba(217,164,65,0.3)' }}>
                         ⚡ Unassigned (First response will auto-claim)
                       </span>
                     )}
@@ -826,7 +819,7 @@ export default function AgentWorkspace() {
                       onClick={openReassignModal}
                       style={{
                         padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                        background: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE',
+                        background: 'var(--nw-info-dim)', color: '#2563EB', border: '1px solid rgba(74,155,201,0.3)',
                         display: 'flex', alignItems: 'center', gap: 4
                       }}
                     >
@@ -837,18 +830,18 @@ export default function AgentWorkspace() {
                       padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800,
                       background: selectedTicket.status === 'Resolved' ? '#ECFDF5' : '#EFF6FF',
                       color: selectedTicket.status === 'Resolved' ? '#059669' : '#2563EB',
-                      border: '1px solid #CBD5E1'
+                      border: '1px solid var(--nw-border-strong)'
                     }}>
                       {selectedTicket.status}
                     </span>
                   </div>
                 </div>
 
-                <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', margin: '0 0 10px', lineHeight: 1.4 }}>
+                <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--nw-text-primary)', margin: '0 0 10px', lineHeight: 1.4 }}>
                   {selectedTicket.title}
                 </h2>
 
-                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#475569' }}>
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: 'var(--nw-text-secondary)' }}>
                   <div>Customer: <strong>{selectedTicket.customer_name || 'Customer'}</strong> | ID: <strong style={{ color: '#7C3AED' }}>{selectedTicket.customer_id || 'USR-LOCAL'}</strong> ({selectedTicket.customer_email || 'n/a'})</div>
                   <div>Order Ref: <strong>{selectedTicket.order_id || 'N/A'}</strong></div>
                   <div>Channel: <strong style={{ color: selectedTicket.channel === 'Chat' ? '#7C3AED' : selectedTicket.channel === 'Email' ? '#D97706' : '#2563EB' }}>{selectedTicket.channel === 'Chat' ? 'Chat 💬' : selectedTicket.channel === 'Email' ? 'Email 📧' : selectedTicket.channel || 'Web Form'}</strong></div>
@@ -869,23 +862,23 @@ export default function AgentWorkspace() {
                     <span style={{ fontWeight: 800, color: isMismatch ? '#B45309' : '#047857', fontSize: 13 }}>
                       {isMismatch ? '⚠️ DEPARTMENT MISMATCH DETECTED' : '✅ DEPARTMENT MATCH VERIFIED'}
                     </span>
-                    <p style={{ fontSize: 12, color: '#475569', margin: '2px 0 0' }}>
+                    <p style={{ fontSize: 12, color: 'var(--nw-text-secondary)', margin: '2px 0 0' }}>
                       Customer Selected: <strong>{selectedTicket.customer_department || selectedTicket.department}</strong> | AI Assigned Department: <strong>{selectedTicket.department || genai.department || 'Logistics'} {selectedTicket.department_id ? `(${selectedTicket.department_id})` : ''}</strong>
                     </p>
                   </div>
                 </div>
 
-                <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'monospace', padding: '4px 10px', borderRadius: 6, background: '#FFF', border: '1px solid #CBD5E1' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'monospace', padding: '4px 10px', borderRadius: 6, background: 'var(--nw-surface)', border: '1px solid var(--nw-border-strong)' }}>
                   Confidence: {pythonRule.confidence_score || 94}%
                 </span>
               </div>
 
               {/* Complaint Text Box */}
-              <div style={{ ...glass, padding: 18, background: '#FFF' }}>
-                <h4 style={{ fontSize: 11, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>
+              <div style={{ ...glass, padding: 18, background: 'var(--nw-surface)' }}>
+                <h4 style={{ fontSize: 11, fontWeight: 800, color: 'var(--nw-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>
                   Customer Complaint Description
                 </h4>
-                <p style={{ fontSize: 13, color: '#334155', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap' }}>
+                <p style={{ fontSize: 13, color: 'var(--nw-text-secondary)', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap' }}>
                   {selectedTicket.description}
                 </p>
               </div>
@@ -899,35 +892,35 @@ export default function AgentWorkspace() {
                     <Zap size={18} color="#7C3AED" />
                     <div>
                       <h4 style={{ fontSize: 13, fontWeight: 800, color: '#7C3AED', margin: 0 }}>Pipeline 1: GenAI Analysis</h4>
-                      <span style={{ fontSize: 10, color: '#64748B' }}>Groq LLM Intelligence Engine</span>
+                      <span style={{ fontSize: 10, color: 'var(--nw-text-muted)' }}>Groq LLM Intelligence Engine</span>
                     </div>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                     <div>
-                      <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Primary Issue</span>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: '#0F172A', margin: '2px 0 0' }}>{genai.issue_category || selectedTicket.category}</p>
+                      <span style={{ fontSize: 10, color: 'var(--nw-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Primary Issue</span>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--nw-text-primary)', margin: '2px 0 0' }}>{genai.issue_category || selectedTicket.category}</p>
                     </div>
 
                     <div>
-                      <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Sentiment</span>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: '#DC2626', margin: '2px 0 0' }}>{genai.sentiment || selectedTicket.sentiment}</p>
+                      <span style={{ fontSize: 10, color: 'var(--nw-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Sentiment</span>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: '#E8758A', margin: '2px 0 0' }}>{genai.sentiment || selectedTicket.sentiment}</p>
                     </div>
 
                     <div>
-                      <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Urgency</span>
+                      <span style={{ fontSize: 10, color: 'var(--nw-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Urgency</span>
                       <p style={{ fontSize: 12, fontWeight: 700, color: '#D97706', margin: '2px 0 0' }}>{genai.urgency || selectedTicket.urgency}</p>
                     </div>
 
                     <div>
-                      <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>AI Dept</span>
+                      <span style={{ fontSize: 10, color: 'var(--nw-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>AI Dept</span>
                       <p style={{ fontSize: 12, fontWeight: 700, color: '#2563EB', margin: '2px 0 0' }}>{genai.department || selectedTicket.department}</p>
                     </div>
                   </div>
 
                   {/* Resolution Steps Checklist */}
                   <div>
-                    <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, color: 'var(--nw-text-muted)', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
                       AI Recommended Resolution Steps
                     </span>
                     {genai.resolution_steps && genai.resolution_steps.length > 0 ? (
@@ -936,11 +929,11 @@ export default function AgentWorkspace() {
                           <span style={{ width: 16, height: 16, borderRadius: '50%', background: '#7C3AED20', color: '#7C3AED', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                             {idx + 1}
                           </span>
-                          <p style={{ fontSize: 12, color: '#475569', margin: 0, lineHeight: 1.4 }}>{step}</p>
+                          <p style={{ fontSize: 12, color: 'var(--nw-text-secondary)', margin: 0, lineHeight: 1.4 }}>{step}</p>
                         </div>
                       ))
                     ) : (
-                      <p style={{ fontSize: 12, color: '#64748B' }}>1. Verify details 2. Escalate if needed</p>
+                      <p style={{ fontSize: 12, color: 'var(--nw-text-muted)' }}>1. Verify details 2. Escalate if needed</p>
                     )}
                   </div>
                 </div>
@@ -951,39 +944,39 @@ export default function AgentWorkspace() {
                     <ShieldCheck size={18} color="#059669" />
                     <div>
                       <h4 style={{ fontSize: 13, fontWeight: 800, color: '#059669', margin: 0 }}>Pipeline 2: Ground-Truth Policy Match</h4>
-                      <span style={{ fontSize: 10, color: '#64748B' }}>Deterministic Rule Engine</span>
+                      <span style={{ fontSize: 10, color: 'var(--nw-text-muted)' }}>Deterministic Rule Engine</span>
                     </div>
                   </div>
 
                   <div style={{ marginBottom: 10 }}>
-                    <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Matched Company Policy</span>
-                    <p style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#059669', background: '#ECFDF5', padding: '4px 8px', borderRadius: 6, marginTop: 4 }}>
+                    <span style={{ fontSize: 10, color: 'var(--nw-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Matched Company Policy</span>
+                    <p style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#059669', background: 'var(--nw-success-dim)', padding: '4px 8px', borderRadius: 6, marginTop: 4 }}>
                       {pythonRule.matched_rule_id || genai.policy_id || 'DEL-POL-04: Delivery Policy'}
                     </p>
                   </div>
 
                   <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: '#FEF2F2', color: '#EF4444' }}>
+                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: 'var(--nw-danger-dim)', color: '#EF4444' }}>
                       🚨 Escalation: {pythonRule.escalation_required ? 'REQUIRED' : 'NO'}
                     </span>
-                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: '#ECFDF5', color: '#059669' }}>
+                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: 'var(--nw-success-dim)', color: '#059669' }}>
                       ✓ Refund Eligible: {pythonRule.refund_eligible ? 'YES' : 'NO'}
                     </span>
                   </div>
 
                   <div>
-                    <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, color: 'var(--nw-text-muted)', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
                       Mandatory Policy Actions
                     </span>
                     {pythonRule.mandatory_actions ? (
                       pythonRule.mandatory_actions.map((act, idx) => (
                         <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
                           <CheckCircle size={12} color="#059669" />
-                          <span style={{ fontSize: 11.5, color: '#334155' }}>{act}</span>
+                          <span style={{ fontSize: 11.5, color: 'var(--nw-text-secondary)' }}>{act}</span>
                         </div>
                       ))
                     ) : (
-                      <span style={{ fontSize: 11.5, color: '#334155' }}>Document SLA log & notify carrier</span>
+                      <span style={{ fontSize: 11.5, color: 'var(--nw-text-secondary)' }}>Document SLA log & notify carrier</span>
                     )}
                   </div>
                 </div>
@@ -991,22 +984,22 @@ export default function AgentWorkspace() {
               </div>
 
               {/* Assignment & Reassignment Audit Trail History Box */}
-              <div style={{ ...glass, padding: 18, background: '#FFF' }}>
+              <div style={{ ...glass, padding: 18, background: 'var(--nw-surface)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <History size={16} color="#7C3AED" />
-                  <h4 style={{ fontSize: 12, fontWeight: 800, color: '#0F172A', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                  <h4 style={{ fontSize: 12, fontWeight: 800, color: 'var(--nw-text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
                     Ticket Assignment & Audit Trail History ({auditHistory.length} events)
                   </h4>
                 </div>
 
                 {auditHistory.length === 0 ? (
-                  <p style={{ fontSize: 12, color: '#94A3B8', margin: 0 }}>
+                  <p style={{ fontSize: 12, color: 'var(--nw-text-muted)', margin: 0 }}>
                     ⚡ No assignment actions yet. Submitting the first status update will trigger the <strong>First-Response Claim Rule</strong>.
                   </p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {auditHistory.map((ev, i) => (
-                      <div key={i} style={{ padding: '10px 12px', borderRadius: 8, background: '#F8FAFC', border: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div key={i} style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--nw-elevated)', border: '1px solid var(--nw-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{
@@ -1016,24 +1009,24 @@ export default function AgentWorkspace() {
                             }}>
                               {ev.action?.includes('AUTO_CLAIM') ? '🎯 Auto-Claimed' : ev.action?.includes('REASSIGN') ? '🔄 Reassigned' : '🏢 Dept Changed'}
                             </span>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--nw-text-primary)' }}>
                               {ev.agent_name || ev.agent_id}
                             </span>
                             {ev.reassigned_by_name && (
-                              <span style={{ fontSize: 11, color: '#64748B' }}>
+                              <span style={{ fontSize: 11, color: 'var(--nw-text-muted)' }}>
                                 by <strong>{ev.reassigned_by_name}</strong> ({ev.reassigned_by_role || 'Manager'})
                               </span>
                             )}
                           </div>
                           {ev.reason && (
-                            <p style={{ fontSize: 11, color: '#64748B', margin: '3px 0 0' }}>Reason: {ev.reason}</p>
+                            <p style={{ fontSize: 11, color: 'var(--nw-text-muted)', margin: '3px 0 0' }}>Reason: {ev.reason}</p>
                           )}
                           {ev.notes && (
-                            <p style={{ fontSize: 11, color: '#64748B', margin: '3px 0 0' }}>Notes: {ev.notes}</p>
+                            <p style={{ fontSize: 11, color: 'var(--nw-text-muted)', margin: '3px 0 0' }}>Notes: {ev.notes}</p>
                           )}
                         </div>
 
-                        <span style={{ fontSize: 10, color: '#94A3B8', fontFamily: 'monospace' }}>
+                        <span style={{ fontSize: 10, color: 'var(--nw-text-muted)', fontFamily: 'monospace' }}>
                           {ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString() : 'Just now'}
                         </span>
                       </div>
@@ -1044,17 +1037,17 @@ export default function AgentWorkspace() {
 
             </div>
           ) : (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8' }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--nw-text-muted)' }}>
               Select a ticket to begin resolution.
             </div>
           )}
 
           {/* ── RIGHT: Agent Response & Status Update Control Panel ── */}
-          <div style={{ width: 300, borderLeft: '1px solid #E2E8F0', overflowY: 'auto', padding: 16, background: '#FFF', display: 'flex', flexDirection: 'column', gap: 16, flexShrink: 0 }}>
+          <div style={{ width: 300, borderLeft: '1px solid var(--nw-border)', overflowY: 'auto', padding: 16, background: 'var(--nw-surface)', display: 'flex', flexDirection: 'column', gap: 16, flexShrink: 0 }}>
 
             {/* Status Update & Email Dispatch Control Box */}
-            <div style={{ background: '#F8FAFC', padding: 16, borderRadius: 12, border: '1px solid #E2E8F0' }}>
-              <span style={{ fontSize: 10, fontWeight: 800, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+            <div style={{ background: 'var(--nw-elevated)', padding: 16, borderRadius: 12, border: '1px solid var(--nw-border)' }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--nw-text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
                 Update Complaint Status
               </span>
 
@@ -1067,7 +1060,7 @@ export default function AgentWorkspace() {
                     style={{
                       padding: '8px 6px', borderRadius: 8, fontSize: 11, fontWeight: 700,
                       cursor: (isRevoked || isOtherAssigned) ? 'not-allowed' : 'pointer',
-                      border: selectedTicket?.status === st ? '2px solid #7C3AED' : '1px solid #CBD5E1',
+                      border: selectedTicket?.status === st ? '2px solid #7C3AED' : '1px solid var(--nw-border-strong)',
                       background: selectedTicket?.status === st ? '#F5F3FF' : '#FFF',
                       color: selectedTicket?.status === st ? '#7C3AED' : '#475569',
                       opacity: (isRevoked || isOtherAssigned) ? 0.5 : 1,
@@ -1081,21 +1074,21 @@ export default function AgentWorkspace() {
 
               {/* Permission & Revocation Notice */}
               {isRevoked ? (
-                <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', padding: '8px 10px', borderRadius: 8, marginBottom: 10 }}>
+                <div style={{ background: 'var(--nw-danger-dim)', border: '1px solid rgba(193,73,91,0.3)', padding: '8px 10px', borderRadius: 8, marginBottom: 10 }}>
                   <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: '#B91C1C' }}>
                     ⛔ ACCESS REVOKED: You cannot update status or send replies on this ticket.
                   </p>
                 </div>
               ) : isOtherAssigned ? (
-                <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '8px 10px', borderRadius: 8, marginBottom: 10 }}>
-                  <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#1E40AF' }}>
+                <div style={{ background: 'var(--nw-info-dim)', border: '1px solid rgba(74,155,201,0.3)', padding: '8px 10px', borderRadius: 8, marginBottom: 10 }}>
+                  <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: 'var(--nw-info)' }}>
                     🔒 Assigned to {selectedTicket.assigned_agent}. Read-only mode.
                   </p>
                 </div>
               ) : null}
 
               <div style={{ marginBottom: 10 }}>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                   Agent Resolution / Internal Notes
                 </label>
                 <textarea
@@ -1104,7 +1097,7 @@ export default function AgentWorkspace() {
                   onChange={e => setAgentNotes(e.target.value)}
                   disabled={isRevoked || isOtherAssigned}
                   placeholder="Notes to include in customer status notification..."
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 12, outline: 'none', background: (isRevoked || isOtherAssigned) ? '#F1F5F9' : '#FFF' }}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--nw-border-strong)', fontSize: 12, outline: 'none', background: (isRevoked || isOtherAssigned) ? '#F1F5F9' : '#FFF' }}
                 />
               </div>
 
@@ -1140,7 +1133,7 @@ export default function AgentWorkspace() {
 
             {/* AI Generated Draft Professional Response */}
             <div>
-              <span style={{ fontSize: 10, fontWeight: 800, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--nw-text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
                 AI-Generated Draft Response
               </span>
               <textarea
@@ -1148,8 +1141,8 @@ export default function AgentWorkspace() {
                 onChange={e => setDraftResp(e.target.value)}
                 rows={7}
                 style={{
-                  width: '100%', padding: '10px', borderRadius: 10, border: '1px solid #CBD5E1',
-                  background: '#F8FAFC', color: '#0F172A', fontSize: 11.5, lineHeight: 1.6, outline: 'none', resize: 'vertical'
+                  width: '100%', padding: '10px', borderRadius: 10, border: '1px solid var(--nw-border-strong)',
+                  background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 11.5, lineHeight: 1.6, outline: 'none', resize: 'vertical'
                 }}
               />
             </div>
@@ -1160,7 +1153,7 @@ export default function AgentWorkspace() {
                 onClick={openReassignModal}
                 style={{
                   width: '100%', padding: 9, borderRadius: 9, border: '1.5px solid #2563EB',
-                  background: '#EFF6FF', color: '#2563EB', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  background: 'var(--nw-info-dim)', color: '#2563EB', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
                 }}
               >
@@ -1173,7 +1166,7 @@ export default function AgentWorkspace() {
                 disabled={statusUpdating}
                 style={{
                   width: '100%', padding: 9, borderRadius: 9, border: '1px solid #7C3AED',
-                  background: '#F5F3FF', color: '#7C3AED', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  background: 'var(--nw-accent-dim)', color: '#7C3AED', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
                 }}
               >
@@ -1184,8 +1177,8 @@ export default function AgentWorkspace() {
                 onClick={() => handleStatusUpdate('Escalated')}
                 disabled={statusUpdating}
                 style={{
-                  width: '100%', padding: 9, borderRadius: 9, border: '1px solid #FCA5A5',
-                  background: '#FEF2F2', color: '#DC2626', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  width: '100%', padding: 9, borderRadius: 9, border: '1px solid rgba(193,73,91,0.3)',
+                  background: 'var(--nw-danger-dim)', color: '#E8758A', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
                 }}
               >

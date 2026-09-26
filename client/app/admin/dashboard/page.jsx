@@ -10,19 +10,11 @@ import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContai
 import { API_BASE } from '../../lib/api'
 import { useRealtimeRefresh } from '../../lib/useWebSocket'
 
-const glass = (extra = {}) => ({
-  background: 'rgba(255,255,255,0.82)',
-  backdropFilter: 'blur(24px)',
-  WebkitBackdropFilter: 'blur(24px)',
-  border: '1px solid rgba(255,255,255,0.95)',
-  borderRadius: 16,
-  boxShadow: '0 4px 28px rgba(148,163,184,0.1), 0 1px 4px rgba(148,163,184,0.06)',
-  ...extra,
-})
+const glass = (extra = {}) => ({ background: 'var(--nw-surface)', border: '1px solid var(--nw-border)', borderRadius: 16, boxShadow: '0 4px 24px rgba(11,14,20,0.3)', ...extra })
 
 const hoverLift = {
-  onMouseEnter: e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(148,163,184,0.18), 0 2px 8px rgba(148,163,184,0.1)' },
-  onMouseLeave: e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 28px rgba(148,163,184,0.1), 0 1px 4px rgba(148,163,184,0.06)' },
+  onMouseEnter: e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(11, 14, 20, 0.4), 0 2px 8px rgba(11, 14, 20, 0.4)' },
+  onMouseLeave: e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 28px rgba(11, 14, 20, 0.4), 0 1px 4px rgba(11, 14, 20, 0.4)' },
 }
 
 const FALLBACK_VOLUME  = [{ d:'Mon',v:0},{ d:'Tue',v:0},{ d:'Wed',v:0},{ d:'Thu',v:0},{ d:'Fri',v:0},{ d:'Sat',v:0},{ d:'Sun',v:0}]
@@ -38,13 +30,13 @@ const CATS_L   = ['Delivery','Refund','Replacement','Warranty','Billing','Qualit
 const ROLE_COLORS = { Agent:'#0891B2', Reviewer:'#D97706', Manager:'#7C3AED', Admin:'#4F46E5' }
 
 const CustomTip = ({ active, payload, label }) => active && payload?.length ? (
-  <div style={{ background:'rgba(255,255,255,0.97)', border:'1px solid rgba(226,232,240,0.8)', borderRadius:10, padding:'8px 13px', boxShadow:'0 8px 20px rgba(148,163,184,0.15)' }}>
-    <p style={{ color:'#94A3B8', fontSize:11, marginBottom:4 }}>{label}</p>
-    {payload.map(p => <p key={p.dataKey} style={{ color:p.color||'#7C3AED', fontSize:14, fontWeight:700, fontFamily:'monospace' }}>{p.value} <span style={{ color:'#94A3B8', fontSize:10 }}>{p.name}</span></p>)}
+  <div style={{ background: 'var(--nw-elevated)', border:'1px solid var(--nw-border)', borderRadius:10, padding:'8px 13px', boxShadow:'0 8px 20px rgba(11, 14, 20, 0.4)' }}>
+    <p style={{ color: 'var(--nw-text-muted)', fontSize:11, marginBottom:4 }}>{label}</p>
+    {payload.map(p => <p key={p.dataKey} style={{ color:p.color||'#7C3AED', fontSize:14, fontWeight:700, fontFamily:'monospace' }}>{p.value} <span style={{ color: 'var(--nw-text-muted)', fontSize:10 }}>{p.name}</span></p>)}
   </div>
 ) : null
 
-const inp = { width:'100%', padding:'9px 12px', borderRadius:10, border:'1.5px solid rgba(226,232,240,0.8)', background:'rgba(248,250,252,0.8)', color:'#0F172A', fontSize:13, outline:'none', fontFamily:'Inter,sans-serif', transition:'border-color 0.2s, box-shadow 0.2s' }
+const inp = { width:'100%', padding:'9px 12px', borderRadius:10, border:'1.5px solid var(--nw-border)', background:'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize:13, outline:'none', fontFamily:'Inter,sans-serif', transition:'border-color 0.2s, box-shadow 0.2s' }
 const sel = { ...inp, cursor:'pointer' }
 
 export default function AdminDashboard() {
@@ -298,7 +290,7 @@ export default function AdminDashboard() {
   const weeklyData = analytics?.weekly_trend && analytics.weekly_trend.length > 0 ? analytics.weekly_trend : FALLBACK_WEEKLY
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'linear-gradient(135deg,#F8FAFC 0%,#EEF2FF 60%,#F0FDF4 100%)' }}>
+    <div style={{ display:'flex', minHeight:'100vh', background: 'var(--nw-base)' }}>
       <Sidebar role="admin" userName="Admin Nova" userEmail="admin@company.com" />
 
       <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
@@ -320,8 +312,8 @@ export default function AdminDashboard() {
                     {card.icon}
                   </div>
                   <div style={{ minWidth:0 }}>
-                    <p style={{ fontSize:13, fontWeight:700, color:'#0F172A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{card.title}</p>
-                    <p style={{ fontSize:10.5, color:'#94A3B8', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{card.sub}</p>
+                    <p style={{ fontSize:13, fontWeight:700, color: 'var(--nw-text-primary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{card.title}</p>
+                    <p style={{ fontSize:10.5, color: 'var(--nw-text-muted)', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{card.sub}</p>
                   </div>
                   <ArrowUpRight size={13} color="#94A3B8" style={{ marginLeft:'auto', flexShrink:0 }}/>
                 </div>
@@ -381,14 +373,14 @@ export default function AdminDashboard() {
 
           {/* Tab Nav & Live Sync Indicator */}
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
-            <div className="no-scrollbar touch-scroll" style={{ display:'flex', gap:4, padding:4, background:'rgba(226,232,240,0.25)', borderRadius:13, border:'1px solid rgba(226,232,240,0.4)', width:'fit-content', maxWidth:'100%', overflowX:'auto', backdropFilter:'blur(8px)', WebkitOverflowScrolling:'touch' }}>
+            <div className="no-scrollbar touch-scroll" style={{ display:'flex', gap:4, padding:4, background:'var(--nw-border)', borderRadius:13, border:'1px solid var(--nw-border)', width:'fit-content', maxWidth:'100%', overflowX:'auto', backdropFilter:'blur(8px)', WebkitOverflowScrolling:'touch' }}>
               {TABS.map(t => (
                 <button key={t.k} onClick={() => setTab(t.k)} style={{
                   padding:'8px 14px', borderRadius:10, border:'none', cursor:'pointer',
                   fontSize:12.5, fontWeight:600, whiteSpace:'nowrap', flexShrink:0,
-                  background: tab===t.k ? 'rgba(255,255,255,0.95)' : 'transparent',
+                  background: tab===t.k ? 'var(--nw-surface)' : 'transparent',
                   color: tab===t.k ? '#0F172A' : '#64748B',
-                  boxShadow: tab===t.k ? '0 2px 10px rgba(148,163,184,0.15)' : 'none',
+                  boxShadow: tab===t.k ? '0 2px 10px rgba(11, 14, 20, 0.4)' : 'none',
                   transition:'all 0.2s cubic-bezier(0.22,1,0.36,1)',
                   transform: tab===t.k ? 'none' : 'scale(0.97)',
                 }}>{t.label}</button>
@@ -404,9 +396,9 @@ export default function AdminDashboard() {
                 onClick={() => fetchAnalytics(true)}
                 disabled={isRefreshing}
                 title="Refresh Live Database Analytics"
-                style={{ padding:'7px 12px', borderRadius:10, border:'1px solid rgba(226,232,240,0.8)', background:'white', color:'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:6, boxShadow:'0 2px 6px rgba(0,0,0,0.04)', transition:'all 0.2s' }}
+                style={{ padding:'7px 12px', borderRadius:10, border:'1px solid var(--nw-border)', background: 'var(--nw-elevated)', color: 'var(--nw-text-muted)', fontSize:12, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:6, boxShadow:'0 2px 6px rgba(0,0,0,0.04)', transition:'all 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.borderColor='#7C3AED'}
-                onMouseLeave={e => e.currentTarget.style.borderColor='rgba(226,232,240,0.8)'}
+                onMouseLeave={e => e.currentTarget.style.borderColor='var(--nw-border)'}
               >
                 <RefreshCw size={12} className={isRefreshing ? 'animate-spin' : ''} color={isRefreshing ? '#7C3AED' : '#64748B'}/>
                 <span className="hidden sm:inline">Refresh</span>
@@ -422,8 +414,8 @@ export default function AdminDashboard() {
               <div className="animate-fade-up" style={{ ...glass(), padding:22, transition:'all 0.2s' }} {...hoverLift}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                   <div>
-                    <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:2 }}>Complaint Volume</h3>
-                    <p style={{ fontSize:11, color:'#94A3B8', marginBottom:18 }}>Real-time 7-day intake from database</p>
+                    <h3 style={{ fontSize:14, fontWeight:700, color: 'var(--nw-text-primary)', marginBottom:2 }}>Complaint Volume</h3>
+                    <p style={{ fontSize:11, color: 'var(--nw-text-muted)', marginBottom:18 }}>Real-time 7-day intake from database</p>
                   </div>
                   <span style={{ fontSize:11, fontWeight:700, color:'#7C3AED', background:'rgba(124,58,237,0.1)', padding:'2px 8px', borderRadius:6 }}>
                     {analytics?.summary?.total_tickets ?? 0} total
@@ -449,8 +441,8 @@ export default function AdminDashboard() {
               <div className="animate-fade-up d100" style={{ ...glass(), padding:22, transition:'all 0.2s' }} {...hoverLift}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                   <div>
-                    <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:2 }}>Department Workload</h3>
-                    <p style={{ fontSize:11, color:'#94A3B8', marginBottom:18 }}>Active tickets per department</p>
+                    <h3 style={{ fontSize:14, fontWeight:700, color: 'var(--nw-text-primary)', marginBottom:2 }}>Department Workload</h3>
+                    <p style={{ fontSize:11, color: 'var(--nw-text-muted)', marginBottom:18 }}>Active tickets per department</p>
                   </div>
                   <span style={{ fontSize:11, fontWeight:700, color:'#059669', background:'rgba(5,150,105,0.1)', padding:'2px 8px', borderRadius:6 }}>
                     {analytics?.summary?.open_tickets ?? 0} active
@@ -468,8 +460,8 @@ export default function AdminDashboard() {
 
               {/* AI Pie Chart (Live GenAI vs Python Match Rate) */}
               <div className="animate-fade-up d200" style={{ ...glass(), padding:22, transition:'all 0.2s' }} {...hoverLift}>
-                <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:2 }}>AI Pipeline Accuracy</h3>
-                <p style={{ fontSize:11, color:'#94A3B8', marginBottom:16 }}>GenAI vs Python Rule Engine match verification</p>
+                <h3 style={{ fontSize:14, fontWeight:700, color: 'var(--nw-text-primary)', marginBottom:2 }}>AI Pipeline Accuracy</h3>
+                <p style={{ fontSize:11, color: 'var(--nw-text-muted)', marginBottom:16 }}>GenAI vs Python Rule Engine match verification</p>
                 <div style={{ display:'flex', alignItems:'center', gap:20, flexWrap:'wrap' }}>
                   <ResponsiveContainer width={160} height={160}>
                     <PieChart>
@@ -486,11 +478,11 @@ export default function AdminDashboard() {
                       >
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                           <div style={{ width:10, height:10, borderRadius:'50%', background:d.c, flexShrink:0, boxShadow:`0 2px 8px ${d.c}40` }}/>
-                          <p style={{ fontSize:12, color:'#334155', fontWeight:600 }}>{d.name}</p>
+                          <p style={{ fontSize:12, color: 'var(--nw-text-secondary)', fontWeight:600 }}>{d.name}</p>
                         </div>
                         <div style={{ textAlign:'right' }}>
                           <p style={{ fontSize:15, fontWeight:800, color:d.c, fontFamily:'monospace' }}>{d.v}%</p>
-                          {d.count !== undefined && <p style={{ fontSize:10, color:'#94A3B8' }}>{d.count} tickets</p>}
+                          {d.count !== undefined && <p style={{ fontSize:10, color: 'var(--nw-text-muted)' }}>{d.count} tickets</p>}
                         </div>
                       </div>
                     ))}
@@ -500,18 +492,18 @@ export default function AdminDashboard() {
 
               {/* SLA Risk Monitor (Live P0-P3 tickets from DB) */}
               <div className="animate-fade-up d300" style={{ ...glass(), padding:22, transition:'all 0.2s' }} {...hoverLift}>
-                <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:2 }}>SLA Risk Monitor</h3>
-                <p style={{ fontSize:11, color:'#94A3B8', marginBottom:20 }}>Active tickets by priority level</p>
+                <h3 style={{ fontSize:14, fontWeight:700, color: 'var(--nw-text-primary)', marginBottom:2 }}>SLA Risk Monitor</h3>
+                <p style={{ fontSize:11, color: 'var(--nw-text-muted)', marginBottom:20 }}>Active tickets by priority level</p>
                 {slaData.map((item, i) => {
                   const maxCap = item.m || 10
                   const pct = Math.min(100, Math.round((item.v / maxCap) * 100))
                   return (
                     <div key={item.l} className="animate-fade-up" style={{ marginBottom:16, animationDelay:`${i*80}ms` }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:7 }}>
-                        <span style={{ fontSize:12, color:'#64748B', fontWeight:500 }}>{item.l}</span>
+                        <span style={{ fontSize:12, color: 'var(--nw-text-muted)', fontWeight:500 }}>{item.l}</span>
                         <span style={{ fontSize:14, fontWeight:800, color:item.c, fontFamily:'monospace' }}>{item.v}</span>
                       </div>
-                      <div style={{ height:6, borderRadius:99, background:'rgba(226,232,240,0.7)', overflow:'hidden' }}>
+                      <div style={{ height:6, borderRadius:99, background:'var(--nw-border)', overflow:'hidden' }}>
                         <div style={{ height:'100%', borderRadius:99, background:`linear-gradient(90deg,${item.c},${item.c}80)`, width:`${pct}%`, transition:'width 0.8s cubic-bezier(0.22,1,0.36,1)', boxShadow:`0 0 10px ${item.c}40` }}/>
                       </div>
                     </div>
@@ -523,17 +515,17 @@ export default function AdminDashboard() {
               <div className="animate-fade-up d400" style={{ ...glass(), padding:22, gridColumn:'1/-1', transition:'all 0.2s' }} {...hoverLift}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:10, marginBottom:18 }}>
                   <div>
-                    <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:2 }}>Open vs Resolved — Weekly Trend</h3>
-                    <p style={{ fontSize:11, color:'#94A3B8' }}>Complaint resolution throughput calculated from MongoDB</p>
+                    <h3 style={{ fontSize:14, fontWeight:700, color: 'var(--nw-text-primary)', marginBottom:2 }}>Open vs Resolved — Weekly Trend</h3>
+                    <p style={{ fontSize:11, color: 'var(--nw-text-muted)' }}>Complaint resolution throughput calculated from MongoDB</p>
                   </div>
                   <div style={{ display:'flex', gap:16, alignItems:'center' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                       <span style={{ width:10, height:10, borderRadius:2, background:'#E11D48' }}/>
-                      <span style={{ fontSize:12, color:'#64748B', fontWeight:500 }}>Open</span>
+                      <span style={{ fontSize:12, color: 'var(--nw-text-muted)', fontWeight:500 }}>Open</span>
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                       <span style={{ width:10, height:10, borderRadius:2, background:'#059669' }}/>
-                      <span style={{ fontSize:12, color:'#64748B', fontWeight:500 }}>Resolved</span>
+                      <span style={{ fontSize:12, color: 'var(--nw-text-muted)', fontWeight:500 }}>Resolved</span>
                     </div>
                   </div>
                 </div>
@@ -564,17 +556,17 @@ export default function AdminDashboard() {
           {tab === 'kb' && (
             <div className="animate-fade-in" style={{ display:'flex', flexDirection:'column', gap:16 }}>
               <div style={{ ...glass(), padding:22 }}>
-                <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A', marginBottom:14 }}>Upload Policy Documents</h3>
+                <h3 style={{ fontSize:14, fontWeight:700, color: 'var(--nw-text-primary)', marginBottom:14 }}>Upload Policy Documents</h3>
                 <div
                   onDragOver={e => { e.preventDefault(); setDrag(true) }}
                   onDragLeave={() => setDrag(false)}
                   onDrop={e => { e.preventDefault(); setDrag(false); setUploads(p => [...p, ...Array.from(e.dataTransfer.files)]) }}
                   onClick={() => document.getElementById('kb-fi').click()}
-                  style={{ padding:38, textAlign:'center', borderRadius:14, cursor:'pointer', border:drag?'2px dashed #7C3AED':'2px dashed rgba(124,58,237,0.28)', background:drag?'rgba(124,58,237,0.05)':'rgba(248,250,252,0.5)', transition:'all 0.25s' }}
+                  style={{ padding:38, textAlign:'center', borderRadius:14, cursor:'pointer', border:drag?'2px dashed #7C3AED':'2px dashed rgba(124,58,237,0.28)', background:drag?'rgba(124,58,237,0.05)':'var(--nw-elevated)', transition:'all 0.25s' }}
                 >
                   <Upload size={28} color="#7C3AED" style={{ margin:'0 auto 12px', display:'block' }}/>
-                  <p style={{ fontSize:13, color:'#64748B', marginBottom:3 }}>Drop PDF / DOCX or <span style={{ color:'#7C3AED', fontWeight:600 }}>browse</span></p>
-                  <p style={{ fontSize:11, color:'#94A3B8' }}>Files are parsed, chunked and embedded into MongoDB Atlas Knowledge Base</p>
+                  <p style={{ fontSize:13, color: 'var(--nw-text-muted)', marginBottom:3 }}>Drop PDF / DOCX or <span style={{ color:'#7C3AED', fontWeight:600 }}>browse</span></p>
+                  <p style={{ fontSize:11, color: 'var(--nw-text-muted)' }}>Files are parsed, chunked and embedded into MongoDB Atlas Knowledge Base</p>
                   <input id="kb-fi" type="file" multiple accept=".pdf,.docx" style={{ display:'none' }} onChange={e => setUploads(p => [...p, ...Array.from(e.target.files)])}/>
                 </div>
                 {uploads.length > 0 && (
@@ -582,7 +574,7 @@ export default function AdminDashboard() {
                     {uploads.map((f,i) => (
                       <div key={i} className="animate-fade-up" style={{ display:'flex', alignItems:'center', gap:9, padding:'9px 13px', marginTop:7, borderRadius:10, background:'rgba(5,150,105,0.06)', border:'1px solid rgba(5,150,105,0.18)' }}>
                         <FileText size={14} color="#059669"/>
-                        <span style={{ flex:1, fontSize:12, color:'#334155', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.name}</span>
+                        <span style={{ flex:1, fontSize:12, color: 'var(--nw-text-secondary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.name}</span>
                         <RefreshCw size={12} color="#059669" className="animate-spin"/>
                         <span style={{ fontSize:11, color:'#059669', fontWeight:600 }}>Processing…</span>
                       </div>
@@ -594,53 +586,53 @@ export default function AdminDashboard() {
               <div style={{ ...glass(), padding:22 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
                   <div>
-                    <h3 style={{ fontSize:14, fontWeight:700, color:'#0F172A' }}>Active Knowledge Base Documents</h3>
-                    <p style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>{kbDocs.length} policy documents registered in database</p>
+                    <h3 style={{ fontSize:14, fontWeight:700, color: 'var(--nw-text-primary)' }}>Active Knowledge Base Documents</h3>
+                    <p style={{ fontSize:11, color: 'var(--nw-text-muted)', marginTop:2 }}>{kbDocs.length} policy documents registered in database</p>
                   </div>
                   <Link href="/admin/policies" style={{ fontSize:12, fontWeight:600, color:'#7C3AED', textDecoration:'none', display:'flex', alignItems:'center', gap:4 }}>
                     Manage in Policy Center <ArrowUpRight size={13}/>
                   </Link>
                 </div>
 
-                <div style={{ overflowX:'auto', borderRadius:12, border:'1px solid rgba(226,232,240,0.5)' }}>
+                <div style={{ overflowX:'auto', borderRadius:12, border:'1px solid var(--nw-border)' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse', minWidth:600 }}>
                     <thead>
-                      <tr style={{ background:'rgba(248,250,252,0.8)' }}>
+                      <tr style={{ background:'var(--nw-elevated)' }}>
                         {['Doc ID','Document Name','Chunks','Version','Uploaded','Size','Status',''].map(h => (
-                          <th key={h} style={{ padding:'11px 13px', textAlign:'left', fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid rgba(226,232,240,0.5)' }}>{h}</th>
+                          <th key={h} style={{ padding:'11px 13px', textAlign:'left', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid var(--nw-border)' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {kbLoading ? (
-                        <tr><td colSpan={8} style={{ padding:20, textAlign:'center', color:'#94A3B8', fontSize:12 }}>Loading documents from database...</td></tr>
+                        <tr><td colSpan={8} style={{ padding:20, textAlign:'center', color: 'var(--nw-text-muted)', fontSize:12 }}>Loading documents from database...</td></tr>
                       ) : kbDocs.length === 0 ? (
-                        <tr><td colSpan={8} style={{ padding:20, textAlign:'center', color:'#94A3B8', fontSize:12 }}>No KB documents found. Upload above to create.</td></tr>
+                        <tr><td colSpan={8} style={{ padding:20, textAlign:'center', color: 'var(--nw-text-muted)', fontSize:12 }}>No KB documents found. Upload above to create.</td></tr>
                       ) : kbDocs.map((d,i) => (
                         <tr key={d.id} className="animate-fade-up" style={{ animationDelay:`${i*50}ms`, transition:'background 0.15s' }}
                           onMouseEnter={e => e.currentTarget.style.background='rgba(124,58,237,0.025)'}
                           onMouseLeave={e => e.currentTarget.style.background='transparent'}
                         >
-                          <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)', fontFamily:'monospace', fontSize:11, color:'#7C3AED', fontWeight:600 }}>{d.id}</td>
-                          <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
+                          <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)', fontFamily:'monospace', fontSize:11, color:'#7C3AED', fontWeight:600 }}>{d.id}</td>
+                          <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                               <FileText size={13} color="#7C3AED"/>
-                              <span style={{ fontSize:13, color:'#0F172A', fontWeight:500 }}>{d.name}</span>
+                              <span style={{ fontSize:13, color: 'var(--nw-text-primary)', fontWeight:500 }}>{d.name}</span>
                             </div>
                           </td>
-                          <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)', fontFamily:'monospace', color:'#0891B2', fontSize:14, fontWeight:700 }}>{d.chunks}</td>
-                          <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
+                          <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)', fontFamily:'monospace', color:'#0891B2', fontSize:14, fontWeight:700 }}>{d.chunks}</td>
+                          <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)' }}>
                             <span style={{ fontSize:11, fontFamily:'monospace', fontWeight:600, padding:'2px 8px', borderRadius:6, background:'rgba(79,70,229,0.1)', color:'#4F46E5' }}>{d.ver}</span>
                           </td>
-                          <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)', fontSize:11, color:'#94A3B8' }}>{d.date}</td>
-                          <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)', fontSize:11, color:'#94A3B8' }}>{d.size}</td>
-                          <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
+                          <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)', fontSize:11, color: 'var(--nw-text-muted)' }}>{d.date}</td>
+                          <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)', fontSize:11, color: 'var(--nw-text-muted)' }}>{d.size}</td>
+                          <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)' }}>
                             <span style={{ padding:'3px 10px', borderRadius:99, fontSize:11, fontWeight:600, background:d.status==='Active'?'#ECFDF5':'#F8FAFC', color:d.status==='Active'?'#059669':'#64748B', border:`1px solid ${d.status==='Active'?'rgba(5,150,105,0.25)':'rgba(100,116,139,0.2)'}` }}>
                               {d.status==='Active' && <span className="pulse-dot" style={{ display:'inline-block', width:5, height:5, borderRadius:'50%', background:'#059669', marginRight:5, verticalAlign:'middle' }}/>}
                               {d.status}
                             </span>
                           </td>
-                          <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
+                          <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)' }}>
                             <Link href="/admin/policies" style={{ padding:'5px 11px', borderRadius:8, border:'1px solid rgba(124,58,237,0.2)', background:'rgba(124,58,237,0.07)', color:'#7C3AED', fontSize:11, cursor:'pointer', fontWeight:600, textDecoration:'none', display:'inline-block' }}>
                               Inspect
                             </Link>
@@ -659,14 +651,14 @@ export default function AdminDashboard() {
             <div className="animate-fade-in" style={{ ...glass(), padding:24 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18, flexWrap:'wrap', gap:12 }}>
                 <div>
-                  <h3 style={{ fontSize:15, fontWeight:700, color:'#0F172A' }}>Complaint Resolution Rule Matrix</h3>
-                  <p style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>{rules.length} active rules synchronized from database</p>
+                  <h3 style={{ fontSize:15, fontWeight:700, color: 'var(--nw-text-primary)' }}>Complaint Resolution Rule Matrix</h3>
+                  <p style={{ fontSize:11, color: 'var(--nw-text-muted)', marginTop:2 }}>{rules.length} active rules synchronized from database</p>
                 </div>
                 <div style={{ display:'flex', gap:10 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:7, padding:'8px 13px', borderRadius:10, border:'1.5px solid rgba(226,232,240,0.8)', background:'rgba(248,250,252,0.8)' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:7, padding:'8px 13px', borderRadius:10, border:'1.5px solid var(--nw-border)', background:'var(--nw-elevated)' }}>
                     <Search size={13} color="#94A3B8"/>
                     <input value={ruleQ} onChange={e => setRuleQ(e.target.value)} placeholder="Search rules…"
-                      style={{ background:'none', border:'none', outline:'none', color:'#0F172A', fontSize:13, width:140 }}/>
+                      style={{ background:'none', border:'none', outline:'none', color: 'var(--nw-text-primary)', fontSize:13, width:140 }}/>
                   </div>
                   <button onClick={() => setShowAddRule(!showAddRule)} style={{ padding:'9px 16px', borderRadius:10, background:'linear-gradient(135deg,#7C3AED,#4F46E5)', color:'white', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:6, boxShadow:'0 4px 14px rgba(124,58,237,0.25)', transition:'all 0.2s' }}>
                     <Plus size={14}/> {showAddRule ? 'Close' : 'Add Rule'}
@@ -676,35 +668,35 @@ export default function AdminDashboard() {
 
               {/* Inline Add Rule Form */}
               {showAddRule && (
-                <div className="animate-scale-in" style={{ padding:20, borderRadius:13, background:'linear-gradient(135deg,rgba(124,58,237,0.06),rgba(248,250,252,0.85))', border:'1px solid rgba(124,58,237,0.2)', marginBottom:20 }}>
-                  <h4 style={{ fontSize:13, fontWeight:700, color:'#0F172A', marginBottom:14 }}>➕ Add New Rule to Matrix</h4>
+                <div className="animate-scale-in" style={{ padding:20, borderRadius:13, background:'linear-gradient(135deg,rgba(124,58,237,0.06),var(--nw-elevated))', border:'1px solid rgba(124,58,237,0.2)', marginBottom:20 }}>
+                  <h4 style={{ fontSize:13, fontWeight:700, color: 'var(--nw-text-primary)', marginBottom:14 }}>➕ Add New Rule to Matrix</h4>
                   <div className="responsive-form-2col" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:12, marginBottom:14 }}>
                     <div>
-                      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>Rule ID *</label>
+                      <label style={{ display:'block', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', marginBottom:5 }}>Rule ID *</label>
                       <input placeholder="e.g. DEL-POL-08" value={newRuleForm.rule_id} onChange={e => setNewRuleForm({...newRuleForm, rule_id:e.target.value})} style={inp}/>
                     </div>
                     <div>
-                      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>Category *</label>
+                      <label style={{ display:'block', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', marginBottom:5 }}>Category *</label>
                       <select value={newRuleForm.category} onChange={e => setNewRuleForm({...newRuleForm, category:e.target.value})} style={sel}>
                         {CATS_L.map(c => <option key={c}>{c}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>Department *</label>
+                      <label style={{ display:'block', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', marginBottom:5 }}>Department *</label>
                       <select value={newRuleForm.department} onChange={e => setNewRuleForm({...newRuleForm, department:e.target.value})} style={sel}>
                         {DEPTS_L.map(d => <option key={d}>{d}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>Condition / Trigger *</label>
+                      <label style={{ display:'block', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', marginBottom:5 }}>Condition / Trigger *</label>
                       <input placeholder="e.g. Package delay > 72h" value={newRuleForm.condition} onChange={e => setNewRuleForm({...newRuleForm, condition:e.target.value})} style={inp}/>
                     </div>
                     <div>
-                      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>Mandatory Action</label>
+                      <label style={{ display:'block', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', marginBottom:5 }}>Mandatory Action</label>
                       <input placeholder="e.g. Escalate within 2h, Issue tracking update" value={newRuleForm.mandatory_actions} onChange={e => setNewRuleForm({...newRuleForm, mandatory_actions:e.target.value})} style={inp}/>
                     </div>
                     <div>
-                      <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', marginBottom:5 }}>Prohibited Action</label>
+                      <label style={{ display:'block', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', marginBottom:5 }}>Prohibited Action</label>
                       <input placeholder="e.g. Promise date without carrier scan" value={newRuleForm.prohibited_actions} onChange={e => setNewRuleForm({...newRuleForm, prohibited_actions:e.target.value})} style={inp}/>
                     </div>
                   </div>
@@ -712,51 +704,51 @@ export default function AdminDashboard() {
                     <button onClick={handleCreateRule} disabled={ruleSubmitting} style={{ padding:'9px 18px', borderRadius:10, background:'linear-gradient(135deg,#059669,#047857)', color:'white', border:'none', fontSize:13, fontWeight:700, cursor:'pointer' }}>
                       {ruleSubmitting ? 'Saving...' : 'Save Rule to DB'}
                     </button>
-                    <button onClick={() => setShowAddRule(false)} style={{ padding:'9px 15px', borderRadius:10, border:'1.5px solid rgba(226,232,240,0.8)', background:'transparent', color:'#64748B', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                    <button onClick={() => setShowAddRule(false)} style={{ padding:'9px 15px', borderRadius:10, border:'1.5px solid var(--nw-border)', background:'transparent', color: 'var(--nw-text-muted)', fontSize:13, fontWeight:600, cursor:'pointer' }}>
                       Cancel
                     </button>
                   </div>
                 </div>
               )}
 
-              <div style={{ overflowX:'auto', borderRadius:12, border:'1px solid rgba(226,232,240,0.5)' }}>
+              <div style={{ overflowX:'auto', borderRadius:12, border:'1px solid var(--nw-border)' }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', minWidth:800 }}>
                   <thead>
-                    <tr style={{ background:'rgba(248,250,252,0.8)' }}>
+                    <tr style={{ background:'var(--nw-elevated)' }}>
                       {['Rule ID','Category','Condition','Department','Mandatory Action','Prohibited Action','Actions'].map(h => (
-                        <th key={h} style={{ padding:'11px 13px', textAlign:'left', fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid rgba(226,232,240,0.5)', whiteSpace:'nowrap' }}>{h}</th>
+                        <th key={h} style={{ padding:'11px 13px', textAlign:'left', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid var(--nw-border)', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {rulesLoading ? (
-                      <tr><td colSpan={7} style={{ padding:20, textAlign:'center', color:'#94A3B8', fontSize:12 }}>Loading rule matrix from database...</td></tr>
+                      <tr><td colSpan={7} style={{ padding:20, textAlign:'center', color: 'var(--nw-text-muted)', fontSize:12 }}>Loading rule matrix from database...</td></tr>
                     ) : filteredRules.length === 0 ? (
-                      <tr><td colSpan={7} style={{ padding:20, textAlign:'center', color:'#94A3B8', fontSize:12 }}>No matching rules found in database.</td></tr>
+                      <tr><td colSpan={7} style={{ padding:20, textAlign:'center', color: 'var(--nw-text-muted)', fontSize:12 }}>No matching rules found in database.</td></tr>
                     ) : filteredRules.map((r,i) => (
                       <tr key={r.id} className="animate-fade-up" style={{ animationDelay:`${i*50}ms`, transition:'background 0.15s' }}
                         onMouseEnter={e => e.currentTarget.style.background='rgba(124,58,237,0.025)'}
                         onMouseLeave={e => e.currentTarget.style.background='transparent'}
                       >
-                        <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)', fontFamily:'monospace', fontSize:11, color:'#7C3AED', fontWeight:700 }}>{r.id}</td>
-                        <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
-                          <span style={{ fontSize:11, color:'#64748B', background:'rgba(248,250,252,0.8)', padding:'3px 9px', borderRadius:7, border:'1px solid rgba(226,232,240,0.6)', fontWeight:500 }}>{r.cat}</span>
+                        <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)', fontFamily:'monospace', fontSize:11, color:'#7C3AED', fontWeight:700 }}>{r.id}</td>
+                        <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)' }}>
+                          <span style={{ fontSize:11, color: 'var(--nw-text-muted)', background:'var(--nw-elevated)', padding:'3px 9px', borderRadius:7, border:'1px solid var(--nw-border)', fontWeight:500 }}>{r.cat}</span>
                         </td>
-                        <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)', fontSize:12, color:'#334155', maxWidth:170 }}>{r.cond}</td>
-                        <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)', fontSize:12, color:'#64748B' }}>{r.dept}</td>
-                        <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
+                        <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)', fontSize:12, color: 'var(--nw-text-secondary)', maxWidth:170 }}>{r.cond}</td>
+                        <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)', fontSize:12, color: 'var(--nw-text-muted)' }}>{r.dept}</td>
+                        <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)' }}>
                           <div style={{ display:'flex', alignItems:'flex-start', gap:6 }}>
                             <CheckCircle size={12} color="#059669" style={{ marginTop:1, flexShrink:0 }}/>
-                            <span style={{ fontSize:11, color:'#334155' }}>{r.must}</span>
+                            <span style={{ fontSize:11, color: 'var(--nw-text-secondary)' }}>{r.must}</span>
                           </div>
                         </td>
-                        <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
+                        <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)' }}>
                           <div style={{ display:'flex', alignItems:'flex-start', gap:6 }}>
                             <XCircle size={12} color="#E11D48" style={{ marginTop:1, flexShrink:0 }}/>
-                            <span style={{ fontSize:11, color:'#334155' }}>{r.no}</span>
+                            <span style={{ fontSize:11, color: 'var(--nw-text-secondary)' }}>{r.no}</span>
                           </div>
                         </td>
-                        <td style={{ padding:'13px 13px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
+                        <td style={{ padding:'13px 13px', borderBottom:'1px solid var(--nw-border)' }}>
                           <div style={{ display:'flex', gap:6 }}>
                             <button onClick={() => handleDeleteRule(r.id)} style={{ padding:'5px 10px', borderRadius:7, border:'1px solid rgba(225,29,72,0.2)', background:'rgba(225,29,72,0.06)', color:'#E11D48', fontSize:11, cursor:'pointer', fontWeight:600, transition:'all 0.15s' }}
                               onMouseEnter={e => e.currentTarget.style.background='rgba(225,29,72,0.12)'}
@@ -770,7 +762,7 @@ export default function AdminDashboard() {
                 </table>
               </div>
               <div style={{ marginTop:14, display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
-                <p style={{ fontSize:11, color:'#94A3B8' }}>Showing {filteredRules.length} of {rules.length} live rules</p>
+                <p style={{ fontSize:11, color: 'var(--nw-text-muted)' }}>Showing {filteredRules.length} of {rules.length} live rules</p>
               </div>
             </div>
           )}
@@ -780,8 +772,8 @@ export default function AdminDashboard() {
             <div className="animate-fade-in" style={{ ...glass(), padding:24 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, flexWrap:'wrap', gap:12 }}>
                 <div>
-                  <h3 style={{ fontSize:15, fontWeight:700, color:'#0F172A' }}>Staff Management</h3>
-                  <p style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>{staff.length} staff members fetched directly from database</p>
+                  <h3 style={{ fontSize:15, fontWeight:700, color: 'var(--nw-text-primary)' }}>Staff Management</h3>
+                  <p style={{ fontSize:11, color: 'var(--nw-text-muted)', marginTop:2 }}>{staff.length} staff members fetched directly from database</p>
                 </div>
                 <button onClick={() => setShowAdd(!showAdd)} style={{ padding:'10px 18px', borderRadius:11, background:'linear-gradient(135deg,#7C3AED,#4F46E5)', color:'white', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:7, boxShadow:'0 4px 16px rgba(124,58,237,0.28)', transition:'all 0.2s' }}>
                   <Plus size={14}/> Add Staff Member
@@ -796,18 +788,18 @@ export default function AdminDashboard() {
               )}
 
               {showAdd && (
-                <div className="animate-scale-in" style={{ padding:20, borderRadius:13, background:'linear-gradient(135deg,rgba(124,58,237,0.06),rgba(248,250,252,0.85))', border:'1px solid rgba(124,58,237,0.2)', marginBottom:20 }}>
-                  <h4 style={{ fontSize:13, fontWeight:700, color:'#0F172A', marginBottom:16 }}>➕ New Staff Member</h4>
+                <div className="animate-scale-in" style={{ padding:20, borderRadius:13, background:'linear-gradient(135deg,rgba(124,58,237,0.06),var(--nw-elevated))', border:'1px solid rgba(124,58,237,0.2)', marginBottom:20 }}>
+                  <h4 style={{ fontSize:13, fontWeight:700, color: 'var(--nw-text-primary)', marginBottom:16 }}>➕ New Staff Member</h4>
                   <div className="responsive-form-2col" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:13, marginBottom:14 }}>
                     {[['Full Name *','name','text','e.g. Ali Hassan'],['Email *','email','email','ali@company.com']].map(([l,k,t,ph]) => (
                       <div key={k}>
-                        <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>{l}</label>
+                        <label style={{ display:'block', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>{l}</label>
                         <input type={t} value={newForm[k]} onChange={e => setNewForm({...newForm,[k]:e.target.value})} placeholder={ph} style={inp}/>
                       </div>
                     ))}
                     {[['Role *','role',ROLES_L],['Department *','dept',DEPTS_L]].map(([l,k,opts]) => (
                       <div key={k}>
-                        <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#64748B', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>{l}</label>
+                        <label style={{ display:'block', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>{l}</label>
                         <select value={newForm[k]} onChange={e => setNewForm({...newForm,[k]:e.target.value})} style={sel}>
                           {k==='dept'&&<option value="">Select department…</option>}
                           {opts.map(o => <option key={o}>{o}</option>)}
@@ -817,45 +809,45 @@ export default function AdminDashboard() {
                   </div>
                   <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
                     <button onClick={addStaff} style={{ padding:'10px 20px', borderRadius:10, background:'linear-gradient(135deg,#059669,#047857)', color:'white', border:'none', fontSize:13, fontWeight:700, cursor:'pointer' }}>Create Member</button>
-                    <button onClick={() => setShowAdd(false)} style={{ padding:'10px 16px', borderRadius:10, border:'1.5px solid rgba(226,232,240,0.8)', background:'transparent', color:'#64748B', fontSize:13, fontWeight:600, cursor:'pointer' }}>Cancel</button>
+                    <button onClick={() => setShowAdd(false)} style={{ padding:'10px 16px', borderRadius:10, border:'1.5px solid var(--nw-border)', background:'transparent', color: 'var(--nw-text-muted)', fontSize:13, fontWeight:600, cursor:'pointer' }}>Cancel</button>
                   </div>
                 </div>
               )}
 
-              <div className="touch-scroll" style={{ overflowX:'auto', borderRadius:12, border:'1px solid rgba(226,232,240,0.5)' }}>
+              <div className="touch-scroll" style={{ overflowX:'auto', borderRadius:12, border:'1px solid var(--nw-border)' }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', minWidth:640 }}>
                   <thead>
-                    <tr style={{ background:'rgba(248,250,252,0.8)' }}>
+                    <tr style={{ background:'var(--nw-elevated)' }}>
                       {['Name','Role','Department','Email','Status'].map(h => (
-                        <th key={h} style={{ padding:'11px 14px', textAlign:'left', fontSize:10, fontWeight:700, color:'#94A3B8', textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid rgba(226,232,240,0.5)' }}>{h}</th>
+                        <th key={h} style={{ padding:'11px 14px', textAlign:'left', fontSize:10, fontWeight:700, color: 'var(--nw-text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid var(--nw-border)' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {staffLoading ? (
-                      <tr><td colSpan={5} style={{ padding:20, textAlign:'center', color:'#94A3B8', fontSize:12 }}>Loading staff from database...</td></tr>
+                      <tr><td colSpan={5} style={{ padding:20, textAlign:'center', color: 'var(--nw-text-muted)', fontSize:12 }}>Loading staff from database...</td></tr>
                     ) : staff.length === 0 ? (
-                      <tr><td colSpan={5} style={{ padding:20, textAlign:'center', color:'#94A3B8', fontSize:12 }}>No staff registered. Add above to create.</td></tr>
+                      <tr><td colSpan={5} style={{ padding:20, textAlign:'center', color: 'var(--nw-text-muted)', fontSize:12 }}>No staff registered. Add above to create.</td></tr>
                     ) : staff.map((m, i) => {
                       const rc = ROLE_COLORS[m.role] || '#64748B'
                       return (
                         <tr key={m.id || i} className="animate-fade-up" style={{ animationDelay:`${i*40}ms`, transition:'background 0.15s' }}>
-                          <td style={{ padding:'13px 14px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
+                          <td style={{ padding:'13px 14px', borderBottom:'1px solid var(--nw-border)' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:9 }}>
                               <div style={{ width:32, height:32, borderRadius:'50%', background:`linear-gradient(135deg,${rc},${rc}99)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'white', flexShrink:0, boxShadow:`0 3px 10px ${rc}35` }}>
                                 {m.name?.charAt(0) || 'U'}
                               </div>
-                              <span style={{ fontSize:13, fontWeight:600, color:'#0F172A' }}>{m.name}</span>
+                              <span style={{ fontSize:13, fontWeight:600, color: 'var(--nw-text-primary)' }}>{m.name}</span>
                             </div>
                           </td>
-                          <td style={{ padding:'13px 14px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
+                          <td style={{ padding:'13px 14px', borderBottom:'1px solid var(--nw-border)' }}>
                             <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:7, background:`${rc}14`, color:rc, border:`1px solid ${rc}28` }}>{m.role}</span>
                           </td>
-                          <td style={{ padding:'13px 14px', borderBottom:'1px solid rgba(226,232,240,0.3)', fontSize:12, color:'#64748B' }}>
+                          <td style={{ padding:'13px 14px', borderBottom:'1px solid var(--nw-border)', fontSize:12, color: 'var(--nw-text-muted)' }}>
                             {m.dept}
                           </td>
-                          <td style={{ padding:'13px 14px', borderBottom:'1px solid rgba(226,232,240,0.3)', fontSize:12, color:'#94A3B8' }}>{m.email}</td>
-                          <td style={{ padding:'13px 14px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
+                          <td style={{ padding:'13px 14px', borderBottom:'1px solid var(--nw-border)', fontSize:12, color: 'var(--nw-text-muted)' }}>{m.email}</td>
+                          <td style={{ padding:'13px 14px', borderBottom:'1px solid var(--nw-border)' }}>
                             <span style={{ padding:'3px 10px', borderRadius:99, fontSize:11, fontWeight:600, background:m.status==='Active'?'#ECFDF5':'#F8FAFC', color:m.status==='Active'?'#059669':'#64748B', border:`1px solid ${m.status==='Active'?'rgba(5,150,105,0.25)':'rgba(100,116,139,0.2)'}`, display:'inline-flex', alignItems:'center', gap:5 }}>
                               {m.status==='Active' && <span className="pulse-dot" style={{ width:5, height:5, borderRadius:'50%', background:'#059669' }}/>}
                               {m.status}

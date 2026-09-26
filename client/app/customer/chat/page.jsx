@@ -20,14 +20,7 @@ const cleanQuotes = (s) => {
   return clean
 }
 
-const glass = {
-  background: 'rgba(255,255,255,0.88)',
-  backdropFilter: 'blur(24px)',
-  WebkitBackdropFilter: 'blur(24px)',
-  border: '1px solid rgba(255,255,255,0.9)',
-  borderRadius: 18,
-  boxShadow: '0 8px 32px rgba(148,163,184,0.12)'
-}
+const glass = { background: 'var(--nw-surface)', border: '1px solid var(--nw-border)', borderRadius: 16, boxShadow: '0 4px 24px rgba(11,14,20,0.3)' }
 
 const DEFAULT_COMPLAINT_TYPES = [
   { id: 'del', label: '📦 Order & Shipping Delay', dept: 'Clothes', category: 'Delivery' },
@@ -371,7 +364,7 @@ export default function CustomerChatIntake() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#F8FAFC' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--nw-elevated)' }}>
       <Sidebar role="customer" userName={user.name} userEmail={user.email} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -388,25 +381,25 @@ export default function CustomerChatIntake() {
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>Intelligent Chatbot</h2>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: '#ECFDF5', color: '#059669' }}>
+                    <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0 }}>Intelligent Chatbot</h2>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: 'var(--nw-success-dim)', color: '#059669' }}>
                       ● Online & Active
                     </span>
                   </div>
-                  <p style={{ fontSize: 12, color: '#64748B', margin: '2px 0 0' }}>Channel: <strong style={{ color: '#7C3AED' }}>Chat 💬</strong> • Dual AI Pipeline Enabled</p>
+                  <p style={{ fontSize: 12, color: 'var(--nw-text-muted)', margin: '2px 0 0' }}>Channel: <strong style={{ color: '#7C3AED' }}>Chat 💬</strong> • Dual AI Pipeline Enabled</p>
                 </div>
               </div>
 
               <button
                 onClick={handleResetChat}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: '1px solid #E2E8F0', background: '#FFF', color: '#64748B', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: '1px solid var(--nw-border)', background: 'var(--nw-surface)', color: 'var(--nw-text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
               >
                 <RefreshCw size={14} /> New Chat
               </button>
             </div>
 
             {/* Chat Box Container */}
-            <div style={{ ...glass, background: '#FFF', minHeight: 560, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ ...glass, background: 'var(--nw-surface)', minHeight: 560, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               
               {/* Messages Area */}
               <div style={{ flex: 1, padding: 16, overflowY: 'auto', background: 'linear-gradient(180deg, #F9FAFB 0%, #FFF 100%)', maxHeight: 420 }}>
@@ -439,7 +432,7 @@ export default function CustomerChatIntake() {
                         }}>
                           {m.text}
                         </div>
-                        <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, textAlign: m.sender === 'user' ? 'right' : 'left' }}>
+                        <div style={{ fontSize: 10, color: 'var(--nw-text-muted)', marginTop: 4, textAlign: m.sender === 'user' ? 'right' : 'left' }}>
                           {m.time}
                         </div>
                       </div>
@@ -459,8 +452,8 @@ export default function CustomerChatIntake() {
                     <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#7C3AED,#4F46E5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', flexShrink: 0 }}>
                       <Bot size={18} />
                     </div>
-                    <div style={{ padding: '10px 16px', borderRadius: '18px 18px 18px 4px', background: '#F1F5F9', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 12, color: '#64748B', fontWeight: 600 }}>NovaWear Apparel AI is thinking</span>
+                    <div style={{ padding: '10px 16px', borderRadius: '18px 18px 18px 4px', background: 'var(--nw-elevated)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 12, color: 'var(--nw-text-muted)', fontWeight: 600 }}>NovaWear Apparel AI is thinking</span>
                       <span className="dot-flashing" style={{ display: 'inline-flex', gap: 3 }}>
                         <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#7C3AED', animation: 'pulse 1s infinite' }} />
                         <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#7C3AED', animation: 'pulse 1s infinite 0.2s' }} />
@@ -475,12 +468,12 @@ export default function CustomerChatIntake() {
 
               {/* Guided Interactive Options Box */}
               {!createdTicket && (
-                <div style={{ padding: 20, borderTop: '1px solid #F1F5F9', background: '#FAFAFA' }}>
+                <div style={{ padding: 20, borderTop: '1px solid var(--nw-border)', background: 'var(--nw-elevated)' }}>
                   
                   {/* STEP 1: Select Complaint Type */}
                   {step === 1 && (
                     <div>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 10, letterSpacing: '0.05em' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase', marginBottom: 10, letterSpacing: '0.05em' }}>
                         Click to select issue type or describe in the text box below:
                       </p>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10 }}>
@@ -489,8 +482,8 @@ export default function CustomerChatIntake() {
                             key={t.id}
                             onClick={() => handleSelectType(t)}
                             style={{
-                              padding: '12px 14px', borderRadius: 12, border: '1px solid #E2E8F0', background: '#FFF',
-                              textAlign: 'left', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: '#1E293B',
+                              padding: '12px 14px', borderRadius: 12, border: '1px solid var(--nw-border)', background: 'var(--nw-surface)',
+                              textAlign: 'left', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: 'var(--nw-text-primary)',
                               transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                               boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
                             }}
@@ -506,7 +499,7 @@ export default function CustomerChatIntake() {
                   {/* STEP 2: Select Department */}
                   {step === 2 && (
                     <div>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 10 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase', marginBottom: 10 }}>
                         Select Department to route your ticket:
                       </p>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -515,7 +508,7 @@ export default function CustomerChatIntake() {
                             key={d}
                             onClick={() => handleSelectDept(d)}
                             style={{
-                              padding: '8px 16px', borderRadius: 20, border: selectedDept === d ? '2px solid #7C3AED' : '1px solid #CBD5E1',
+                              padding: '8px 16px', borderRadius: 20, border: selectedDept === d ? '2px solid #7C3AED' : '1px solid var(--nw-border-strong)',
                               background: selectedDept === d ? '#F5F3FF' : '#FFF', color: selectedDept === d ? '#7C3AED' : '#334155',
                               fontSize: 12.5, fontWeight: 700, cursor: 'pointer'
                             }}
@@ -530,7 +523,7 @@ export default function CustomerChatIntake() {
                   {/* STEP 3: Issue Details & Quick Chips */}
                   {step === 3 && (
                     <form onSubmit={handleDetailsSubmit}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 8 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>
                         Quick Suggestions for {selectedDept}:
                       </p>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
@@ -540,7 +533,7 @@ export default function CustomerChatIntake() {
                             type="button"
                             onClick={() => setDescription(iss)}
                             style={{
-                              padding: '6px 12px', borderRadius: 14, border: '1px solid #7C3AED40', background: '#F5F3FF',
+                              padding: '6px 12px', borderRadius: 14, border: '1px solid #7C3AED40', background: 'var(--nw-accent-dim)',
                               color: '#7C3AED', fontSize: 11.5, fontWeight: 600, cursor: 'pointer'
                             }}
                           >
@@ -557,7 +550,7 @@ export default function CustomerChatIntake() {
                           value={description}
                           onChange={e => setDescription(e.target.value)}
                           style={{
-                            flex: '1 1 240px', padding: 12, borderRadius: 12, border: '1.5px solid #CBD5E1', outline: 'none',
+                            flex: '1 1 240px', padding: 12, borderRadius: 12, border: '1px solid var(--nw-border-strong)', outline: 'none',
                             fontSize: 13, fontFamily: 'Inter, sans-serif'
                           }}
                         />
@@ -579,7 +572,7 @@ export default function CustomerChatIntake() {
                   {/* STEP 4: Order ID & Product Input */}
                   {step === 4 && (
                     <form onSubmit={handleOrderSubmit}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 10 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase', marginBottom: 10 }}>
                         Product & Reference Details:
                       </p>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
@@ -589,7 +582,7 @@ export default function CustomerChatIntake() {
                           placeholder="Product Item (e.g. Winter Hoodie, Denim Jacket)"
                           value={productService}
                           onChange={e => setProduct(e.target.value)}
-                          style={{ padding: '10px 14px', borderRadius: 10, border: '1.5px solid #CBD5E1', fontSize: 13, outline: 'none' }}
+                          style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none' }}
                         />
                         <input
                           type="text"
@@ -597,7 +590,7 @@ export default function CustomerChatIntake() {
                           placeholder="Order Reference ID (e.g. ORD-78234, #98213)"
                           value={orderId}
                           onChange={e => setOrderId(e.target.value)}
-                          style={{ padding: '10px 14px', borderRadius: 10, border: '1.5px solid #CBD5E1', fontSize: 13, outline: 'none' }}
+                          style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--nw-border-strong)', fontSize: 13, outline: 'none' }}
                         />
                         <button
                           type="submit"
@@ -616,22 +609,22 @@ export default function CustomerChatIntake() {
                   {/* STEP 5: Review Summary & Submit */}
                   {step === 5 && (
                     <div>
-                      <div style={{ background: '#FFF', border: '1px solid #7C3AED30', borderRadius: 14, padding: 16, marginBottom: 14, boxShadow: '0 2px 10px rgba(124,58,237,0.05)' }}>
+                      <div style={{ background: 'var(--nw-surface)', border: '1px solid #7C3AED30', borderRadius: 14, padding: 16, marginBottom: 14, boxShadow: '0 2px 10px rgba(124,58,237,0.05)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                           <span style={{ fontSize: 11, fontWeight: 700, color: '#7C3AED', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 4 }}>
                             <Sparkles size={13} /> AI Intake Summary Review
                           </span>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: '#059669', background: '#ECFDF5', padding: '2px 8px', borderRadius: 6 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#059669', background: 'var(--nw-success-dim)', padding: '2px 8px', borderRadius: 6 }}>
                             Channel: Chat 💬
                           </span>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, fontSize: 12.5, color: '#334155' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, fontSize: 12.5, color: 'var(--nw-text-secondary)' }}>
                           <div>Target Department: <strong>{selectedDept}</strong></div>
                           <div>Order Reference: <strong>{orderId}</strong></div>
                           <div>Product / Service: <strong>{productService}</strong></div>
                           <div>Contact Email: <strong>{cleanQuotes(user.email)}</strong></div>
                         </div>
-                        <div style={{ marginTop: 10, fontSize: 12, color: '#64748B', borderTop: '1px solid #F1F5F9', paddingTop: 8 }}>
+                        <div style={{ marginTop: 10, fontSize: 12, color: 'var(--nw-text-muted)', borderTop: '1px solid var(--nw-border)', paddingTop: 8 }}>
                           Issue Description: <em>"{description}"</em>
                         </div>
                       </div>
@@ -669,8 +662,8 @@ export default function CustomerChatIntake() {
                         value={freeInput}
                         onChange={e => setFreeInput(e.target.value)}
                         style={{
-                          flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid #E2E8F0',
-                          outline: 'none', fontSize: 13, background: '#FFF'
+                          flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid var(--nw-border)',
+                          outline: 'none', fontSize: 13, background: 'var(--nw-surface)'
                         }}
                       />
                       <button
@@ -691,14 +684,14 @@ export default function CustomerChatIntake() {
 
               {/* Created Ticket Confirmation Card */}
               {createdTicket && (
-                <div style={{ padding: 24, background: '#ECFDF5', borderTop: '2px solid #059669', textAlign: 'center' }}>
+                <div style={{ padding: 24, background: 'var(--nw-success-dim)', borderTop: '2px solid #059669', textAlign: 'center' }}>
                   <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#059669', color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', boxShadow: '0 4px 14px rgba(5,150,105,0.3)' }}>
                     <CheckCircle size={30} />
                   </div>
                   <h3 style={{ fontSize: 19, fontWeight: 800, color: '#065F46', margin: '0 0 6px' }}>
                     Complaint Registered via Chat!
                   </h3>
-                  <p style={{ fontSize: 13, color: '#047857', margin: '0 0 14px', lineHeight: 1.5 }}>
+                  <p style={{ fontSize: 13, color: 'var(--nw-success)', margin: '0 0 14px', lineHeight: 1.5 }}>
                     Ticket Reference ID: <strong style={{ color: '#059669', fontFamily: 'monospace', fontSize: 16 }}>{createdTicket.ticket_id}</strong><br />
                     Department: <strong>{createdTicket.department || selectedDept}</strong> • Channel: <strong>Chat</strong> • Automated confirmation email sent to <strong>{createdTicket.customer_email || cleanQuotes(user.email)}</strong>.
                   </p>
@@ -706,7 +699,7 @@ export default function CustomerChatIntake() {
                   <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
                     <button
                       onClick={handleResetChat}
-                      style={{ padding: '9px 20px', borderRadius: 10, background: '#FFF', border: '1px solid #A7F3D0', color: '#047857', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                      style={{ padding: '9px 20px', borderRadius: 10, background: 'var(--nw-surface)', border: '1px solid rgba(79,166,137,0.3)', color: 'var(--nw-success)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
                     >
                       Start New Chat
                     </button>
