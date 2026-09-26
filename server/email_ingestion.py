@@ -2,7 +2,7 @@ import re
 import hashlib
 import logging
 import asyncio
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, Any, List, Optional
 from imap_tools import MailBox, AND
 
@@ -82,6 +82,14 @@ def compute_email_fingerprint(sender: str, subject: str, date_val: Any, body: st
     clean_body = (body or "")[:300].strip().lower()
     raw = f"{clean_sender}::{clean_subj}::{clean_body}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+def as_utc_datetime(value: Any) -> Optional[datetime]:
+    """Normalize an email timestamp to UTC; naive values are treated as UTC."""
+    if not isinstance(value, datetime):
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 async def is_email_already_processed(
     db,
@@ -560,8 +568,21 @@ async def fetch_latest_email_ticket() -> Dict[str, Any]:
                         "checked_at": datetime.utcnow().isoformat()
                     }
 
+                checked_at_utc = datetime.now(timezone.utc)
+                cutoff_utc = checked_at_utc - timedelta(seconds=30)
+
                 # Check messages starting from the most recent
                 for msg in latest_messages:
+                    message_date_utc = as_utc_datetime(msg.date)
+                    if message_date_utc is None or not cutoff_utc <= message_date_utc <= checked_at_utc:
+                        logger.info(
+                            "Email outside UTC 30-second window: UID=%s | DateUTC=%s | CutoffUTC=%s",
+                            msg.uid,
+                            message_date_utc.isoformat() if message_date_utc else "missing",
+                            cutoff_utc.isoformat()
+                        )
+                        continue
+
                     logger.info(
                         "IMAP message fetched: UID=%s | From=%s | Subj='%s'",
                         msg.uid,

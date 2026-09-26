@@ -8,7 +8,7 @@ import {
   CheckCircle, X, Building2, BookOpen, Layers, RefreshCw, AlertCircle, FileCode, Check
 } from 'lucide-react'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { API_BASE } from '../../lib/api'
 
 const glass = (extra = {}) => ({
   background: 'rgba(255,255,255,0.82)',

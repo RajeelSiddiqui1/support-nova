@@ -10,7 +10,7 @@ const ROLES = [
   { key: 'admin',     emoji: '⚙️', label: 'Admin Center',       href: '/admin/dashboard',    color: '#E11D48', bg: '#FFF1F2' },
 ]
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { API_BASE } from '../lib/api'
 
 export default function LoginPage() {
   const [step, setStep]           = useState(1) // 1: Email, 2: Password

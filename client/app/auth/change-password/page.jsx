@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Lock, ShieldAlert, CheckCircle, RefreshCw, ArrowRight } from 'lucide-react'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { API_BASE } from '../../lib/api'
 
 function ChangePasswordContent() {
   const searchParams = useSearchParams()

@@ -10,7 +10,7 @@ import {
   Building2, UserCheck, ArrowRightLeft, History, Shield, Users
 } from 'lucide-react'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { API_BASE } from '../../lib/api'
 
 const glass = {
   background: 'rgba(255,255,255,0.85)',

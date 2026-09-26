@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, KeyRound, CheckCircle, RefreshCw, ArrowRight, Clock } from 'lucide-react'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { API_BASE } from '../../lib/api'
 
 function ForgotPasswordContent() {
   const searchParams = useSearchParams()

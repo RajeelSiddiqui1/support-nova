@@ -7,7 +7,7 @@ import {
   Building2, Send, Clock, Calendar, ShoppingBag, Hash, RefreshCw
 } from 'lucide-react'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { API_BASE } from '../../lib/api'
 
 const cleanQuotes = (s) => {
   if (!s) return ''

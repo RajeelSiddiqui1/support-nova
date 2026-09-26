@@ -7,7 +7,7 @@ import StatCard from '../../components/StatCard'
 import { Upload, FileText, CheckCircle, XCircle, Zap, ShieldCheck, Settings, Database, BarChart3, Users, RefreshCw, Plus, Search, X, Ticket, ArrowUpRight, Eye } from 'lucide-react'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { API_BASE } from '../../lib/api'
 
 const glass = (extra = {}) => ({
   background: 'rgba(255,255,255,0.82)',

@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { Ticket, CheckCircle, Clock, PlusCircle, Star, ChevronRight, AlertCircle, X, Zap, Building2, User } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { API_BASE } from '../../lib/api'
 
 const CHART = [
   { month: 'Apr', v: 4 }, { month: 'May', v: 7 }, { month: 'Jun', v: 3 },

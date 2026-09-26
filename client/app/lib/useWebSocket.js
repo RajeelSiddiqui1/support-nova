@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { API_BASE } from './api'
 
 /**
  * Resolves the dynamic WebSocket URL from NEXT_PUBLIC_API_URL or current browser location.
@@ -8,7 +9,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 export function getWebSocketUrl(clientId = 'client', role = 'STAFF') {
   if (typeof window === 'undefined') return ''
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const apiBase = API_BASE || window.location.origin
   let wsUrl = apiBase.replace(/^http:\/\//, 'ws://').replace(/^https:\/\//, 'wss://')
   
   // Clean trailing slashes

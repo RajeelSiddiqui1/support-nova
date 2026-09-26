@@ -46,7 +46,7 @@ const STATUS_COLORS = {
 }
 const P_COLORS = { P0:{bg:'#FFF1F2',c:'#E11D48'}, P1:{bg:'#FFFBEB',c:'#D97706'}, P2:{bg:'#EFF6FF',c:'#2563EB'}, P3:{bg:'#F8FAFC',c:'#64748B'} }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { API_BASE } from '../../lib/api'
 
 const STATUSES = ['All','In Triage','In Progress','AI Review','Escalated','Resolved','Closed']
 const CHANNELS = ['All', 'Web Form', 'Chat', 'Email']
