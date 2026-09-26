@@ -207,7 +207,7 @@ export default function DepartmentsPage() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#F8FAFC' }}>
-      <Sidebar role="admin" userName="Admin Nova" userEmail="admin@supportnova.com" />
+      <Sidebar role="admin" userName="Admin Nova" userEmail="admin@novawearapparel.com" />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' }}>
         <Navbar title="Department Management" subtitle="Create, edit, and organize system departments & user assignments" />

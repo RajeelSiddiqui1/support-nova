@@ -1,7 +1,7 @@
 from typing import Optional, Tuple, List
 import logging
 
-logger = logging.getLogger("SupportNova.DeptResolver")
+logger = logging.getLogger("NovaWear.DeptResolver")
 
 async def resolve_ai_department(db, ai_dept_name: str, fallback_dept: Optional[str] = None) -> Tuple[str, str]:
     """

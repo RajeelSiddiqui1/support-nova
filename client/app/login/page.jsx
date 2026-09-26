@@ -1,7 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Zap, ShieldCheck, ArrowRight, Lock, Mail, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react'
+import { Zap, ShieldCheck, ArrowRight, Lock, Mail, AlertTriangle, CheckCircle, RefreshCw, UserCheck, ShieldAlert } from 'lucide-react'
 
 const ROLES = [
   { key: 'customer',  emoji: '👤', label: 'Customer Portal',    href: '/customer/dashboard', color: '#7C3AED', bg: '#F5F3FF' },
@@ -9,6 +9,8 @@ const ROLES = [
   { key: 'reviewer',  emoji: '⚖️', label: 'Manager / Reviewer', href: '/reviewer/queue',     color: '#D97706', bg: '#FFFBEB' },
   { key: 'admin',     emoji: '⚙️', label: 'Admin Center',       href: '/admin/dashboard',    color: '#E11D48', bg: '#FFF1F2' },
 ]
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export default function LoginPage() {
   const [step, setStep]           = useState(1) // 1: Email, 2: Password
@@ -19,6 +21,33 @@ export default function LoginPage() {
   const [loading, setLoading]     = useState(false)
   const [googleLoading, setGoogle]= useState(false)
 
+  // Detect URL errors from backend redirects (e.g. Staff blocked from Google login)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const error = params.get('error')
+      const reason = params.get('reason')
+      const role = params.get('role')
+
+      if (error === 'staff_google_denied') {
+        const roleLabel = role ? role.toUpperCase() : 'Staff'
+        setErrorMsg(
+          reason
+            ? decodeURIComponent(reason)
+            : `Access Denied: ${roleLabel} accounts cannot log in via Google. Please use your staff Email & Password.`
+        )
+      } else if (error === 'account_deactivated') {
+        setErrorMsg(
+          reason
+            ? decodeURIComponent(reason)
+            : 'Account Suspended: Deactivated by Administrator.'
+        )
+      } else if (error === 'google_access_denied') {
+        setErrorMsg('Google Sign-In was cancelled or failed. Please try again.')
+      }
+    }
+  }, [])
+
   // Step 1: Check Email Status
   const handleCheckEmail = async (e) => {
     e.preventDefault()
@@ -27,7 +56,7 @@ export default function LoginPage() {
     setErrorMsg('')
 
     try {
-      const res = await fetch('http://localhost:8000/api/auth/check-email', {
+      const res = await fetch(`${API_BASE}/api/auth/check-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -72,7 +101,7 @@ export default function LoginPage() {
     setErrorMsg('')
 
     try {
-      const res = await fetch('http://localhost:8000/api/auth/login', {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -119,7 +148,7 @@ export default function LoginPage() {
   // Customer Google Login via Backend Redirect
   const handleGoogle = () => {
     setGoogle(true)
-    window.location.href = 'http://localhost:8000/api/auth/google'
+    window.location.href = `${API_BASE}/api/auth/google`
   }
 
   const pageBg = {
@@ -143,7 +172,7 @@ export default function LoginPage() {
           }} className="animate-float">
             <Zap size={26} color="white" />
           </div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0F172A', marginBottom: 4 }}>SupportNova</h1>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0F172A', marginBottom: 4 }}>NovaWear Apparel</h1>
           <p style={{ color: '#64748B', fontSize: 13 }}>AWS-Style Secure Complaint Intelligence Portal</p>
         </div>
 
@@ -176,15 +205,23 @@ export default function LoginPage() {
             <div className="animate-fade-in">
               <form onSubmit={handleCheckEmail}>
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-                    Sign in to SupportNova
-                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Staff Login (Email & Password)
+                    </label>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: '#059669', background: '#ECFDF5', padding: '2px 6px', borderRadius: 4 }}>
+                      Staff Only
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 11, color: '#64748B', marginBottom: 8, lineHeight: 1.4 }}>
+                    Admin, Manager, Reviewer, and Agents must sign in with their staff email & password.
+                  </p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 12, border: '1.5px solid rgba(226,232,240,0.9)', background: 'rgba(248,250,252,0.9)' }}>
                     <Mail size={16} color="#94A3B8" />
                     <input
                       type="email" required value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter your email address…"
+                      placeholder="Enter staff email address…"
                       style={{ border: 'none', background: 'none', outline: 'none', fontSize: 13, color: '#0F172A', width: '100%' }}
                     />
                   </div>
@@ -200,25 +237,31 @@ export default function LoginPage() {
                     boxShadow: '0 4px 16px rgba(124,58,237,0.35)', transition: 'all 0.2s', marginBottom: 16
                   }}
                 >
-                  {loading ? <RefreshCw size={16} className="animate-spin" /> : <>Next <ArrowRight size={15} /></>}
+                  {loading ? <RefreshCw size={16} className="animate-spin" /> : <>Continue with Email <ArrowRight size={15} /></>}
                 </button>
               </form>
 
               {/* Google OAuth Divider & Button on Step 1 for Customer */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
                 <div style={{ flex: 1, height: 1, background: 'rgba(226,232,240,0.8)' }} />
-                <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500 }}>or Customer Google Sign-In</span>
+                <span style={{ fontSize: 11, color: '#7C3AED', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Customer Portal</span>
                 <div style={{ flex: 1, height: 1, background: 'rgba(226,232,240,0.8)' }} />
+              </div>
+
+              <div style={{ marginBottom: 10, textAlign: 'center' }}>
+                <p style={{ fontSize: 11, color: '#64748B', lineHeight: 1.4, margin: '0 0 10px 0' }}>
+                  Customers must log in exclusively using Google. (Email & password login is prohibited for customers).
+                </p>
               </div>
 
               <button
                 type="button" onClick={handleGoogle} disabled={googleLoading}
                 style={{
                   width: '100%', padding: '11px 18px', borderRadius: 11,
-                  border: '1.5px solid rgba(226,232,240,0.9)', background: 'rgba(255,255,255,0.95)',
-                  color: '#0F172A', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  border: '1.5px solid rgba(124,58,237,0.3)', background: 'rgba(255,255,255,0.98)',
+                  color: '#0F172A', fontSize: 13, fontWeight: 600, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
-                  boxShadow: '0 2px 10px rgba(148,163,184,0.08)', transition: 'all 0.2s',
+                  boxShadow: '0 2px 10px rgba(124,58,237,0.08)', transition: 'all 0.2s',
                 }}
               >
                 {googleLoading ? <RefreshCw size={14} className="animate-spin" /> : (
@@ -229,7 +272,7 @@ export default function LoginPage() {
                     <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
                   </svg>
                 )}
-                Continue with Google
+                Customer Sign In with Google
               </button>
             </div>
           )}

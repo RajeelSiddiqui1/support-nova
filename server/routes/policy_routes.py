@@ -8,6 +8,7 @@ from datetime import datetime
 from lib.db import get_database
 from models.kb_doc import KBDocCreate, KBDocUpdate, DocStatus
 from ai.pdf_extractor import DocumentExtractor
+from lib.s3_service import s3_service
 
 router = APIRouter(prefix="/api/policies", tags=["Policy & Knowledge Base Management"])
 
@@ -104,16 +105,14 @@ async def upload_policy_file(
         if cat_obj:
             cat_id = cat_obj.get("cat_id")
 
-    # Save uploaded file to disk
+    # Upload to AWS S3 bucket directly
+    file_bytes = await file.read()
     file_ext = os.path.splitext(file.filename)[1].lower()
-    save_filename = f"{doc_id}_{file.filename}"
-    file_path = os.path.join(UPLOAD_DIR, save_filename)
+    s3_key = f"policies/{doc_id}_{file.filename}"
+    upload_res = s3_service.upload_file_bytes(file_bytes, s3_key, file.content_type)
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    # Perform text extraction
-    extracted = DocumentExtractor.extract_file(file_path, doc_id, version)
+    # Perform text extraction directly from bytes in memory
+    extracted = DocumentExtractor.extract_from_bytes(file_bytes, file.filename, doc_id, version)
 
     doc_title = title.strip() if title and title.strip() else file.filename
 
@@ -126,7 +125,10 @@ async def upload_policy_file(
         "department": dept_name or "General",
         "file_type": file_ext.replace(".", "").upper(),
         "file_size_kb": extracted.get("file_size_kb", 0.0),
-        "file_path": file_path,
+        "file_path": upload_res["url"],
+        "s3_url": upload_res["url"],
+        "s3_key": upload_res["s3_key"],
+        "storage": upload_res["storage"],
         "full_text": extracted.get("full_text", ""),
         "version": version,
         "status": "Active",
@@ -142,7 +144,7 @@ async def upload_policy_file(
 
     return {
         "status": "success",
-        "message": f"Policy '{doc_title}' uploaded and text extracted successfully.",
+        "message": f"Policy '{doc_title}' uploaded to S3 ({upload_res['storage']}) and text extracted successfully.",
         "policy": new_policy
     }
 
@@ -291,20 +293,76 @@ async def update_policy(doc_id: str, policy_data: KBDocUpdate):
         "policy": updated
     }
 
+@router.post("/{doc_id}/override-file")
+@router.put("/{doc_id}/file")
+async def override_policy_file(
+    doc_id: str,
+    file: UploadFile = File(...),
+    version: Optional[str] = Form(None)
+):
+    """
+    Upload a new PDF to OVERRIDE the existing policy document in AWS S3 bucket.
+    Re-extracts full text and chunks, and updates document metadata.
+    """
+    db = get_database()
+    existing = await db.kb_docs.find_one({"doc_id": doc_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Policy not found.")
+
+    file_bytes = await file.read()
+    target_version = version or existing.get("version", "v1.0")
+
+    # Reuse existing s3_key or create a clean one
+    s3_key = existing.get("s3_key") or f"policies/{doc_id}_{file.filename}"
+
+    upload_res = s3_service.upload_file_bytes(file_bytes, s3_key, file.content_type)
+    extracted = DocumentExtractor.extract_from_bytes(file_bytes, file.filename, doc_id, target_version)
+
+    file_ext = os.path.splitext(file.filename)[1].lower()
+
+    update_fields = {
+        "s3_url": upload_res["url"],
+        "s3_key": upload_res["s3_key"],
+        "file_path": upload_res["url"],
+        "storage": upload_res["storage"],
+        "file_type": file_ext.replace(".", "").upper(),
+        "file_size_kb": extracted.get("file_size_kb", 0.0),
+        "full_text": extracted.get("full_text", ""),
+        "chunk_count": extracted.get("chunk_count", 0),
+        "chunks": extracted.get("chunks", []),
+        "version": target_version,
+        "updated_at": datetime.utcnow()
+    }
+
+    await db.kb_docs.update_one({"doc_id": doc_id}, {"$set": update_fields})
+    updated = await db.kb_docs.find_one({"doc_id": doc_id})
+    updated["_id"] = str(updated["_id"])
+
+    return {
+        "status": "success",
+        "message": f"Policy '{doc_id}' file overridden in S3 bucket and text re-extracted successfully.",
+        "policy": updated
+    }
+
 @router.delete("/{doc_id}")
 async def delete_policy(doc_id: str):
-    """Admin deletes a policy document."""
+    """Admin deletes a policy document and its associated file in AWS S3 bucket."""
     db = get_database()
     existing = await db.kb_docs.find_one({"doc_id": doc_id})
 
     if not existing:
         raise HTTPException(status_code=404, detail="Policy not found.")
 
-    # Remove file from disk if exists
-    file_path = existing.get("file_path")
-    if file_path and os.path.exists(file_path):
+    # Delete object from AWS S3 bucket
+    s3_key = existing.get("s3_key")
+    if s3_key:
+        s3_service.delete_file(s3_key)
+
+    # Also remove legacy disk file if exists
+    legacy_path = existing.get("file_path")
+    if legacy_path and not legacy_path.startswith("http") and os.path.exists(legacy_path):
         try:
-            os.remove(file_path)
+            os.remove(legacy_path)
         except Exception:
             pass
 
@@ -312,5 +370,5 @@ async def delete_policy(doc_id: str):
 
     return {
         "status": "success",
-        "message": f"Policy '{existing.get('title')}' ({doc_id}) deleted successfully."
+        "message": f"Policy '{existing.get('title')}' ({doc_id}) and S3 object deleted successfully."
     }

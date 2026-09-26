@@ -6,7 +6,7 @@ ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
 
 class EmailConfig(BaseSettings):
     """
-    Application Settings for SupportNova Email Integration Module.
+    Application Settings for NovaWear Apparel Email Integration Module.
     Loads configuration directly from server/.env file.
     """
     SUPPORT_EMAIL: str = Field(default="", description="System support email address")
@@ -21,7 +21,7 @@ class EmailConfig(BaseSettings):
     SMTP_SERVER: str = Field(default="smtp.gmail.com", description="SMTP server hostname")
     SMTP_HOST: str = Field(default="smtp.gmail.com", description="SMTP host alias")
     SMTP_PORT: int = Field(default=587, description="SMTP port (TLS)")
-    FROM_EMAIL: str = Field(default="noreply@supportnova.ai", description="From email header")
+    FROM_EMAIL: str = Field(default="support@novawearapparel.com", description="From email header")
 
     model_config = SettingsConfigDict(
         env_file=ENV_PATH,

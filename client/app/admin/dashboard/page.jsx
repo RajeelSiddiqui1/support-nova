@@ -7,6 +7,8 @@ import StatCard from '../../components/StatCard'
 import { Upload, FileText, CheckCircle, XCircle, Zap, ShieldCheck, Settings, Database, BarChart3, Users, RefreshCw, Plus, Search, X, Ticket, ArrowUpRight, Eye } from 'lucide-react'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
 const glass = (extra = {}) => ({
   background: 'rgba(255,255,255,0.82)',
   backdropFilter: 'blur(24px)',
@@ -92,7 +94,7 @@ export default function AdminDashboard() {
     if (!newForm.name || !newForm.dept || !newForm.email) return
 
     try {
-      const res = await fetch('http://localhost:8000/api/admin/create-staff', {
+      const res = await fetch(`${API_BASE}/api/admin/create-staff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newForm),

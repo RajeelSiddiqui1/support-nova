@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from lib.db import get_database
 from lib.auth import hash_password, verify_password, generate_temp_password, generate_otp
 from lib.email_service import EmailService
+from lib.rate_limiter import targeted_rate_limiter
 
 load_dotenv()
 
@@ -19,9 +20,15 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback")
-FRONTEND_CUSTOMER_DASHBOARD = "http://localhost:3000/customer/dashboard"
-FRONTEND_LOGIN_PAGE = "http://localhost:3000/login"
-FRONTEND_CHANGE_PASSWORD = "http://localhost:3000/auth/change-password"
+
+# Dynamic Frontend base URL (supports Vercel domain *.vercel.app or localhost)
+FRONTEND_BASE = os.getenv("FRONTEND_URL") or os.getenv("NEXTAUTH_URL") or "http://localhost:3000"
+if not FRONTEND_BASE.startswith("http"):
+    FRONTEND_BASE = f"https://{FRONTEND_BASE}"
+
+FRONTEND_CUSTOMER_DASHBOARD = f"{FRONTEND_BASE}/customer/dashboard"
+FRONTEND_LOGIN_PAGE = f"{FRONTEND_BASE}/login"
+FRONTEND_CHANGE_PASSWORD = f"{FRONTEND_BASE}/auth/change-password"
 
 class CheckEmailRequest(BaseModel):
     email: EmailStr
@@ -48,26 +55,82 @@ class ResetPasswordRequest(BaseModel):
     otp_code: str
     new_password: str
 
-# ── AWS-STYLE AUTH WITH TEMP PASSWORD EXPIRATION ──
+class ResetRateLimitRequest(BaseModel):
+    email: EmailStr
+
+# ── TARGETED RATE LIMITING UTILITIES ──
+
+@router.get("/rate-limit-status")
+async def get_rate_limit_status(email: str, request: Request):
+    """Checks the lockout status of a specific actor (IP + Email)."""
+    client_ip = targeted_rate_limiter.get_client_ip(request)
+    is_locked, remaining_secs = targeted_rate_limiter.check_lockout(client_ip, email)
+    return {
+        "client_ip": client_ip,
+        "email": email.lower().strip(),
+        "is_locked": is_locked,
+        "remaining_seconds": remaining_secs,
+        "remaining_minutes": round(remaining_secs / 60, 1)
+    }
+
+@router.post("/reset-rate-limit")
+async def reset_rate_limit(req: ResetRateLimitRequest, request: Request):
+    """Resets the 5-minute lockout for testing and development."""
+    client_ip = targeted_rate_limiter.get_client_ip(request)
+    unbanned_count = targeted_rate_limiter.manual_unban(req.email, client_ip)
+    return {
+        "success": True,
+        "message": f"Rate limit lockout reset for '{req.email}'.",
+        "client_ip": client_ip,
+        "records_cleared": unbanned_count
+    }
+
+# ── AWS-STYLE AUTH WITH TEMP PASSWORD EXPIRATION & TARGETED RATE LIMITING ──
 
 @router.post("/check-email")
-async def check_email(req: CheckEmailRequest):
+async def check_email(req: CheckEmailRequest, request: Request):
     """
     Step 1 of AWS-Style Auth: Checks user status before password entry.
-    If user status is MUST_CHANGE_PASSWORD or is_temp_password is True,
-    instructs the frontend to redirect immediately to /auth/change-password.
-    If system restarted or user returned later, entering email immediately detects pending temp password.
+    Protected by Targeted Actor Rate Limiter: If 5 bad attempts occur,
+    locks ONLY this (IP + Email) for 5 minutes without blocking other users on the IP.
     """
+    client_ip = targeted_rate_limiter.get_client_ip(request)
+
+    # 1. Check if this specific actor is currently in a 5-minute lockout
+    is_locked, remaining_secs = targeted_rate_limiter.check_lockout(client_ip, req.email)
+    if is_locked:
+        mins = int(remaining_secs // 60)
+        secs = remaining_secs % 60
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Security Lockout: Too many failed attempts for '{req.email}' from your connection. Please wait {mins}m {secs}s before trying again. Other accounts on this network remain unaffected.",
+            headers={"Retry-After": str(remaining_secs)}
+        )
+
     db = get_database()
     user = await db.users.find_one({"email": req.email.lower()})
 
     if not user:
+        failure_info = targeted_rate_limiter.record_failure(client_ip, req.email)
+        if failure_info["is_locked"]:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=failure_info["message"],
+                headers={"Retry-After": "300"}
+            )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Account not found with this email address."
+            detail=f"Account not found with this email address. ({failure_info['attempts_left']} attempts remaining before 5-minute lockout)"
         )
 
-    # Check if account is inactive
+    # 2. Block Customer accounts from Email/Password login
+    if user.get("role", "").upper() == "CUSTOMER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access Restricted: Customer accounts cannot log in using Email & Password. Please use 'Continue with Google'."
+        )
+
+    # 3. Check if account is inactive
     if user.get("status") == "INACTIVE":
         reason = user.get("deactivation_reason", "Account deactivated by Administrator.")
         raise HTTPException(
@@ -84,7 +147,7 @@ async def check_email(req: CheckEmailRequest):
     return {
         "email": user["email"],
         "name": user["name"],
-        "role": user.get("role", "CUSTOMER"),
+        "role": user.get("role", "AGENT"),
         "status": user.get("status", "ACTIVE"),
         "deactivation_reason": user.get("deactivation_reason"),
         "must_change_password": must_change,
@@ -92,16 +155,48 @@ async def check_email(req: CheckEmailRequest):
     }
 
 @router.post("/login")
-async def login(req: LoginRequest):
+async def login(req: LoginRequest, request: Request):
     """
     Step 2 of AWS-Style Auth: Validates password.
-    If temporary password used, invalidates temp password and forces immediate password reset flow.
+    Protected by Targeted Actor Rate Limiter:
+    - 5 bad password attempts locks this specific (IP + Email) pair for 5 minutes.
+    - Other users / staff on the same IP / localhost remain fully capable of logging in.
     """
+    client_ip = targeted_rate_limiter.get_client_ip(request)
+
+    # 1. Check if this specific actor is currently in a 5-minute lockout
+    is_locked, remaining_secs = targeted_rate_limiter.check_lockout(client_ip, req.email)
+    if is_locked:
+        mins = int(remaining_secs // 60)
+        secs = remaining_secs % 60
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Security Lockout: Too many failed login attempts for '{req.email}'. Please try again in {mins}m {secs}s. Other accounts on this connection remain unaffected.",
+            headers={"Retry-After": str(remaining_secs)}
+        )
+
     db = get_database()
     user = await db.users.find_one({"email": req.email.lower()})
 
     if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
+        failure_info = targeted_rate_limiter.record_failure(client_ip, req.email)
+        if failure_info["is_locked"]:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=failure_info["message"],
+                headers={"Retry-After": "300"}
+            )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User not found. ({failure_info['attempts_left']} attempts remaining before 5-minute lockout)"
+        )
+
+    # Block Customer accounts from Email/Password login
+    if user.get("role", "").upper() == "CUSTOMER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access Restricted: Customer accounts cannot log in using Email & Password. Please use 'Continue with Google'."
+        )
 
     if user.get("status") == "INACTIVE":
         reason = user.get("deactivation_reason", "Account suspended by Administrator.")
@@ -109,7 +204,20 @@ async def login(req: LoginRequest):
 
     # Verify password
     if not user.get("hashed_password") or not verify_password(req.password, user["hashed_password"]):
-        raise HTTPException(status_code=401, detail="Invalid password. Please check your credentials.")
+        failure_info = targeted_rate_limiter.record_failure(client_ip, req.email)
+        if failure_info["is_locked"]:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=failure_info["message"],
+                headers={"Retry-After": "300"}
+            )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid password. Please check your credentials. ({failure_info['attempts_left']} attempts remaining before 5-minute lockout)"
+        )
+
+    # Password verified successfully! Reset failed attempts for this (IP, email) actor
+    targeted_rate_limiter.reset_failures(client_ip, req.email)
 
     # Check if this was a temporary password
     must_change = (
@@ -200,6 +308,16 @@ async def google_auth_callback(code: Optional[str] = None, error: Optional[str] 
 
         db = get_database()
         user = await db.users.find_one({"email": verified_email})
+
+        # Disallow Staff roles (ADMIN, MANAGER, REVIEWER, AGENT) from Google Login
+        if user and user.get("role", "").upper() in ["ADMIN", "MANAGER", "REVIEWER", "AGENT"]:
+            role_label = user.get("role", "Staff").capitalize()
+            error_reason = urllib.parse.quote(
+                f"Access Denied: {role_label} accounts are not allowed to log in via Google. Please sign in using your staff Email & Password."
+            )
+            return RedirectResponse(
+                url=f"{FRONTEND_LOGIN_PAGE}?error=staff_google_denied&role={user.get('role')}&reason={error_reason}"
+            )
 
         if not user:
             new_user = {

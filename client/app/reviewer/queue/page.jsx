@@ -6,8 +6,9 @@ import StatCard from '../../components/StatCard'
 import {
   Scale, ShieldAlert, CheckCircle, AlertTriangle, Zap, XCircle,
   User, UserX, UserCheck, ArrowRightLeft, RefreshCw, FileText, Mail, History,
-  Clock, ExternalLink, Eye, ShieldCheck, Check, AlertCircle, Info, X
+  Clock, ExternalLink, Eye, ShieldCheck, Check, AlertCircle, Info, X, Radio
 } from 'lucide-react'
+import { useRealtimeRefresh } from '../../lib/useWebSocket'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -42,6 +43,7 @@ export default function ReviewerQueue() {
 
   // Revoke & Reassign Modal State
   const [showRevokeModal, setShowRevoke]   = useState(false)
+  const [revokeMode, setRevokeMode]       = useState('reassign') // 'reassign' or 'pool'
   const [deptAgents, setDeptAgents]       = useState([])
   const [newAgentId, setNewAgentId]       = useState('')
   const [revokeReason, setRevokeReason]   = useState('')
@@ -57,6 +59,13 @@ export default function ReviewerQueue() {
       fetchDepartmentActivity()
     }
   }, [currentManager])
+
+  // Live WebSocket Real-Time Synchronization (Zero-Reload)
+  const { isConnected: isLiveWs } = useRealtimeRefresh(() => {
+    if (currentManager) {
+      fetchDepartmentActivity()
+    }
+  })
 
   const fetchManagers = async () => {
     try {
@@ -150,8 +159,9 @@ export default function ReviewerQueue() {
     }
   }
 
-  const openRevokeModal = async () => {
+  const openRevokeModal = async (mode = 'reassign') => {
     if (!selectedTicket || !currentManager) return
+    setRevokeMode(mode)
     setShowRevoke(true)
     setRevokeReason('')
     setNewAgentId('')
@@ -172,35 +182,64 @@ export default function ReviewerQueue() {
 
   const handleRevokeSubmit = async (e) => {
     e.preventDefault()
-    if (!selectedTicket || !newAgentId || !revokeReason.trim()) {
-      alert('Please fill out all required fields, including the mandatory removal reason.')
+    if (!selectedTicket || !revokeReason.trim()) {
+      alert('Please provide the mandatory removal / policy violation reason.')
+      return
+    }
+
+    if (revokeMode === 'reassign' && !newAgentId) {
+      alert('Please select a replacement agent from the department.')
       return
     }
 
     setRevokeLoad(true)
     try {
-      const res = await fetch(`${API_BASE}/api/tickets/${selectedTicket.ticket_id}/reassign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          new_agent_id: newAgentId,
-          reassigned_by_id: currentManager.user_id,
-          reassigned_by_name: currentManager.name,
-          reassigned_by_role: 'MANAGER',
-          reason: revokeReason.trim()
+      if (revokeMode === 'pool') {
+        const res = await fetch(`${API_BASE}/api/tickets/${selectedTicket.ticket_id}/release-to-pool`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            manager_id: currentManager.user_id,
+            manager_name: currentManager.name,
+            manager_role: 'MANAGER',
+            reason: revokeReason.trim()
+          })
         })
-      })
 
-      const data = await res.json()
-      if (!res.ok) {
-        alert(data.detail || 'Failed to revoke and reassign ticket.')
-        setRevokeLoad(false)
-        return
+        const data = await res.json()
+        if (!res.ok) {
+          alert(data.detail || 'Failed to release ticket to open pool.')
+          setRevokeLoad(false)
+          return
+        }
+
+        setShowRevoke(false)
+        setActionAlert(`⚡ Access Revoked from ${selectedTicket.assigned_agent || 'agent'} & Ticket Released to Open Pool! Agent is permanently blocked from re-claiming.`)
+        fetchDepartmentActivity()
+      } else {
+        const res = await fetch(`${API_BASE}/api/tickets/${selectedTicket.ticket_id}/reassign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            new_agent_id: newAgentId,
+            reassigned_by_id: currentManager.user_id,
+            reassigned_by_name: currentManager.name,
+            reassigned_by_role: 'MANAGER',
+            reason: revokeReason.trim()
+          })
+        })
+
+        const data = await res.json()
+        if (!res.ok) {
+          alert(data.detail || 'Failed to revoke and reassign ticket.')
+          setRevokeLoad(false)
+          return
+        }
+
+        setShowRevoke(false)
+        setActionAlert(`✅ Access Revoked from ${selectedTicket.assigned_agent || 'previous agent'} & Reassigned! Notification emails dispatched to both agents.`)
+        fetchDepartmentActivity()
       }
-
-      setShowRevoke(false)
-      setActionAlert(`✅ Access Revoked from ${selectedTicket.assigned_agent || 'previous agent'} & Reassigned! Notification emails dispatched to both agents.`)
-      fetchDepartmentActivity()
     } catch (err) {
       alert('Error communicating with backend.')
     } finally {
@@ -238,8 +277,37 @@ export default function ReviewerQueue() {
             <p style={{ fontSize: 11, color: '#64748B', margin: '2px 0 0' }}>Real-time agent monitoring, policy violation audit, and access revocation</p>
           </div>
 
-          {/* Logged-In Manager Profile Display */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#F8FAFC', padding: '6px 14px', borderRadius: 10, border: '1.5px solid #E2E8F0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Live WebSocket Status Indicator */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '4px 10px',
+                borderRadius: 99,
+                background: isLiveWs ? '#ECFDF5' : '#FFFBEB',
+                border: isLiveWs ? '1px solid #A7F3D0' : '1px solid #FDE68A',
+                fontSize: 10.5,
+                fontWeight: 700,
+                color: isLiveWs ? '#059669' : '#D97706',
+              }}
+              title={isLiveWs ? "Connected to Real-time WebSocket: Updates stream instantly without page reload" : "Reconnecting to WebSocket..."}
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: isLiveWs ? '#059669' : '#D97706',
+                  boxShadow: isLiveWs ? '0 0 8px #10B981' : undefined
+                }}
+              />
+              {isLiveWs ? 'Live Sync Active' : 'Connecting...'}
+            </div>
+
+            {/* Logged-In Manager Profile Display */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#F8FAFC', padding: '6px 14px', borderRadius: 10, border: '1.5px solid #E2E8F0' }}>
             <UserCheck size={16} color="#7C3AED" />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: '#0F172A' }}>
@@ -254,6 +322,7 @@ export default function ReviewerQueue() {
             </span>
           </div>
         </div>
+      </div>
 
         {/* Action Confirmation Banner */}
         {actionAlert && (
@@ -266,20 +335,52 @@ export default function ReviewerQueue() {
         {/* Revoke Access & Reassign Modal */}
         {showRevokeModal && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div className="animate-scale-in" style={{ ...glass, maxWidth: 520, width: '100%', padding: 24, background: '#FFF' }}>
+            <div className="animate-scale-in" style={{ ...glass, maxWidth: 540, width: '100%', padding: 24, background: '#FFF' }}>
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#DC2626' }}>
-                    <UserX size={20} />
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: revokeMode === 'pool' ? '#FEF3C7' : '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: revokeMode === 'pool' ? '#D97706' : '#DC2626' }}>
+                    {revokeMode === 'pool' ? <Zap size={20} /> : <UserX size={20} />}
                   </div>
                   <div>
-                    <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', margin: 0 }}>Revoke Access & Reassign Ticket</h3>
+                    <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                      {revokeMode === 'pool' ? 'Revoke Access & Release to Open Pool' : 'Revoke Access & Reassign Ticket'}
+                    </h3>
                     <p style={{ fontSize: 11, color: '#64748B', margin: '2px 0 0' }}>Ticket: <strong>[{selectedTicket?.ticket_id}]</strong></p>
                   </div>
                 </div>
                 <button onClick={() => setShowRevoke(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
                   <X size={18} />
+                </button>
+              </div>
+
+              {/* Mode Switcher Tabs */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 14, background: '#F1F5F9', padding: 4, borderRadius: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setRevokeMode('reassign')}
+                  style={{
+                    flex: 1, padding: '7px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                    border: 'none',
+                    background: revokeMode === 'reassign' ? '#FFF' : 'transparent',
+                    color: revokeMode === 'reassign' ? '#7C3AED' : '#64748B',
+                    boxShadow: revokeMode === 'reassign' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
+                  }}
+                >
+                  🔄 Reassign to Specific Agent
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRevokeMode('pool')}
+                  style={{
+                    flex: 1, padding: '7px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                    border: 'none',
+                    background: revokeMode === 'pool' ? '#FFF' : 'transparent',
+                    color: revokeMode === 'pool' ? '#D97706' : '#64748B',
+                    boxShadow: revokeMode === 'pool' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
+                  }}
+                >
+                  ⚡ Release to Open Pool (Remove Agent)
                 </button>
               </div>
 
@@ -289,30 +390,43 @@ export default function ReviewerQueue() {
                   Agent to be Removed: {selectedTicket?.assigned_agent || 'Unassigned'} ({selectedTicket?.assigned_agent_email || 'No email'})
                 </p>
                 <p style={{ margin: '3px 0 0', fontSize: 11, color: '#B91C1C' }}>
-                  ⚠️ This agent's edit & reply access to this ticket will be strictly terminated. The ticket will remain in their read-only audit archive.
+                  ⚠️ This agent's edit & reply access to this ticket will be strictly terminated. They will be permanently barred from claiming or modifying this ticket.
                 </p>
               </div>
 
-              <form onSubmit={handleRevokeSubmit}>
-                {/* Replacement Agent Selection */}
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 5 }}>
-                    Select Replacement Agent in {currentManager?.department} *
-                  </label>
-                  <select
-                    required
-                    value={newAgentId}
-                    onChange={e => setNewAgentId(e.target.value)}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 12.5, outline: 'none', cursor: 'pointer' }}
-                  >
-                    <option value="">-- Choose New Assignee --</option>
-                    {deptAgents.filter(a => a.user_id !== selectedTicket?.assigned_agent_id).map(a => (
-                      <option key={a.user_id} value={a.user_id}>
-                        {a.name} ({a.email})
-                      </option>
-                    ))}
-                  </select>
+              {revokeMode === 'pool' && (
+                <div style={{ background: '#FFFBEB', borderLeft: '4px solid #F59E0B', padding: '10px 14px', borderRadius: 6, marginBottom: 14 }}>
+                  <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: '#92400E' }}>
+                    ⚡ Open Department Pool (50+ Agents Queue):
+                  </p>
+                  <p style={{ margin: '3px 0 0', fontSize: 11, color: '#78350F', lineHeight: 1.4 }}>
+                    The ticket will return to <strong>'In Triage'</strong> in the unassigned pool. Any other active agent in {currentManager?.department} can claim it on first response. The removed agent is permanently locked out.
+                  </p>
                 </div>
+              )}
+
+              <form onSubmit={handleRevokeSubmit}>
+                {/* Replacement Agent Selection (Only for Reassign mode) */}
+                {revokeMode === 'reassign' && (
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: 5 }}>
+                      Select Replacement Agent in {currentManager?.department} *
+                    </label>
+                    <select
+                      required
+                      value={newAgentId}
+                      onChange={e => setNewAgentId(e.target.value)}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #CBD5E1', fontSize: 12.5, outline: 'none', cursor: 'pointer' }}
+                    >
+                      <option value="">-- Choose New Assignee --</option>
+                      {deptAgents.filter(a => a.user_id !== selectedTicket?.assigned_agent_id).map(a => (
+                        <option key={a.user_id} value={a.user_id}>
+                          {a.name} ({a.email})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Mandatory Reason for Revocation */}
                 <div style={{ marginBottom: 14 }}>
@@ -334,15 +448,15 @@ export default function ReviewerQueue() {
 
                 {/* Email dispatch notice */}
                 <div style={{ background: '#EFF6FF', padding: 10, borderRadius: 8, fontSize: 11, color: '#1E40AF', marginBottom: 16 }}>
-                  📧 <strong>Automated Dual Emails:</strong> Both the removed agent and the newly appointed agent will receive immediate email notifications.
+                  📧 <strong>Automated Notifications:</strong> {revokeMode === 'pool' ? 'The removed agent will receive an immediate email stating the removal reason.' : 'Both the removed agent and the newly appointed agent will receive immediate email notifications.'}
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                   <button type="button" onClick={() => setShowRevoke(false)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #CBD5E1', background: 'transparent', color: '#64748B', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                     Cancel
                   </button>
-                  <button type="submit" disabled={revokeLoading} style={{ padding: '8px 18px', borderRadius: 8, background: '#DC2626', color: 'white', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {revokeLoading ? <RefreshCw size={13} className="spin" /> : 'Confirm Revocation & Reassign'}
+                  <button type="submit" disabled={revokeLoading} style={{ padding: '8px 18px', borderRadius: 8, background: revokeMode === 'pool' ? '#D97706' : '#DC2626', color: 'white', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {revokeLoading ? <RefreshCw size={13} className="spin" /> : (revokeMode === 'pool' ? 'Confirm Removal & Release to Pool' : 'Confirm Revocation & Reassign')}
                   </button>
                 </div>
               </form>
@@ -485,17 +599,36 @@ export default function ReviewerQueue() {
                     <p style={{ fontSize: 11.5, color: '#64748B', margin: '3px 0 0' }}>Customer: <strong>{selectedTicket.customer_name || 'Customer'}</strong> ({selectedTicket.customer_email || '—'})</p>
                   </div>
 
-                  {/* Revoke & Reassign Action Button */}
-                  <button
-                    onClick={openRevokeModal}
-                    style={{
-                      padding: '8px 14px', borderRadius: 9, fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                      background: '#DC2626', color: '#FFF', border: 'none', display: 'flex', alignItems: 'center', gap: 6,
-                      boxShadow: '0 2px 10px rgba(220,38,38,0.25)'
-                    }}
-                  >
-                    <UserX size={14} /> Revoke Access & Reassign
-                  </button>
+                  {/* Action Buttons: Release to Open Pool & Revoke/Reassign */}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button
+                      onClick={() => openRevokeModal('pool')}
+                      disabled={!selectedTicket.assigned_agent_id}
+                      style={{
+                        padding: '8px 12px', borderRadius: 9, fontSize: 12, fontWeight: 700,
+                        cursor: selectedTicket.assigned_agent_id ? 'pointer' : 'not-allowed',
+                        background: selectedTicket.assigned_agent_id ? '#FFFBEB' : '#F1F5F9',
+                        color: selectedTicket.assigned_agent_id ? '#D97706' : '#94A3B8',
+                        border: selectedTicket.assigned_agent_id ? '1.5px solid #FCD34D' : '1px solid #CBD5E1',
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        opacity: selectedTicket.assigned_agent_id ? 1 : 0.6
+                      }}
+                      title={selectedTicket.assigned_agent_id ? "Remove agent and return ticket to open department pool" : "Ticket is already unassigned"}
+                    >
+                      <Zap size={14} /> Release to Open Pool
+                    </button>
+
+                    <button
+                      onClick={() => openRevokeModal('reassign')}
+                      style={{
+                        padding: '8px 14px', borderRadius: 9, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                        background: '#DC2626', color: '#FFF', border: 'none', display: 'flex', alignItems: 'center', gap: 6,
+                        boxShadow: '0 2px 10px rgba(220,38,38,0.25)'
+                      }}
+                    >
+                      <UserX size={14} /> Revoke & Reassign
+                    </button>
+                  </div>
                 </div>
 
                 {/* 1. AGENT WORKING ACTIVITY & ACTIONS TAKEN */}

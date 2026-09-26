@@ -17,6 +17,14 @@ router = APIRouter(prefix="/api/tickets", tags=["Ticket & Complaint Intelligence
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "complaints")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+def clean_quotes_py(val: Optional[str], default: str = "") -> str:
+    if not val:
+        return default
+    s = str(val).strip()
+    while (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+        s = s[1:-1].strip()
+    return s if s else default
+
 class TicketSubmission(BaseModel):
     title: str
     description: str
@@ -58,6 +66,12 @@ class ReassignTicketRequest(BaseModel):
     reassigned_by_name: Optional[str] = "Manager"
     reassigned_by_role: Optional[str] = "MANAGER"  # MANAGER or ADMIN
     reason: Optional[str] = "Manager workload rebalancing"
+
+class ReleaseToPoolRequest(BaseModel):
+    manager_id: Optional[str] = None
+    manager_name: Optional[str] = "Manager"
+    manager_role: Optional[str] = "MANAGER"  # MANAGER or ADMIN
+    reason: str  # Mandatory reason for removing agent & releasing ticket to pool
 
 class ChangeDepartmentRequest(BaseModel):
     new_department_id: str
@@ -191,6 +205,26 @@ def evaluate_policy_compliance(ticket: dict) -> dict:
         if "evidence" in m_lower and not any(k in combined_text for k in ["evidence", "photo", "document", "verified", "attached"]):
             warnings.append(f"Missing documentation: {m}")
 
+    # 5. Routing Discrepancy & Department Mismatch check (SRS Step 57)
+    cust_dept = (ticket.get("customer_department") or ticket.get("department") or "").strip()
+    rec_dept = (ticket.get("recommended_department") or (ticket.get("genai_output") or {}).get("department") or "").strip()
+    if ticket.get("department_mismatch") or (cust_dept and rec_dept and cust_dept.lower() != rec_dept.lower()):
+        warnings.append(f"Routing Discrepancy: Ticket was routed to '{cust_dept}' but Ground-Truth recommends '{rec_dept}'. Supervisor review advised.")
+
+    # 6. SLA Risk Check (SRS Step lx)
+    priority = ticket.get("priority", "P2")
+    created_at = ticket.get("created_at")
+    if priority == "P0" and ticket.get("status") not in ["Resolved", "Closed"] and created_at:
+        try:
+            if isinstance(created_at, str):
+                c_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            else:
+                c_dt = created_at
+            if (datetime.utcnow() - c_dt.replace(tzinfo=None)).total_seconds() > 14400:  # >4 hours
+                warnings.append("SLA Risk Flag: Critical P0 ticket open > 4 hours without resolution.")
+        except Exception:
+            pass
+
     status = "COMPLIANT"
     if violations:
         status = "VIOLATION"
@@ -207,7 +241,7 @@ def evaluate_policy_compliance(ticket: dict) -> dict:
         "prohibited_actions": prohibited_actions,
         "escalation_required": escalation_required,
         "refund_eligible": refund_eligible,
-        "policy_reference": python_out.get("policy_reference", "SupportNova Resolution Guidelines v1.0")
+        "policy_reference": python_out.get("policy_reference", "NovaWear Apparel Resolution Guidelines v1.0")
     }
 
 @router.get("/department/agent-activity")
@@ -287,6 +321,7 @@ async def get_ticket(ticket_id: str):
         raise HTTPException(status_code=404, detail="Complaint ticket not found.")
 
     ticket["_id"] = str(ticket["_id"])
+    ticket["policy_compliance"] = evaluate_policy_compliance(ticket)
     return ticket
 
 @router.post("/submit")
@@ -335,12 +370,12 @@ async def submit_complaint(data: TicketSubmission):
 
     if customer:
         customer_id = customer.get("user_id", f"USR-{int(datetime.utcnow().timestamp())}")
-        customer_name = customer.get("name", data.customer_name or "Valued Customer")
-        customer_email = customer.get("email", data.customer_email)
+        customer_name = clean_quotes_py(customer.get("name"), clean_quotes_py(data.customer_name, "Valued Customer"))
+        customer_email = clean_quotes_py(customer.get("email"), clean_quotes_py(str(data.customer_email), "customer@gmail.com"))
     else:
-        customer_id = f"USR-{int(datetime.utcnow().timestamp())}"
-        customer_name = data.customer_name or "Valued Customer"
-        customer_email = data.customer_email or "customer@company.com"
+        customer_id = clean_quotes_py(data.customer_id, f"USR-{int(datetime.utcnow().timestamp())}")
+        customer_name = clean_quotes_py(data.customer_name, "Valued Customer")
+        customer_email = clean_quotes_py(str(data.customer_email) if data.customer_email else "", "customer@company.com")
 
     ticket_id = f"CMP-{int(datetime.utcnow().timestamp())}"
 
@@ -435,6 +470,14 @@ async def submit_complaint(data: TicketSubmission):
     await db.tickets.insert_one(new_ticket)
     new_ticket["_id"] = str(new_ticket["_id"])
 
+    # Broadcast real-time WebSocket event
+    try:
+        from lib.websocket_manager import ws_manager
+        await ws_manager.notify_ticket_created(new_ticket)
+        await ws_manager.notify_agent_workload_change()
+    except Exception as wse:
+        print(f"[WS ERROR] {wse}")
+
     # Send Confirmation Email to Customer
     EmailService.send_ticket_created_notification(
         to_email=data.customer_email,
@@ -475,12 +518,12 @@ async def submit_chat_complaint(data: ChatSubmission):
 
     if customer:
         customer_id = customer.get("user_id", f"USR-{int(datetime.utcnow().timestamp())}")
-        customer_name = customer.get("name", data.customer_name or "Valued Customer")
-        customer_email = customer.get("email", data.customer_email)
+        customer_name = clean_quotes_py(customer.get("name"), clean_quotes_py(data.customer_name, "Valued Customer"))
+        customer_email = clean_quotes_py(customer.get("email"), clean_quotes_py(str(data.customer_email), "customer@gmail.com"))
     else:
-        customer_id = data.customer_id or f"USR-{int(datetime.utcnow().timestamp())}"
-        customer_name = data.customer_name or "Valued Customer"
-        customer_email = str(data.customer_email) if data.customer_email else "customer@company.com"
+        customer_id = clean_quotes_py(data.customer_id, f"USR-{int(datetime.utcnow().timestamp())}")
+        customer_name = clean_quotes_py(data.customer_name, "Valued Customer")
+        customer_email = clean_quotes_py(str(data.customer_email) if data.customer_email else "", "customer@company.com")
 
     ticket_id = f"CMP-{int(datetime.utcnow().timestamp())}"
 
@@ -592,6 +635,14 @@ async def submit_chat_complaint(data: ChatSubmission):
     await db.tickets.insert_one(new_ticket)
     new_ticket["_id"] = str(new_ticket["_id"])
 
+    # Broadcast real-time WebSocket event
+    try:
+        from lib.websocket_manager import ws_manager
+        await ws_manager.notify_ticket_created(new_ticket)
+        await ws_manager.notify_agent_workload_change()
+    except Exception as wse:
+        print(f"[WS ERROR] {wse}")
+
     # Send Confirmation Email to Customer
     if customer_email:
         EmailService.send_ticket_created_notification(
@@ -644,12 +695,12 @@ async def update_ticket_status(ticket_id: str, req: StatusUpdateRequest):
     # Access Revocation & Assigned Agent Authorization
     if acting_agent_id:
         revoked_ids = ticket.get("revoked_agent_ids", [])
-        if acting_agent_id in revoked_ids and acting_agent_id != current_assigned:
+        if acting_agent_id in revoked_ids:
             rev_entry = next((r for r in ticket.get("revoked_agents", []) if r.get("agent_id") == acting_agent_id), None)
             rev_reason = rev_entry.get("reason", "policy non-compliance") if rev_entry else "policy non-compliance"
             raise HTTPException(
                 status_code=403,
-                detail=f"Access Revoked: Your access to ticket {ticket_id} was revoked by your manager (Reason: {rev_reason}). This ticket is now in read-only audit mode for you."
+                detail=f"Access Revoked: Your access to ticket {ticket_id} was revoked by your manager (Reason: {rev_reason}). You cannot claim, update, or resolve this ticket."
             )
         if current_assigned and acting_agent_id != current_assigned:
             user_doc = await db.users.find_one({"user_id": acting_agent_id})
@@ -852,9 +903,163 @@ async def reassign_ticket(ticket_id: str, req: ReassignTicketRequest):
     updated_ticket = await db.tickets.find_one({"ticket_id": ticket_id})
     updated_ticket["_id"] = str(updated_ticket["_id"])
 
+    # Broadcast real-time WebSocket event
+    try:
+        from lib.websocket_manager import ws_manager
+        await ws_manager.notify_ticket_reassigned(
+            ticket_id=ticket_id,
+            old_agent_id=prev_agent_id,
+            new_agent_id=new_agent["user_id"],
+            reason=req.reason or "Manager reassignment"
+        )
+        await ws_manager.notify_agent_workload_change()
+    except Exception as wse:
+        print(f"[WS ERROR] {wse}")
+
     return {
         "status": "success",
         "message": f"Ticket {ticket_id} reassigned to {new_agent['name']}. Email notifications dispatched.",
+        "ticket": updated_ticket
+    }
+
+@router.post("/{ticket_id}/release-to-pool")
+async def release_ticket_to_pool(ticket_id: str, req: ReleaseToPoolRequest):
+    """
+    Manager or Admin revokes the current agent assignment and returns the ticket to the
+    unassigned department pool ('In Triage').
+    - Current agent is added to `revoked_agent_ids` and permanently barred from re-claiming.
+    - Full audit record created in `revoked_agents` and `assigned_agent_history`.
+    - Automated notification email dispatched to the revoked agent with the reason.
+    - Any other active agent in the department can claim the ticket on their first response.
+    """
+    db = get_database()
+    ticket = await db.tickets.find_one({"ticket_id": ticket_id})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Complaint ticket not found.")
+
+    caller_role = (req.manager_role or "MANAGER").strip().upper()
+    if caller_role not in ["MANAGER", "ADMIN"]:
+        raise HTTPException(status_code=403, detail="Only Managers and Admins can revoke assignments and release tickets to pool.")
+
+    # Department boundary validation for Manager
+    if caller_role == "MANAGER" and req.manager_id:
+        mgr = await db.users.find_one({"user_id": req.manager_id.strip()})
+        if mgr and mgr.get("role", "").upper() == "MANAGER":
+            mgr_dept_id = mgr.get("department_id")
+            mgr_dept_name = (mgr.get("department") or "").strip().lower()
+            ticket_dept_id = ticket.get("department_id")
+            ticket_dept_name = (ticket.get("department") or "").strip().lower()
+
+            dept_matches = False
+            if mgr_dept_id and ticket_dept_id and mgr_dept_id == ticket_dept_id:
+                dept_matches = True
+            elif mgr_dept_name and ticket_dept_name and mgr_dept_name == ticket_dept_name:
+                dept_matches = True
+            elif not ticket_dept_id and not ticket_dept_name:
+                dept_matches = True
+
+            if not dept_matches:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Managers can only release tickets within their own department ({mgr.get('department')})."
+                )
+
+    prev_agent_id = ticket.get("assigned_agent_id")
+    prev_agent_name = ticket.get("assigned_agent") or "Assigned Agent"
+    prev_agent_email = ticket.get("assigned_agent_email")
+
+    if prev_agent_id and (not prev_agent_email or prev_agent_name == "Assigned Agent"):
+        prev_user = await db.users.find_one({"user_id": prev_agent_id})
+        if prev_user:
+            prev_agent_name = prev_user.get("name", prev_agent_name)
+            prev_agent_email = prev_user.get("email", prev_agent_email)
+
+    reason_text = req.reason.strip() if req.reason else "Manager removed agent and released ticket to pool"
+
+    revocation_entry = None
+    if prev_agent_id:
+        revocation_entry = {
+            "agent_id": prev_agent_id,
+            "agent_name": prev_agent_name,
+            "name": prev_agent_name,
+            "agent_email": prev_agent_email,
+            "revoked_by_id": req.manager_id,
+            "revoked_by_name": req.manager_name or "Department Manager",
+            "revoked_by_role": caller_role,
+            "reason": reason_text,
+            "action": "REVOKED_AND_RELEASED_TO_POOL",
+            "revoked_at": datetime.utcnow().isoformat()
+        }
+
+    pool_audit = {
+        "agent_id": None,
+        "agent_name": "Unassigned Pool",
+        "previous_agent_id": prev_agent_id,
+        "previous_agent_name": prev_agent_name,
+        "action": "REVOKED_AND_RELEASED_TO_POOL",
+        "reassigned_by_id": req.manager_id,
+        "reassigned_by_name": req.manager_name or "Department Manager",
+        "reassigned_by_role": caller_role,
+        "reason": reason_text,
+        "access_revoked": bool(prev_agent_id),
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+    update_fields = {
+        "assigned_agent_id": None,
+        "assignedAgentId": None,
+        "assigned_agent": None,
+        "assigned_agent_email": None,
+        "status": "In Triage",
+        "updated_at": datetime.utcnow()
+    }
+
+    push_payload = {
+        "assigned_agent_history": pool_audit,
+        "assignedAgentHistory": pool_audit
+    }
+    if revocation_entry:
+        push_payload["revoked_agents"] = revocation_entry
+
+    mongo_update = {
+        "$set": update_fields,
+        "$push": push_payload
+    }
+    if prev_agent_id:
+        mongo_update["$addToSet"] = {"revoked_agent_ids": prev_agent_id}
+
+    await db.tickets.update_one({"ticket_id": ticket_id}, mongo_update)
+
+    # Automated email notification to the removed agent
+    if prev_agent_email:
+        EmailService.send_ticket_released_to_pool_notification(
+            to_email=prev_agent_email,
+            agent_name=prev_agent_name,
+            ticket_id=ticket_id,
+            title=ticket.get("title", "Complaint Ticket"),
+            reason=reason_text,
+            manager_name=req.manager_name or "Department Manager"
+        )
+
+    updated_ticket = await db.tickets.find_one({"ticket_id": ticket_id})
+    updated_ticket["_id"] = str(updated_ticket["_id"])
+
+    # Broadcast real-time WebSocket event
+    try:
+        from lib.websocket_manager import ws_manager
+        await ws_manager.notify_ticket_reassigned(
+            ticket_id=ticket_id,
+            old_agent_id=prev_agent_id,
+            new_agent_id=None,
+            reason=reason_text
+        )
+        await ws_manager.notify_agent_workload_change()
+    except Exception as wse:
+        print(f"[WS ERROR] {wse}")
+
+    return {
+        "status": "success",
+        "message": f"Ticket {ticket_id} released to unassigned pool. Agent {prev_agent_name} removed and permanently blocked from re-claiming.",
         "ticket": updated_ticket
     }
 
@@ -960,12 +1165,62 @@ class EmailReplyRequest(BaseModel):
     agent_name: Optional[str] = None
     agent_email: Optional[str] = None
 
+@router.post("/sync-latest-email")
+async def trigger_sync_latest_email():
+    """
+    30-Second Poller Endpoint:
+    Fetches the single latest customer email from IMAP mailbox.
+    Uses multi-tier UID and Message-ID deduplication so that if no new email arrived,
+    it returns 'no_new_email' without re-processing old emails or creating duplicate tickets.
+    """
+    from email_ingestion import fetch_latest_email_ticket
+    return await fetch_latest_email_ticket()
+
+@router.get("/email-sync-status")
+async def get_email_sync_status():
+    """Returns the latest email sync state and watermark from MongoDB."""
+    db = get_database()
+    sync_doc = await db.email_sync_state.find_one({"_id": "mailbox_sync_watermark"})
+    total_email_tickets = await db.tickets.count_documents({"channel": {"$regex": "^email$", "$options": "i"}})
+    total_processed_logs = await db.processed_emails.count_documents({})
+    if sync_doc and "_id" in sync_doc:
+        sync_doc["_id"] = str(sync_doc["_id"])
+    return {
+        "sync_state": sync_doc or {},
+        "total_email_tickets": total_email_tickets,
+        "total_processed_emails_logged": total_processed_logs
+    }
+
 @router.post("/fetch-emails")
 async def trigger_fetch_emails():
     """Trigger fetching incoming emails from IMAP INBOX & create/update tickets in DB."""
     from email_ingestion import fetch_and_create_email_tickets
     res = await fetch_and_create_email_tickets(only_recent_days=14)
     return res
+
+@router.post("/upload-attachment")
+async def upload_ticket_attachment(file: UploadFile = File(...)):
+    """
+    Upload customer complaint attachment (receipt, screenshot, PDF) directly to AWS S3 bucket.
+    Returns persistent S3 URL for inclusion in the ticket submission.
+    """
+    import re
+    from lib.s3_service import s3_service
+    file_bytes = await file.read()
+    orig_name = file.filename or f"attachment_{int(datetime.utcnow().timestamp())}.dat"
+    clean_name = re.sub(r"[^a-zA-Z0-9_.-]", "_", orig_name)
+    s3_key = f"complaints/{int(datetime.utcnow().timestamp())}_{clean_name}"
+
+    upload_res = s3_service.upload_file_bytes(file_bytes, s3_key, file.content_type)
+
+    return {
+        "status": "success",
+        "filename": orig_name,
+        "url": upload_res["url"],
+        "s3_key": upload_res["s3_key"],
+        "storage": upload_res["storage"],
+        "size_kb": upload_res["file_size_kb"]
+    }
 
 @router.post("/{ticket_id}/reply-email")
 async def dispatch_email_reply(ticket_id: str, req: EmailReplyRequest):
@@ -1001,12 +1256,12 @@ async def dispatch_email_reply(ticket_id: str, req: EmailReplyRequest):
     # Access Revocation & Assigned Agent Authorization for Email Replies
     if acting_agent_id:
         revoked_ids = ticket.get("revoked_agent_ids", [])
-        if acting_agent_id in revoked_ids and acting_agent_id != current_assigned:
+        if acting_agent_id in revoked_ids:
             rev_entry = next((r for r in ticket.get("revoked_agents", []) if r.get("agent_id") == acting_agent_id), None)
             rev_reason = rev_entry.get("reason", "policy non-compliance") if rev_entry else "policy non-compliance"
             raise HTTPException(
                 status_code=403,
-                detail=f"Access Revoked: Your access to ticket {ticket_id} was revoked by your manager (Reason: {rev_reason}). You cannot send email replies on this ticket."
+                detail=f"Access Revoked: Your access to ticket {ticket_id} was revoked by your manager (Reason: {rev_reason}). You cannot send email replies or claim this ticket."
             )
         if current_assigned and acting_agent_id != current_assigned:
             user_doc = await db.users.find_one({"user_id": acting_agent_id})

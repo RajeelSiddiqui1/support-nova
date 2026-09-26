@@ -156,7 +156,7 @@ export default function Sidebar({ role = 'customer', userName, userEmail }) {
             <Zap size={17} color="white" />
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.3px' }}>SupportNova</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.3px' }}>NovaWear Apparel</div>
             <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500 }}>AI Intelligence v1.0</div>
           </div>
         </div>

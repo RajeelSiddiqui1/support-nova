@@ -33,7 +33,7 @@ async def close_mongo_connection():
     """Close MongoDB connection gracefully"""
     if db_instance.client:
         db_instance.client.close()
-        print("🔌 MongoDB connection closed.")
+        print("[INFO] MongoDB connection closed.")
 
 def get_database():
     """Retrieve database instance"""

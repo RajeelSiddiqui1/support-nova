@@ -36,7 +36,7 @@ class GroqAIClient:
 
         dept_options = " | ".join(available_departments) if available_departments else "Ebook | Cloud | Logistics | Billing | Technical Support"
 
-        system_prompt = f"""You are SupportNova GenAI Complaint Intelligence Engine (Pipeline 1).
+        system_prompt = f"""You are NovaWear Apparel GenAI Complaint Intelligence Engine (Pipeline 1).
 Analyze the customer complaint and return ONLY a valid structured JSON object matching the exact schema below.
 
 IMPORTANT INSTRUCTION FOR DEPARTMENT CLASSIFICATION:

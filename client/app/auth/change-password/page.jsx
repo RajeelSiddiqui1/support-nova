@@ -4,6 +4,8 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Lock, ShieldAlert, CheckCircle, RefreshCw, ArrowRight } from 'lucide-react'
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
 function ChangePasswordContent() {
   const searchParams = useSearchParams()
   const emailParam = searchParams ? searchParams.get('email') || '' : ''
@@ -40,7 +42,7 @@ function ChangePasswordContent() {
     setErrorMsg('')
 
     try {
-      const res = await fetch('http://localhost:8000/api/auth/change-password', {
+      const res = await fetch(`${API_BASE}/api/auth/change-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,7 +1,7 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'SupportNova — AI Complaint Intelligence',
+  title: 'NovaWear Apparel — AI Complaint Intelligence',
   description: 'Enterprise-grade dual-pipeline customer complaint resolution platform.',
 }
 

@@ -9,7 +9,14 @@ import {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-const CHANNELS = ['Web Form', 'Email', 'Chat', 'Mobile App', 'Phone Support']
+const cleanQuotes = (s) => {
+  if (!s) return ''
+  let clean = String(s).trim()
+  while ((clean.startsWith('"') && clean.endsWith('"')) || (clean.startsWith("'") && clean.endsWith("'"))) {
+    clean = clean.slice(1, -1).trim()
+  }
+  return clean
+}
 
 const glass = {
   background: 'rgba(255,255,255,0.85)',
@@ -59,8 +66,8 @@ export default function SubmitPage() {
     department_id: '',
     department: '',
     incident_date: new Date().toISOString().slice(0, 10),
-    customer_name: 'Rajeev Khan',
-    customer_email: 'rajeev@gmail.com'
+    customer_name: '',
+    customer_email: ''
   })
 
   const [files, setFiles]         = useState([])
@@ -100,10 +107,10 @@ export default function SubmitPage() {
         const cookies = {}
         cookiePairs.forEach(pair => {
           const [k, v] = pair.split('=')
-          if (k) cookies[k] = decodeURIComponent(v || '')
+          if (k) cookies[k] = cleanQuotes(decodeURIComponent(v || ''))
         })
 
-        if (cookies.user_email && cookies.user_name) {
+        if (cookies.user_email || cookies.user_name) {
           u = { user_id: cookies.user_id, name: cookies.user_name, email: cookies.user_email }
           localStorage.setItem('user', JSON.stringify(u))
         }
@@ -112,7 +119,11 @@ export default function SubmitPage() {
       // 3. Fallback to localStorage / sessionStorage
       if (!u) {
         const stored = localStorage.getItem('user') || sessionStorage.getItem('user')
-        if (stored) u = JSON.parse(stored)
+        if (stored) {
+          try {
+            u = JSON.parse(stored)
+          } catch (e) {}
+        }
       }
 
       const userIdCookie = document.cookie
@@ -120,16 +131,16 @@ export default function SubmitPage() {
         .find(cookie => cookie.startsWith('user_id='))
         ?.slice('user_id='.length)
       if (u && !u.user_id && userIdCookie) {
-        u = { ...u, user_id: decodeURIComponent(userIdCookie) }
+        u = { ...u, user_id: cleanQuotes(decodeURIComponent(userIdCookie)) }
         localStorage.setItem('user', JSON.stringify(u))
       }
 
       if (u) {
         setForm(prev => ({
           ...prev,
-          customer_id: u.user_id || prev.customer_id,
-          customer_name: u.name || u.full_name || prev.customer_name,
-          customer_email: u.email || prev.customer_email
+          customer_id: cleanQuotes(u.user_id) || prev.customer_id,
+          customer_name: cleanQuotes(u.name || u.full_name) || prev.customer_name || 'Valued Customer',
+          customer_email: cleanQuotes(u.email) || prev.customer_email || 'customer@gmail.com'
         }))
       }
     } catch (e) {
@@ -192,36 +203,75 @@ export default function SubmitPage() {
     return Object.keys(errs).length === 0
   }
 
+  const [uploadingFiles, setUploadingFiles] = useState(false)
+
+  const handleFilesChosen = async (selectedList) => {
+    const rawFiles = Array.from(selectedList).slice(0, 5)
+    setUploadingFiles(true)
+
+    for (const file of rawFiles) {
+      const fileEntry = {
+        name: file.name,
+        size: file.size,
+        status: 'uploading',
+        url: null
+      }
+      setFiles(prev => [...prev, fileEntry])
+
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        const res = await fetch(`${API_BASE}/api/tickets/upload-attachment`, {
+          method: 'POST',
+          body: formData
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setFiles(prev => prev.map(f => f.name === file.name ? { ...f, status: 'uploaded', url: data.url, s3_key: data.s3_key } : f))
+        } else {
+          setFiles(prev => prev.map(f => f.name === file.name ? { ...f, status: 'failed' } : f))
+        }
+      } catch (err) {
+        setFiles(prev => prev.map(f => f.name === file.name ? { ...f, status: 'fallback', url: file.name } : f))
+      }
+    }
+    setUploadingFiles(false)
+  }
+
   const dropFile = (e) => {
     e.preventDefault()
     setDrag(false)
-    setFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)].slice(0, 5))
+    if (e.dataTransfer.files) handleFilesChosen(e.dataTransfer.files)
   }
 
   const pickFile = (e) => {
-    setFiles(prev => [...prev, ...Array.from(e.target.files)].slice(0, 5))
+    if (e.target.files) handleFilesChosen(e.target.files)
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!validateForm()) return
+    if (uploadingFiles) {
+      alert('Please wait for files to finish uploading to S3.')
+      return
+    }
 
     setSubmit(true)
 
     const payload = {
-      title: form.title,
-      description: form.description,
-      product_service: form.product_service,
-      order_id: form.order_id,
-      channel: form.channel,
+      title: form.title.trim(),
+      description: form.description.trim(),
+      product_service: form.product_service.trim(),
+      order_id: form.order_id.trim(),
+      channel: 'Web Form',
       category_id: form.category_id,
       customer_id: form.customer_id,
       department_id: form.department_id,
       customer_department: form.department,
-      customer_name: form.customer_name,
-      customer_email: form.customer_email,
+      customer_name: cleanQuotes(form.customer_name) || 'Valued Customer',
+      customer_email: cleanQuotes(form.customer_email) || 'customer@gmail.com',
       incident_date: form.incident_date,
-      attachments: files.map(f => f.name)
+      attachments: files.map(f => f.url || f.name)
     }
 
     try {
@@ -398,8 +448,8 @@ export default function SubmitPage() {
                   </Field>
                 </div>
 
-                {/* Row 2: Category, Department & Complaint Channel */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+                {/* Row 2: Category & Department */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <Field label="Complaint Category" required error={errors.category_id}>
                     <select
                       value={form.category_id}
@@ -426,18 +476,6 @@ export default function SubmitPage() {
                       ))}
                     </select>
                   </Field>
-
-                  <Field label="Complaint Channel">
-                    <select
-                      value={form.channel}
-                      onChange={e => setForm({ ...form, channel: e.target.value })}
-                      style={{ ...inputStyle, cursor: 'pointer', background: '#FFF' }}
-                    >
-                      {CHANNELS.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </Field>
                 </div>
 
                 {/* Row 3: Customer Details & Incident Date */}
@@ -446,8 +484,8 @@ export default function SubmitPage() {
                     <input
                       type="text"
                       placeholder="Your full name"
-                      value={form.customer_name}
-                      onChange={e => setForm({ ...form, customer_name: e.target.value })}
+                      value={cleanQuotes(form.customer_name)}
+                      onChange={e => setForm({ ...form, customer_name: cleanQuotes(e.target.value) })}
                       style={{ ...inputStyle, background: '#FFF' }}
                     />
                   </Field>
@@ -456,8 +494,8 @@ export default function SubmitPage() {
                     <input
                       type="email"
                       placeholder="email@example.com"
-                      value={form.customer_email}
-                      onChange={e => setForm({ ...form, customer_email: e.target.value })}
+                      value={cleanQuotes(form.customer_email)}
+                      onChange={e => setForm({ ...form, customer_email: cleanQuotes(e.target.value) })}
                       style={{ ...inputStyle, background: '#FFF' }}
                     />
                   </Field>
@@ -512,10 +550,17 @@ export default function SubmitPage() {
                   {files.length > 0 && (
                     <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {files.map((f, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 12px', borderRadius: 9, background: '#ECFDF5', border: '1px solid #10B98130' }}>
-                          <FileText size={14} color="#059669" />
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 12px', borderRadius: 9, background: f.status === 'uploading' ? '#EFF6FF' : '#ECFDF5', border: '1px solid #10B98130' }}>
+                          <FileText size={14} color={f.status === 'uploading' ? '#2563EB' : '#059669'} />
                           <span style={{ flex: 1, fontSize: 12, color: '#0F172A', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
                           <span style={{ fontSize: 10, color: '#64748B' }}>{(f.size / 1024).toFixed(0)} KB</span>
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6,
+                            background: f.status === 'uploaded' ? '#D1FAE5' : f.status === 'uploading' ? '#DBEAFE' : '#F1F5F9',
+                            color: f.status === 'uploaded' ? '#047857' : f.status === 'uploading' ? '#1D4ED8' : '#475569'
+                          }}>
+                            {f.status === 'uploaded' ? '☁️ S3 Stored' : f.status === 'uploading' ? 'Uploading...' : 'Attached'}
+                          </span>
                           <button type="button" onClick={() => setFiles(files.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
                             <X size={14} />
                           </button>

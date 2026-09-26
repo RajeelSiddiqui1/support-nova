@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional
 from config import email_config
 from lib.db import get_database
 
-logger = logging.getLogger("SupportNova.EmailDispatcher")
+logger = logging.getLogger("NovaWear.EmailDispatcher")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
 def send_agent_approved_reply(

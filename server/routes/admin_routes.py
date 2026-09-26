@@ -310,3 +310,112 @@ async def toggle_user_status(req: ToggleStatusRequest):
         "status": "success",
         "message": f"User {user['name']} status updated to {req.status}."
     }
+
+@router.get("/agents-overview")
+async def get_agents_overview():
+    """
+    Admin Command Center: Complete visibility over all agents and their live activity.
+    Returns:
+    - Overall metrics: total agents, active working agents, idle agents, total active tickets
+    - For each agent:
+      - Profile info: name, email, department, status, reporting manager
+      - Assigned tickets summary (count, active list, completed count)
+      - What they are actively working on (latest ticket title, notes, status)
+      - Violations count
+    """
+    db = get_database()
+    cursor = db.users.find(
+        {"role": {"$in": ["AGENT", "REVIEWER"]}},
+        {"hashed_password": 0, "otp_code": 0}
+    ).sort("name", 1)
+    agents = await cursor.to_list(length=300)
+
+    # Fetch all tickets to compute agent workloads
+    ticket_cursor = db.tickets.find({}).sort("updated_at", -1)
+    all_tickets = await ticket_cursor.to_list(length=1000)
+
+    agent_data = []
+    total_active_tickets = 0
+    total_resolved_tickets = 0
+    busy_agents_count = 0
+
+    # Group tickets by agent_id
+    tickets_by_agent = {}
+    for t in all_tickets:
+        t["_id"] = str(t["_id"])
+        agent_id = t.get("assigned_agent_id")
+        if agent_id:
+            if agent_id not in tickets_by_agent:
+                tickets_by_agent[agent_id] = []
+            tickets_by_agent[agent_id].append(t)
+
+    for agent in agents:
+        agent["_id"] = str(agent["_id"])
+        u_id = agent.get("user_id")
+        assigned_tickets = tickets_by_agent.get(u_id, [])
+
+        active_list = [t for t in assigned_tickets if t.get("status") in ["In Progress", "In Triage", "Escalated", "AI Review"]]
+        resolved_list = [t for t in assigned_tickets if t.get("status") in ["Resolved", "Closed"]]
+
+        total_active_tickets += len(active_list)
+        total_resolved_tickets += len(resolved_list)
+        if len(active_list) > 0:
+            busy_agents_count += 1
+
+        # Current working item: latest updated active ticket
+        current_work = None
+        if active_list:
+            top_ticket = active_list[0]
+            current_work = {
+                "ticket_id": top_ticket.get("ticket_id"),
+                "title": top_ticket.get("title"),
+                "status": top_ticket.get("status"),
+                "priority": top_ticket.get("priority", "P2"),
+                "channel": top_ticket.get("channel", "Web Form"),
+                "customer": top_ticket.get("customer_name"),
+                "latest_notes": top_ticket.get("agent_notes") or "Working on investigation/resolution",
+                "updated_at": top_ticket.get("updated_at")
+            }
+
+        # Count violations for this agent across their tickets
+        violations_count = 0
+        for t in assigned_tickets:
+            comp = t.get("policy_compliance")
+            if comp and comp.get("status") == "VIOLATION":
+                violations_count += 1
+            if u_id in t.get("revoked_agent_ids", []):
+                violations_count += 1
+
+        agent_data.append({
+            "agent_id": u_id,
+            "name": agent.get("name"),
+            "email": agent.get("email"),
+            "role": agent.get("role"),
+            "department": agent.get("department") or "General",
+            "department_id": agent.get("department_id"),
+            "status": agent.get("status", "ACTIVE"),
+            "reporting_manager": agent.get("reporting_manager_name") or "Department Manager",
+            "total_assigned": len(assigned_tickets),
+            "active_count": len(active_list),
+            "resolved_count": len(resolved_list),
+            "violations_count": violations_count,
+            "current_work": current_work,
+            "active_tickets": [{
+                "ticket_id": t.get("ticket_id"),
+                "title": t.get("title"),
+                "status": t.get("status"),
+                "priority": t.get("priority", "P2"),
+                "channel": t.get("channel", "Web Form"),
+                "customer_name": t.get("customer_name")
+            } for t in active_list[:5]]
+        })
+
+    return {
+        "status": "success",
+        "total_agents": len(agents),
+        "busy_agents": busy_agents_count,
+        "idle_agents": len(agents) - busy_agents_count,
+        "total_active_tickets": total_active_tickets,
+        "total_resolved_tickets": total_resolved_tickets,
+        "agents": agent_data
+    }

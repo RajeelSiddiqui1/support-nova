@@ -1,18 +1,16 @@
 import os
+import io
 from typing import List, Dict, Any
 from pypdf import PdfReader
 import docx
 
 class DocumentExtractor:
-    """Extracts text and metadata from PDF, DOCX & TXT documents based on SRS Step 5 & 6 specs."""
+    """Extracts text and metadata from PDF, DOCX & TXT documents directly from memory or disk."""
 
     @staticmethod
-    def extract_from_pdf(file_path: str, doc_id: str, version: str = "v1.0") -> Dict[str, Any]:
-        """Extracts text, headings, page numbers and creates chunks from PDF files."""
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"File not found: {file_path}")
-
-        reader = PdfReader(file_path)
+    def extract_from_pdf_stream(stream, filename: str, doc_id: str, version: str = "v1.0", file_size_kb: float = 0.0) -> Dict[str, Any]:
+        """Extracts text, headings, page numbers and creates chunks from a PDF stream or file."""
+        reader = PdfReader(stream)
         full_text = ""
         chunks = []
         chunk_idx = 1
@@ -59,9 +57,9 @@ class DocumentExtractor:
 
         return {
             "doc_id": doc_id,
-            "title": os.path.basename(file_path),
+            "title": os.path.basename(filename),
             "file_type": "PDF",
-            "file_size_kb": round(os.path.getsize(file_path) / 1024, 2),
+            "file_size_kb": file_size_kb,
             "total_pages": len(reader.pages),
             "version": version,
             "full_text": full_text.strip(),
@@ -69,13 +67,19 @@ class DocumentExtractor:
             "chunks": chunks
         }
 
-    @staticmethod
-    def extract_from_docx(file_path: str, doc_id: str, version: str = "v1.0") -> Dict[str, Any]:
-        """Extracts text, headings and section chunks from DOCX files."""
+    @classmethod
+    def extract_from_pdf(cls, file_path: str, doc_id: str, version: str = "v1.0") -> Dict[str, Any]:
+        """Extracts from PDF file on disk."""
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
+        size_kb = round(os.path.getsize(file_path) / 1024, 2)
+        with open(file_path, "rb") as f:
+            return cls.extract_from_pdf_stream(f, os.path.basename(file_path), doc_id, version, size_kb)
 
-        doc = docx.Document(file_path)
+    @staticmethod
+    def extract_from_docx_stream(stream, filename: str, doc_id: str, version: str = "v1.0", file_size_kb: float = 0.0) -> Dict[str, Any]:
+        """Extracts text, headings and section chunks from DOCX stream."""
+        doc = docx.Document(stream)
         full_text = ""
         chunks = []
         chunk_idx = 1
@@ -122,25 +126,28 @@ class DocumentExtractor:
 
         return {
             "doc_id": doc_id,
-            "title": os.path.basename(file_path),
+            "title": os.path.basename(filename),
             "file_type": "DOCX",
-            "file_size_kb": round(os.path.getsize(file_path) / 1024, 2),
+            "file_size_kb": file_size_kb,
             "version": version,
             "full_text": full_text.strip(),
             "chunk_count": len(chunks),
             "chunks": chunks
         }
 
-    @staticmethod
-    def extract_from_txt(file_path: str, doc_id: str, version: str = "v1.0") -> Dict[str, Any]:
-        """Extracts text and section chunks from plain text files."""
+    @classmethod
+    def extract_from_docx(cls, file_path: str, doc_id: str, version: str = "v1.0") -> Dict[str, Any]:
+        """Extracts from DOCX file on disk."""
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
+        size_kb = round(os.path.getsize(file_path) / 1024, 2)
+        with open(file_path, "rb") as f:
+            return cls.extract_from_docx_stream(f, os.path.basename(file_path), doc_id, version, size_kb)
 
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-            full_text = f.read()
-
-        paragraphs = [p.strip() for p in full_text.split("\n\n") if p.strip()]
+    @staticmethod
+    def extract_from_txt_text(text: str, filename: str, doc_id: str, version: str = "v1.0", file_size_kb: float = 0.0) -> Dict[str, Any]:
+        """Extracts text and section chunks from plain text string."""
+        paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()] or [text]
         chunks = []
 
         for idx, para in enumerate(paragraphs, start=1):
@@ -156,14 +163,40 @@ class DocumentExtractor:
 
         return {
             "doc_id": doc_id,
-            "title": os.path.basename(file_path),
+            "title": os.path.basename(filename),
             "file_type": "TXT",
-            "file_size_kb": round(os.path.getsize(file_path) / 1024, 2),
+            "file_size_kb": file_size_kb,
             "version": version,
-            "full_text": full_text.strip(),
+            "full_text": text.strip(),
             "chunk_count": len(chunks),
             "chunks": chunks
         }
+
+    @classmethod
+    def extract_from_txt(cls, file_path: str, doc_id: str, version: str = "v1.0") -> Dict[str, Any]:
+        """Extracts from TXT file on disk."""
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File not found: {file_path}")
+        size_kb = round(os.path.getsize(file_path) / 1024, 2)
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            text = f.read()
+        return cls.extract_from_txt_text(text, os.path.basename(file_path), doc_id, version, size_kb)
+
+    @classmethod
+    def extract_from_bytes(cls, file_bytes: bytes, filename: str, doc_id: str, version: str = "v1.0") -> Dict[str, Any]:
+        """Extracts text directly from bytes in memory (perfect for S3 & Vercel serverless)."""
+        ext = os.path.splitext(filename)[1].lower()
+        size_kb = round(len(file_bytes) / 1024, 2)
+
+        if ext == ".pdf":
+            stream = io.BytesIO(file_bytes)
+            return cls.extract_from_pdf_stream(stream, filename, doc_id, version, size_kb)
+        elif ext in [".docx", ".doc"]:
+            stream = io.BytesIO(file_bytes)
+            return cls.extract_from_docx_stream(stream, filename, doc_id, version, size_kb)
+        else:
+            text = file_bytes.decode("utf-8", errors="ignore")
+            return cls.extract_from_txt_text(text, filename, doc_id, version, size_kb)
 
     @classmethod
     def extract_file(cls, file_path: str, doc_id: str, version: str = "v1.0") -> Dict[str, Any]:

@@ -1,12 +1,14 @@
 'use client'
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import Sidebar from '../../components/Sidebar'
 import Navbar from '../../components/Navbar'
 import StatCard from '../../components/StatCard'
 import { 
   Ticket, CheckCircle, AlertTriangle, Clock, Search, Filter, Eye, Zap, 
   ShieldCheck, X, User, Calendar, Building, ChevronRight, MessageSquare, 
-  ArrowUpRight, ArrowRightLeft, RefreshCw, History, UserCheck, Shield
+  ArrowUpRight, ArrowRightLeft, RefreshCw, History, UserCheck, Shield,
+  Users, ExternalLink
 } from 'lucide-react'
 
 const glass = (extra = {}) => ({
@@ -49,6 +51,7 @@ const STATUSES = ['All','In Triage','In Progress','AI Review','Escalated','Resol
 const CHANNELS = ['All', 'Web Form', 'Chat', 'Email']
 
 export default function TicketsPage() {
+  const [viewMode, setViewMode]   = useState('tickets') // 'tickets' or 'agents'
   const [tickets, setTickets]     = useState([])
   const [loading, setLoading]     = useState(true)
   const [search, setSearch]       = useState('')
@@ -57,6 +60,14 @@ export default function TicketsPage() {
   const [channelF, setChannelF]   = useState('All')
   const [selTicket, setSel]       = useState(null)
   const [activeTab, setActiveTab] = useState('pipeline')
+
+  // Agents Overview State (Live Agent Oversight)
+  const [agentsOverview, setAgentsOverview] = useState({
+    total_agents: 0, busy_agents: 0, idle_agents: 0, total_active_tickets: 0, total_resolved_tickets: 0, agents: []
+  })
+  const [agentsLoading, setAgentsLoading]   = useState(false)
+  const [agentSearch, setAgentSearch]       = useState('')
+  const [agentDeptFilter, setAgentDeptF]    = useState('All')
 
   // Lists for Admin Overrides
   const [deptsList, setDeptsList] = useState([])
@@ -78,7 +89,22 @@ export default function TicketsPage() {
   useEffect(() => {
     fetchTickets()
     fetchMetadata()
+    fetchAgentsOverview()
   }, [])
+
+  const fetchAgentsOverview = async () => {
+    setAgentsLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/agents-overview`)
+      if (res.ok) {
+        const data = await res.json()
+        setAgentsOverview(data)
+      }
+    } catch (e) {
+    } finally {
+      setAgentsLoading(false)
+    }
+  }
 
   const fetchMetadata = async () => {
     try {
@@ -393,8 +419,47 @@ export default function TicketsPage() {
 
         <main style={{ flex:1, padding:22, overflowY:'auto', display:'flex', flexDirection:'column', gap:18 }}>
 
-          {/* Stats Bar */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:13 }}>
+          {/* Top View Mode Switcher: All Tickets vs. Agent Live Oversight */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setViewMode('tickets')}
+              style={{
+                padding: '9px 18px', borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: 'pointer',
+                border: viewMode === 'tickets' ? '2px solid #7C3AED' : '1px solid #CBD5E1',
+                background: viewMode === 'tickets' ? '#7C3AED' : '#FFF',
+                color: viewMode === 'tickets' ? '#FFF' : '#64748B',
+                display: 'flex', alignItems: 'center', gap: 8,
+                boxShadow: viewMode === 'tickets' ? '0 4px 14px rgba(124,58,237,0.25)' : 'none'
+              }}
+            >
+              <Ticket size={16} /> All Complaint Tickets ({tickets.length})
+            </button>
+
+            <button
+              onClick={() => { setViewMode('agents'); fetchAgentsOverview(); }}
+              style={{
+                padding: '9px 18px', borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: 'pointer',
+                border: viewMode === 'agents' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                background: viewMode === 'agents' ? '#2563EB' : '#FFF',
+                color: viewMode === 'agents' ? '#FFF' : '#64748B',
+                display: 'flex', alignItems: 'center', gap: 8,
+                boxShadow: viewMode === 'agents' ? '0 4px 14px rgba(37,99,235,0.25)' : 'none'
+              }}
+            >
+              <Users size={16} /> Agent Live Oversight & Workload ("کون کیا کام کر رہا ہے")
+              {agentsOverview.total_agents > 0 && (
+                <span style={{ fontSize: 10.5, padding: '1px 8px', borderRadius: 99, background: viewMode === 'agents' ? '#FFF' : '#EFF6FF', color: '#2563EB', fontWeight: 800 }}>
+                  {agentsOverview.total_agents} Staff
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* ════════════ VIEW 1: ALL COMPLAINT TICKETS QUEUE ════════════ */}
+          {viewMode === 'tickets' && (
+            <>
+              {/* Stats Bar */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:13 }}>
             <StatCard title="Total Tickets" value={tickets.length}   subtitle="All time"          icon={Ticket}        color="violet"  delay={0}   />
             <StatCard title="In Triage"     value={tickets.filter(t => t.status === 'In Triage').length}    subtitle="Awaiting response" icon={Clock}         color="amber"   delay={70}  />
             <StatCard title="Assigned"      value={tickets.filter(t => t.assigned_agent_id).length}     subtitle="Active agent queue" icon={UserCheck} color="emerald"    delay={140} />
@@ -493,10 +558,30 @@ export default function TicketsPage() {
                               {t.status}
                             </span>
                           </td>
-                          <td style={{ padding:'12px 12px', borderBottom:'1px solid rgba(226,232,240,0.3)' }}>
-                            <button style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, fontWeight:600, color: isSelected?'#7C3AED':'#94A3B8', background: isSelected?'rgba(124,58,237,0.1)':'rgba(248,250,252,0.8)', padding:'5px 10px', borderRadius:8, border:'1px solid rgba(226,232,240,0.7)', cursor:'pointer', transition:'all 0.15s' }}>
-                              <Eye size={11} /> Detail
-                            </button>
+                          <td style={{ padding:'12px 12px', borderBottom:'1px solid rgba(226,232,240,0.3)', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <Link
+                                href={`/admin/tickets/${tId}`}
+                                onClick={e => e.stopPropagation()}
+                                style={{
+                                  display:'inline-flex', alignItems:'center', gap:4, fontSize:11, fontWeight:700,
+                                  color:'#FFF', background:'#7C3AED', padding:'5px 10px', borderRadius:8,
+                                  textDecoration: 'none', boxShadow: '0 2px 6px rgba(124,58,237,0.2)'
+                                }}
+                              >
+                                <Eye size={11} /> 360° View
+                              </Link>
+                              <button
+                                onClick={e => { e.stopPropagation(); setSel(isSelected ? null : t); }}
+                                style={{
+                                  display:'inline-flex', alignItems:'center', gap:3, fontSize:11, fontWeight:600,
+                                  color: isSelected?'#7C3AED':'#64748B', background: isSelected?'rgba(124,58,237,0.1)':'#F1F5F9',
+                                  padding:'5px 8px', borderRadius:8, border:'1px solid rgba(226,232,240,0.7)', cursor:'pointer'
+                                }}
+                              >
+                                Peek
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       )
@@ -545,6 +630,17 @@ export default function TicketsPage() {
 
                   {/* Admin Override Action Buttons */}
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                    <Link
+                      href={`/admin/tickets/${selTicket.ticket_id || selTicket.id}`}
+                      style={{
+                        padding:'5px 10px', borderRadius:8, fontSize:11, fontWeight:700,
+                        background:'#7C3AED', color:'#FFF', border:'none', textDecoration:'none',
+                        display:'flex', alignItems:'center', gap:4, boxShadow:'0 2px 6px rgba(124,58,237,0.2)'
+                      }}
+                    >
+                      <ExternalLink size={11} /> Open 360° Page
+                    </Link>
+
                     <button
                       onClick={() => {
                         setShowReassign(true)
@@ -732,6 +828,339 @@ export default function TicketsPage() {
               </div>
             )}
           </div>
+            </>
+          )}
+
+          {/* ════════════ VIEW 2: AGENT LIVE OVERSIGHT & WORKLOAD ("کتنے ایجنٹ ہیں، کیا کام کر رہے ہیں، کس کا کیا کام ہو رہا ہے") ════════════ */}
+          {viewMode === 'agents' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Agent Oversight KPI Banner */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 13 }}>
+                <StatCard
+                  title="Total Support Agents"
+                  value={agentsOverview.total_agents}
+                  subtitle="Registered staff"
+                  icon={Users}
+                  color="violet"
+                  delay={0}
+                />
+                <StatCard
+                  title="Actively Engaged"
+                  value={agentsOverview.busy_agents}
+                  subtitle="Handling open tickets"
+                  icon={Zap}
+                  color="emerald"
+                  delay={60}
+                />
+                <StatCard
+                  title="Idle / Available"
+                  value={agentsOverview.idle_agents}
+                  subtitle="Ready for assignment"
+                  icon={UserCheck}
+                  color="amber"
+                  delay={120}
+                />
+                <StatCard
+                  title="Active Workload"
+                  value={agentsOverview.total_active_tickets}
+                  subtitle="Tickets under work"
+                  icon={Ticket}
+                  color="indigo"
+                  delay={180}
+                />
+                <StatCard
+                  title="Total Resolved"
+                  value={agentsOverview.total_resolved_tickets}
+                  subtitle="Successfully closed"
+                  icon={CheckCircle2}
+                  color="emerald"
+                  delay={240}
+                />
+              </div>
+
+              {/* Agent Filter & Controls */}
+              <div style={{ ...glass(), padding: '14px 18px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1, minWidth: 260 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(248,250,252,0.9)', border: '1px solid rgba(226,232,240,0.8)', borderRadius: 10, padding: '6px 12px', flex: 1, maxWidth: 320 }}>
+                    <Search size={13} color="#94A3B8" />
+                    <input
+                      value={agentSearch}
+                      onChange={e => setAgentSearch(e.target.value)}
+                      placeholder="Search agent name, email, role..."
+                      style={{ background: 'none', border: 'none', outline: 'none', fontSize: 12.5, color: '#0F172A', width: '100%' }}
+                    />
+                  </div>
+
+                  <select
+                    value={agentDeptFilter}
+                    onChange={e => setAgentDeptFilter(e.target.value)}
+                    style={{ padding: '7px 11px', borderRadius: 9, border: '1px solid rgba(226,232,240,0.8)', background: 'rgba(248,250,252,0.9)', fontSize: 12, outline: 'none', cursor: 'pointer' }}
+                  >
+                    <option value="ALL">All Departments</option>
+                    <option value="Customer Support">Customer Support</option>
+                    <option value="Logistics">Logistics</option>
+                    <option value="Billing & Refunds">Billing & Refunds</option>
+                    <option value="Quality Assurance">Quality Assurance</option>
+                    <option value="Operations">Operations</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    onClick={fetchAgentsOverview}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, border: '1px solid rgba(226,232,240,0.8)', background: '#FFF', fontSize: 12, fontWeight: 600, color: '#64748B', cursor: 'pointer' }}
+                  >
+                    <RefreshCw size={12} className={agentsLoading ? 'spin' : ''} /> Refresh Live Roster
+                  </button>
+                </div>
+              </div>
+
+              {/* Agent Oversight Cards Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16 }}>
+                {agentsOverview.agents
+                  .filter(agent => {
+                    const matchSearch = !agentSearch ||
+                      agent.name.toLowerCase().includes(agentSearch.toLowerCase()) ||
+                      agent.email.toLowerCase().includes(agentSearch.toLowerCase()) ||
+                      agent.role.toLowerCase().includes(agentSearch.toLowerCase());
+                    const matchDept = agentDeptFilter === 'ALL' ||
+                      (agent.department || '').toLowerCase() === agentDeptFilter.toLowerCase();
+                    return matchSearch && matchDept;
+                  })
+                  .map(agent => {
+                    const isBusy = agent.active_count > 0;
+                    const hasViolations = (agent.violations_count || 0) > 0;
+
+                    return (
+                      <div
+                        key={agent.agent_id}
+                        style={{
+                          ...glass(),
+                          padding: 18,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 14,
+                          position: 'relative',
+                          border: isBusy ? '1px solid #BFDBFE' : '1px solid rgba(226,232,240,0.8)',
+                          boxShadow: isBusy ? '0 4px 16px -2px rgba(37,99,235,0.06)' : undefined,
+                        }}
+                      >
+                        {/* Header: Agent info & Status */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div
+                              style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 12,
+                                background: isBusy
+                                  ? 'linear-gradient(135deg, #2563EB, #1D4ED8)'
+                                  : 'linear-gradient(135deg, #64748B, #475569)',
+                                color: '#FFF',
+                                fontWeight: 800,
+                                fontSize: 16,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: isBusy ? '0 4px 10px rgba(37,99,235,0.25)' : undefined,
+                              }}
+                            >
+                              {agent.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontWeight: 800, fontSize: 14, color: '#0F172A' }}>{agent.name}</span>
+                                <span
+                                  style={{
+                                    fontSize: 9.5,
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    padding: '1.5px 6px',
+                                    borderRadius: 4,
+                                    background: '#F1F5F9',
+                                    color: '#475569',
+                                  }}
+                                >
+                                  {agent.role}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: 11, color: '#64748B' }}>{agent.email}</div>
+                              <div style={{ fontSize: 10.5, color: '#94A3B8', marginTop: 2 }}>
+                                Dept: <strong style={{ color: '#475569' }}>{agent.department || 'General'}</strong>
+                                {agent.reporting_manager && (
+                                  <span style={{ marginLeft: 6 }}>• Lead: {agent.reporting_manager}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Live Status indicator */}
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                fontSize: 10.5,
+                                fontWeight: 700,
+                                padding: '3px 8px',
+                                borderRadius: 99,
+                                background: isBusy ? '#EFF6FF' : '#F8FAFC',
+                                color: isBusy ? '#2563EB' : '#64748B',
+                                border: isBusy ? '1px solid #BFDBFE' : '1px solid #E2E8F0',
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: '50%',
+                                  background: isBusy ? '#2563EB' : '#94A3B8',
+                                  boxShadow: isBusy ? '0 0 6px rgba(37,99,235,0.8)' : undefined,
+                                }}
+                              />
+                              {isBusy ? 'Actively Handling' : 'Idle / Ready'}
+                            </span>
+
+                            {hasViolations && (
+                              <span
+                                style={{
+                                  fontSize: 9.5,
+                                  fontWeight: 700,
+                                  background: '#FEF2F2',
+                                  color: '#DC2626',
+                                  border: '1px solid #FECACA',
+                                  padding: '2px 6px',
+                                  borderRadius: 4,
+                                }}
+                              >
+                                ⚠️ {agent.violations_count} Reassigned / Flailed
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Workload Stats Bar */}
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(3, 1fr)',
+                            gap: 8,
+                            background: 'rgba(248,250,252,0.9)',
+                            border: '1px solid #E2E8F0',
+                            borderRadius: 10,
+                            padding: '8px 12px',
+                            textAlign: 'center',
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: '#2563EB' }}>{agent.active_count}</div>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Active</div>
+                          </div>
+                          <div style={{ borderLeft: '1px solid #E2E8F0', borderRight: '1px solid #E2E8F0' }}>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: '#059669' }}>{agent.resolved_count}</div>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Resolved</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: '#0F172A' }}>{agent.total_assigned}</div>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Lifetime</div>
+                          </div>
+                        </div>
+
+                        {/* Current Work ("کس کا کیا کام ہو رہا ہے") */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Current Workload ({agent.active_tickets.length})
+                            </span>
+                            {agent.active_tickets.length > 0 && (
+                              <span style={{ fontSize: 10, color: '#2563EB', fontWeight: 600 }}>Click to audit 360°</span>
+                            )}
+                          </div>
+
+                          {agent.active_tickets.length === 0 ? (
+                            <div
+                              style={{
+                                padding: '12px',
+                                background: '#F8FAFC',
+                                border: '1px dashed #CBD5E1',
+                                borderRadius: 8,
+                                textAlign: 'center',
+                                fontSize: 11.5,
+                                color: '#94A3B8',
+                              }}
+                            >
+                              No active tickets assigned right now. Available for new assignments.
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 150, overflowY: 'auto' }}>
+                              {agent.active_tickets.map((t) => (
+                                <Link
+                                  key={t.ticket_id}
+                                  href={`/admin/tickets/${t.ticket_id}`}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '7px 10px',
+                                    borderRadius: 7,
+                                    background: '#FFF',
+                                    border: '1px solid #E2E8F0',
+                                    textDecoration: 'none',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                  className="hover:border-blue-400 hover:shadow-xs"
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                                    <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 11, color: '#2563EB', flexShrink: 0 }}>
+                                      {t.ticket_id}
+                                    </span>
+                                    <span style={{ fontSize: 11.5, color: '#1E293B', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {t.title || 'Untitled Ticket'}
+                                    </span>
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                                    <span
+                                      style={{
+                                        fontSize: 9.5,
+                                        fontWeight: 700,
+                                        padding: '1px 6px',
+                                        borderRadius: 4,
+                                        background: t.priority === 'High' ? '#FEF2F2' : '#F1F5F9',
+                                        color: t.priority === 'High' ? '#DC2626' : '#475569',
+                                      }}
+                                    >
+                                      {t.priority}
+                                    </span>
+                                    <ExternalLink size={11} color="#94A3B8" />
+                                  </div>
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Latest Task / Note snippet if any */}
+                        {agent.current_work && agent.current_work.latest_notes && (
+                          <div style={{ padding: '8px 10px', background: '#FEF9C3', borderRadius: 7, border: '1px solid #FEF08A', fontSize: 11, color: '#854D0E' }}>
+                            <strong style={{ fontWeight: 700 }}>Latest Activity Note:</strong> {agent.current_work.latest_notes}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+
+              {agentsOverview.agents.length === 0 && !agentsLoading && (
+                <div style={{ ...glass(), padding: 36, textAlign: 'center', color: '#64748B' }}>
+                  <Users size={36} color="#94A3B8" style={{ margin: '0 auto 12px' }} />
+                  <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A' }}>No agents found in roster</div>
+                  <div style={{ fontSize: 12, marginTop: 4 }}>Agents created in the system or database will appear here automatically.</div>
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
     </div>

@@ -4,7 +4,7 @@ import Sidebar from '../../components/Sidebar'
 import Navbar from '../../components/Navbar'
 import StatCard from '../../components/StatCard'
 import {
-  Zap, ShieldCheck, Send, ArrowUp, MessageSquare, CheckCircle,
+  Zap, ShieldCheck, ShieldAlert, Send, ArrowUp, MessageSquare, CheckCircle,
   AlertTriangle, Clock, User, Info, RefreshCw, Mail, Check, AlertCircle, 
   Building2, UserCheck, ArrowRightLeft, History, Shield, Users
 } from 'lucide-react'
@@ -145,9 +145,21 @@ export default function AgentWorkspace() {
       const res = await fetch(`${API_BASE}/api/tickets`)
       if (res.ok) {
         const data = await res.json()
-        if (Array.isArray(data) && data.length > 0) {
-          setTickets(data)
-          setSelectedId(prev => (prev && data.some(t => t.ticket_id === prev)) ? prev : data[0].ticket_id)
+        if (Array.isArray(data)) {
+          // Strictly deduplicate by ticket_id so no duplicates ever render
+          const uniqueMap = new Map()
+          data.forEach(t => {
+            if (t && t.ticket_id && !uniqueMap.has(t.ticket_id)) {
+              uniqueMap.set(t.ticket_id, t)
+            }
+          })
+          const uniqueTickets = Array.from(uniqueMap.values())
+          setTickets(uniqueTickets)
+          if (uniqueTickets.length > 0) {
+            setSelectedId(prev => (prev && uniqueTickets.some(t => t.ticket_id === prev)) ? prev : uniqueTickets[0].ticket_id)
+          } else {
+            setSelectedId(null)
+          }
         }
       }
     } catch (e) {
@@ -157,24 +169,59 @@ export default function AgentWorkspace() {
   }
 
   const [syncingEmails, setSyncingEmails] = useState(false)
+  const [syncStatusText, setSyncStatusText] = useState('Active')
 
-  const handleSyncEmails = async () => {
-    setSyncingEmails(true)
+  // Automatic 30-second Email Poller
+  useEffect(() => {
+    // Initial fetch after 4 seconds
+    const initTimer = setTimeout(() => {
+      handleSyncEmails(true)
+    }, 4000)
+
+    // Repeat every 30 seconds
+    const interval = setInterval(() => {
+      handleSyncEmails(true)
+    }, 30000)
+
+    return () => {
+      clearTimeout(initTimer)
+      clearInterval(interval)
+    }
+  }, [])
+
+  const handleSyncEmails = async (isBackground = false) => {
+    if (!isBackground) setSyncingEmails(true)
     try {
-      const res = await fetch(`${API_BASE}/api/tickets/fetch-emails`, { method: 'POST' })
+      const res = await fetch(`${API_BASE}/api/tickets/sync-latest-email`, { method: 'POST' })
+      const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       if (res.ok) {
         const data = await res.json()
-        const newCount = data.new_tickets || 0
-        setEmailAlert(`📧 Synced with Gmail! ${newCount > 0 ? `${newCount} new email ticket(s) imported & routed.` : 'Inbox is up to date.'}`)
-        fetchTickets()
-      } else {
-        setEmailAlert('⚠️ Email sync failed.')
+        if (data.status === 'new_email_processed') {
+          setSyncStatusText(`New email (${nowStr})`)
+          setEmailAlert(`📧 New Customer Email: '${data.ticket?.title || 'Complaint'}'! Created Ticket ${data.ticket?.ticket_id} routed to ${data.ticket?.department || 'Department'}.`)
+          fetchTickets()
+          setTimeout(() => setEmailAlert(''), 7000)
+        } else if (data.status === 'thread_updated') {
+          setSyncStatusText(`Reply synced (${nowStr})`)
+          setEmailAlert(`🔄 Customer replied to ticket ${data.ticket_id}! Updated conversation thread.`)
+          fetchTickets()
+          setTimeout(() => setEmailAlert(''), 7000)
+        } else if (data.status === 'no_new_email') {
+          setSyncStatusText(`Checked (${nowStr})`)
+          if (!isBackground) {
+            setEmailAlert(`📧 Inbox checked (${nowStr}). No new emails — latest email was already processed.`)
+            setTimeout(() => setEmailAlert(''), 5000)
+          }
+        } else if (data.status === 'sync_in_progress') {
+          setSyncStatusText(`Sync in progress (${nowStr})`)
+        } else {
+          setSyncStatusText(`Idle (${nowStr})`)
+        }
       }
     } catch (e) {
-      setEmailAlert('⚠️ Could not connect to email sync endpoint.')
+      setSyncStatusText('Sync offline')
     } finally {
-      setSyncingEmails(false)
-      setTimeout(() => setEmailAlert(''), 6000)
+      if (!isBackground) setSyncingEmails(false)
     }
   }
 
@@ -360,7 +407,7 @@ export default function AgentWorkspace() {
 
   const isMismatch = selectedTicket?.department_mismatch || (selectedTicket?.match_status === false)
   const auditHistory = selectedTicket?.assigned_agent_history || selectedTicket?.assignedAgentHistory || []
-  const isRevoked = selectedTicket?.revoked_agent_ids?.includes(currentAgent?.user_id) && selectedTicket?.assigned_agent_id !== currentAgent?.user_id
+  const isRevoked = Boolean(selectedTicket?.revoked_agent_ids?.includes(currentAgent?.user_id))
   const revokedDetail = selectedTicket?.revoked_agents?.slice().reverse().find(r => r.agent_id === currentAgent?.user_id)
   const isOtherAssigned = selectedTicket?.assigned_agent_id && (selectedTicket?.assigned_agent_id !== currentAgent?.user_id) && (currentAgent?.role !== 'MANAGER' && currentAgent?.role !== 'ADMIN')
 
@@ -489,9 +536,9 @@ export default function AgentWorkspace() {
                 </span>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <button
-                    onClick={handleSyncEmails}
+                    onClick={() => handleSyncEmails(false)}
                     disabled={syncingEmails}
-                    title="Fetch new customer emails from IMAP inbox"
+                    title="Poll incoming customer emails from IMAP inbox"
                     style={{
                       padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer',
                       background: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE',
@@ -499,12 +546,20 @@ export default function AgentWorkspace() {
                     }}
                   >
                     <Mail size={11} className={syncingEmails ? 'spin' : ''} />
-                    {syncingEmails ? 'Syncing...' : 'Sync Emails'}
+                    {syncingEmails ? 'Syncing...' : 'Sync (30s)'}
                   </button>
                   <button onClick={fetchTickets} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }} title="Refresh list">
                     <RefreshCw size={12} className={loading ? 'spin' : ''} />
                   </button>
                 </div>
+              </div>
+
+              {/* 30s Auto Poller Status Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, fontSize: 10 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#ECFDF5', color: '#047857', padding: '2px 8px', borderRadius: 6, fontWeight: 600, border: '1px solid #A7F3D0' }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
+                  30s Poller: {syncStatusText}
+                </span>
               </div>
 
               {/* Scope Selector */}
@@ -631,10 +686,14 @@ export default function AgentWorkspace() {
                   <div>
                     <h4 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#DC2626' }}>⛔ ACCESS REVOKED BY MANAGEMENT</h4>
                     <p style={{ margin: '4px 0 0', fontSize: 12, color: '#7F1D1D', lineHeight: 1.5 }}>
-                      Your access to Ticket <strong>[{selectedTicket.ticket_id}]</strong> was revoked by <strong>{revokedDetail?.revoked_by_name || 'Department Manager'}</strong>.
+                      Your assignment to Ticket <strong>[{selectedTicket.ticket_id}]</strong> was revoked by <strong>{revokedDetail?.revoked_by_name || 'Department Manager'}</strong>.
                       {revokedDetail?.reason && <span> Reason: <em>"{revokedDetail.reason}"</em>.</span>}
                       <br />
-                      This ticket has been reassigned to <strong>{selectedTicket.assigned_agent}</strong>. Your previous activity remains preserved in the audit log, but your edit and customer reply permissions have been revoked.
+                      {selectedTicket.assigned_agent ? (
+                        <>This ticket has been reassigned to <strong>{selectedTicket.assigned_agent}</strong>.</>
+                      ) : (
+                        <>This ticket has been released to the department unassigned pool for other agents to claim.</>
+                      )} Your previous activity remains preserved in the audit log, but you are permanently barred from re-claiming, updating, or sending replies for this ticket.
                     </p>
                   </div>
                 </div>

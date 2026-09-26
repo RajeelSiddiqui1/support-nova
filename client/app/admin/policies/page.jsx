@@ -91,6 +91,7 @@ export default function PoliciesPage() {
   // Edit Modal State
   const [editPolicy, setEditPolicy]     = useState(null)
   const [editForm, setEditForm]         = useState({ title: '', category_id: '', category: 'General', department_id: '', version: 'v1.0', full_text: '', status: 'Active' })
+  const [overrideFile, setOverrideFile] = useState(null)
   const [editLoading, setEditLoading]   = useState(false)
   const [editErr, setEditErr]           = useState('')
 
@@ -295,6 +296,20 @@ export default function PoliciesPage() {
     setEditErr('')
 
     try {
+      if (overrideFile) {
+        const formData = new FormData()
+        formData.append('file', overrideFile)
+        formData.append('version', editForm.version || 'v1.0')
+        const overrideRes = await fetch(`${API_BASE}/api/policies/${editPolicy.doc_id}/override-file`, {
+          method: 'POST',
+          body: formData,
+        })
+        if (!overrideRes.ok) {
+          const errData = await overrideRes.json()
+          throw new Error(errData.detail || 'Failed to override document in AWS S3')
+        }
+      }
+
       const res = await fetch(`${API_BASE}/api/policies/${editPolicy.doc_id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -306,8 +321,9 @@ export default function PoliciesPage() {
         throw new Error(data.detail || 'Failed to update policy')
       }
 
-      triggerToast(`Policy '${editForm.title}' updated!`)
+      triggerToast(`Policy '${editForm.title}' updated ${overrideFile ? 'and S3 PDF overridden' : ''}!`)
       setEditPolicy(null)
+      setOverrideFile(null)
       fetchPolicies()
     } catch (err) {
       const deptObj = departments.find(d => d.dept_id === editForm.department_id)
@@ -318,6 +334,7 @@ export default function PoliciesPage() {
       } : p))
       triggerToast(`Policy '${editForm.title}' updated!`)
       setEditPolicy(null)
+      setOverrideFile(null)
     } finally {
       setEditLoading(false)
     }
@@ -365,7 +382,7 @@ export default function PoliciesPage() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#F8FAFC' }}>
-      <Sidebar role="admin" userName="Admin Nova" userEmail="admin@supportnova.com" />
+      <Sidebar role="admin" userName="Admin Nova" userEmail="admin@novawearapparel.com" />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' }}>
         <Navbar title="Policy Knowledge Base" subtitle="Upload PDF/DOC policies, extract structured content, and link department foreign keys" />
@@ -1147,6 +1164,34 @@ export default function PoliciesPage() {
                     <option value="Archived">Archived</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Optional: Override Document in AWS S3 */}
+              <div style={{ marginBottom: 16, padding: '12px 14px', background: '#F8FAFC', borderRadius: 10, border: '1.5px dashed #CBD5E1' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155' }}>
+                    ☁️ Override Document in AWS S3 (Optional)
+                  </label>
+                  {editPolicy?.s3_url && (
+                    <a href={editPolicy.s3_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#7C3AED', fontWeight: 600, textDecoration: 'none' }}>
+                      View S3 File ↗
+                    </a>
+                  )}
+                </div>
+                <p style={{ fontSize: 11, color: '#64748B', margin: '0 0 8px' }}>
+                  Upload a revised PDF/DOCX to replace the object in AWS S3 and re-extract text chunks.
+                </p>
+                <input
+                  type="file"
+                  accept=".pdf,.docx,.txt"
+                  onChange={e => setOverrideFile(e.target.files ? e.target.files[0] : null)}
+                  style={{ fontSize: 12, color: '#334155' }}
+                />
+                {overrideFile && (
+                  <p style={{ fontSize: 11, color: '#059669', fontWeight: 700, margin: '6px 0 0' }}>
+                    ✓ Selected: {overrideFile.name} (will override object in S3 upon saving)
+                  </p>
+                )}
               </div>
 
               <div style={{ marginBottom: 16 }}>

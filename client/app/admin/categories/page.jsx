@@ -203,7 +203,7 @@ export default function CategoriesPage() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#F8FAFC' }}>
-      <Sidebar role="admin" userName="Admin Nova" userEmail="admin@supportnova.com" />
+      <Sidebar role="admin" userName="Admin Nova" userEmail="admin@novawearapparel.com" />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' }}>
         <Navbar title="Category Management" subtitle="Manage policy and complaint resolution categories with foreign key linkage" />

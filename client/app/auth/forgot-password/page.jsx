@@ -4,6 +4,8 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, KeyRound, CheckCircle, RefreshCw, ArrowRight, Clock } from 'lucide-react'
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
 function ForgotPasswordContent() {
   const searchParams = useSearchParams()
   const initialEmail = searchParams ? searchParams.get('email') || '' : ''
@@ -37,7 +39,7 @@ function ForgotPasswordContent() {
     setLoading(true); setErrorMsg('')
 
     try {
-      const res = await fetch('http://localhost:8000/api/auth/forgot-password', {
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -69,7 +71,7 @@ function ForgotPasswordContent() {
     setLoading(true); setErrorMsg('')
 
     try {
-      const res = await fetch('http://localhost:8000/api/auth/verify-otp', {
+      const res = await fetch(`${API_BASE}/api/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp_code: otpCode }),
@@ -99,7 +101,7 @@ function ForgotPasswordContent() {
     setLoading(true); setErrorMsg('')
 
     try {
-      const res = await fetch('http://localhost:8000/api/auth/reset-password', {
+      const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp_code: otpCode, new_password: newPassword }),
