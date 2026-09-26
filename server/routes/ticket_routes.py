@@ -129,53 +129,57 @@ async def list_tickets(
     c_id = _clean(customer_id)
     c_channel = _clean(channel)
 
+    conditions = []
+
     if c_status and c_status != "All":
-        query["status"] = c_status
+        conditions.append({"status": c_status})
     if c_dept_id and c_dept_id != "All":
-        query["department_id"] = c_dept_id
+        conditions.append({"department_id": c_dept_id})
     elif c_dept and c_dept != "All":
-        query["$or"] = [{"department": c_dept}, {"customer_department": c_dept}]
+        conditions.append({"$or": [{"department": c_dept}, {"customer_department": c_dept}]})
 
     if c_agent and c_agent != "All":
         if c_agent.upper() == "UNASSIGNED":
-            query["$or"] = [
+            conditions.append({"$or": [
                 {"assigned_agent_id": None},
                 {"assigned_agent_id": ""},
                 {"assigned_agent_id": {"$exists": False}}
-            ]
+            ]})
         else:
-            query["assigned_agent_id"] = c_agent
+            conditions.append({"assigned_agent_id": c_agent})
 
     if c_prio and c_prio != "All":
-        query["priority"] = c_prio
+        conditions.append({"priority": c_prio})
     if c_channel and c_channel != "All":
-        query["channel"] = c_channel
+        conditions.append({"channel": c_channel})
 
     if c_id or c_email:
         cust_or = []
         if c_id:
             cust_or.append({"customer_id": c_id})
         if c_email:
-            cust_or.append({"customer_email": c_email})
-            cust_or.append({"customer_email": c_email.lower()})
-
+            import re
+            cust_or.append({"customer_email": {"$regex": f"^{re.escape(c_email.strip())}$", "$options": "i"}})
         if len(cust_or) == 1:
-            query.update(cust_or[0])
+            conditions.append(cust_or[0])
         else:
-            query["$or"] = cust_or
+            conditions.append({"$or": cust_or})
 
     if c_search:
-        search_or = [
+        conditions.append({"$or": [
             {"ticket_id": {"$regex": c_search, "$options": "i"}},
             {"title": {"$regex": c_search, "$options": "i"}},
             {"description": {"$regex": c_search, "$options": "i"}},
             {"order_id": {"$regex": c_search, "$options": "i"}},
             {"customer_name": {"$regex": c_search, "$options": "i"}}
-        ]
-        if "$or" in query:
-            query = {"$and": [{"$or": query.pop("$or")}, {"$or": search_or}]}
-        else:
-            query["$or"] = search_or
+        ]})
+
+    if len(conditions) == 0:
+        query = {}
+    elif len(conditions) == 1:
+        query = conditions[0]
+    else:
+        query = {"$and": conditions}
 
     cursor = db.tickets.find(query).sort("created_at", -1)
     tickets = await cursor.to_list(length=200)

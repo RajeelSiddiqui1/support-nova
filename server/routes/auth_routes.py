@@ -19,16 +19,41 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback")
 
-# Dynamic Frontend base URL (supports Vercel domain *.vercel.app or localhost)
-FRONTEND_BASE = os.getenv("FRONTEND_URL") or os.getenv("NEXTAUTH_URL") or "http://localhost:3000"
-if not FRONTEND_BASE.startswith("http"):
-    FRONTEND_BASE = f"https://{FRONTEND_BASE}"
+def get_frontend_base(request: Request) -> str:
+    """Dynamically detects the frontend origin from request headers or env."""
+    frontend_env = os.getenv("FRONTEND_URL") or os.getenv("NEXTAUTH_URL")
+    if frontend_env:
+        if not frontend_env.startswith("http"):
+            frontend_env = f"https://{frontend_env}"
+        return frontend_env.rstrip("/")
+    
+    forwarded_host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+    if "vercel.app" in forwarded_host or "novawear-apparel" in forwarded_host:
+        proto = request.headers.get("x-forwarded-proto", "https")
+        return f"{proto}://{forwarded_host}".rstrip("/")
+        
+    if forwarded_host and "localhost" not in forwarded_host and "127.0.0.1" not in forwarded_host:
+        proto = request.headers.get("x-forwarded-proto", "https")
+        return f"{proto}://{forwarded_host}".rstrip("/")
+        
+    return "http://localhost:3000"
 
-FRONTEND_CUSTOMER_DASHBOARD = f"{FRONTEND_BASE}/customer/dashboard"
-FRONTEND_LOGIN_PAGE = f"{FRONTEND_BASE}/login"
-FRONTEND_CHANGE_PASSWORD = f"{FRONTEND_BASE}/auth/change-password"
+def get_google_redirect_uri(request: Request) -> str:
+    """Returns the matching Google OAuth redirect URI for cloud or local environment."""
+    forwarded_host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+    is_cloud = "vercel.app" in forwarded_host or "novawear-apparel" in forwarded_host or bool(os.getenv("VERCEL") or os.getenv("VERCEL_ENV"))
+    
+    if is_cloud or ("localhost" not in forwarded_host and "127.0.0.1" not in forwarded_host and forwarded_host):
+        proto = request.headers.get("x-forwarded-proto", "https")
+        host = forwarded_host if forwarded_host else "novawear-apparel.vercel.app"
+        return f"{proto}://{host}/api/auth/google/callback"
+
+    configured = os.getenv("GOOGLE_REDIRECT_URI")
+    if configured and "localhost" in configured:
+        return configured
+
+    return "http://localhost:8000/api/auth/google/callback"
 
 class CheckEmailRequest(BaseModel):
     email: EmailStr
@@ -257,12 +282,13 @@ async def login(req: LoginRequest, request: Request):
 # ── PURE BACKEND GOOGLE OAUTH 2.0 ──
 
 @router.get("/google")
-async def google_auth_redirect():
-    """Redirects to Google OAuth consent screen."""
+async def google_auth_redirect(request: Request):
+    """Redirects to Google OAuth consent screen using dynamic domain resolution."""
     scope = "openid email profile"
+    redirect_uri = get_google_redirect_uri(request)
     params = {
         "client_id": GOOGLE_CLIENT_ID,
-        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": scope,
         "access_type": "offline",
@@ -272,10 +298,16 @@ async def google_auth_redirect():
     return RedirectResponse(url=google_url)
 
 @router.get("/google/callback")
-async def google_auth_callback(code: Optional[str] = None, error: Optional[str] = None):
+async def google_auth_callback(request: Request, code: Optional[str] = None, error: Optional[str] = None):
     """Backend Callback: Exchanges code for token, checks MongoDB, sets session cookies."""
+    frontend_base = get_frontend_base(request)
+    frontend_dashboard = f"{frontend_base}/customer/dashboard"
+    frontend_login = f"{frontend_base}/login"
+
     if error or not code:
-        return RedirectResponse(url=f"{FRONTEND_LOGIN_PAGE}?error=google_access_denied")
+        return RedirectResponse(url=f"{frontend_login}?error=google_access_denied")
+
+    redirect_uri = get_google_redirect_uri(request)
 
     try:
         import httpx
@@ -284,13 +316,14 @@ async def google_auth_callback(code: Optional[str] = None, error: Optional[str] 
             "code": code,
             "client_id": GOOGLE_CLIENT_ID,
             "client_secret": GOOGLE_CLIENT_SECRET,
-            "redirect_uri": GOOGLE_REDIRECT_URI,
+            "redirect_uri": redirect_uri,
             "grant_type": "authorization_code"
         }
 
         async with httpx.AsyncClient() as client:
             token_res = await client.post(token_url, data=token_data)
             if token_res.status_code != 200:
+                print(f"[GOOGLE OAUTH ERROR] Token exchange failed ({token_res.status_code}): {token_res.text}")
                 verified_email = "customer.google@gmail.com"
                 verified_name = "Google Customer"
                 verified_sub = "goog_1092830192"
@@ -316,7 +349,7 @@ async def google_auth_callback(code: Optional[str] = None, error: Optional[str] 
                 f"Access Denied: {role_label} accounts are not allowed to log in via Google. Please sign in using your staff Email & Password."
             )
             return RedirectResponse(
-                url=f"{FRONTEND_LOGIN_PAGE}?error=staff_google_denied&role={user.get('role')}&reason={error_reason}"
+                url=f"{frontend_login}?error=staff_google_denied&role={user.get('role')}&reason={error_reason}"
             )
 
         if not user:
@@ -335,7 +368,7 @@ async def google_auth_callback(code: Optional[str] = None, error: Optional[str] 
 
         if user.get("status") == "INACTIVE":
             reason = urllib.parse.quote(user.get("deactivation_reason", "Account deactivated by Admin."))
-            return RedirectResponse(url=f"{FRONTEND_LOGIN_PAGE}?error=account_deactivated&reason={reason}")
+            return RedirectResponse(url=f"{frontend_login}?error=account_deactivated&reason={reason}")
 
         user_payload = urllib.parse.quote(json.dumps({
             "user_id": user.get("user_id"),
@@ -345,7 +378,7 @@ async def google_auth_callback(code: Optional[str] = None, error: Optional[str] 
             "status": user.get("status", "ACTIVE")
         }))
 
-        redirect_url = f"{FRONTEND_CUSTOMER_DASHBOARD}?auth_user={user_payload}"
+        redirect_url = f"{frontend_dashboard}?auth_user={user_payload}"
         response = RedirectResponse(url=redirect_url)
         response.set_cookie(key="user_role", value=user.get("role", "CUSTOMER"), path="/")
         response.set_cookie(key="user_status", value=user.get("status", "ACTIVE"), path="/")
@@ -355,7 +388,8 @@ async def google_auth_callback(code: Optional[str] = None, error: Optional[str] 
         return response
 
     except Exception as e:
-        response = RedirectResponse(url=FRONTEND_CUSTOMER_DASHBOARD)
+        print(f"[GOOGLE CALLBACK ERROR] Exception: {e}")
+        response = RedirectResponse(url=frontend_dashboard)
         response.set_cookie(key="user_role", value="CUSTOMER", path="/")
         response.set_cookie(key="user_status", value="ACTIVE", path="/")
         return response

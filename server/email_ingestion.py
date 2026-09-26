@@ -34,14 +34,26 @@ TARGET_SUPPORT_PATTERNS = [
     "support@novawear"
 ]
 
-# Automated / Promotional / Social media senders to ignore
+# Automated / Promotional / System senders to ignore
 IGNORED_SENDER_PATTERNS = [
     "no-reply", "noreply", "donotreply", "mailer-daemon", "postmaster",
     "newsletter", "promotions", "linkedin", "mongodb", "github", "twitter",
     "facebook", "instagram", "quora", "medium", "updates", "marketing",
     "jobalert", "indeed", "glassdoor", "apexearlycareers", "fontawesome",
     "samsung", "foodpanda", "meezanbank", "canva", "picfair", "grok",
-    "cerebras", "googleplay", "notification", "security-noreply"
+    "cerebras", "googleplay", "notification", "security-noreply",
+    "vercel", "namecheap", "anaconda", "google", "apple", "microsoft",
+    "aws", "amazon", "stripe", "paypal", "cloudflare", "gitlab",
+    "shopify", "wordpress", "wix", "billing-noreply", "auth", "security",
+    "otp", "verify", "verification", "support@vercel", "hello@namecheap"
+]
+
+# Automated / Promotional / OTP Subject Patterns to ignore
+IGNORED_SUBJECT_PATTERNS = [
+    "log in", "login code", "verification code", "security code", "security alert",
+    "domain for just", "exclusive offer", "newsletter", "digest", "one-time",
+    "otp", "confirm your email", "welcome to", "password reset", "invoice from vercel",
+    "receipt for your payment", "subscription confirmed"
 ]
 
 # Customer Complaint & Inquiry Keywords
@@ -50,8 +62,10 @@ CUSTOMER_COMPLAINT_KEYWORDS: List[str] = [
     "cloud instance", "instance", "ebook", "order #", "order id",
     "billing", "double charge", "charged", "ticket", "problem", "defect", "broken",
     "wrong item", "damaged", "delay", "issue", "error", "not working", "dissatisfied",
-    "help", "replace", "fix", "failed", "unauthorized", "unhappy", "pro-rated", "pro rated"
+    "help", "replace", "fix", "failed", "unauthorized", "unhappy", "pro-rated", "pro rated",
+    "suit", "jacket", "shirt", "pant", "hoodie", "dress", "stitching", "fabric", "cloth", "size"
 ]
+
 
 def extract_message_id(msg) -> Optional[str]:
     """Extract standard RFC 2822 Message-ID header safely from IMAP message."""
@@ -226,8 +240,14 @@ async def process_single_email_message(msg, db, user_email: str) -> Dict[str, An
         await record_processed_email(db, uid, message_id, fingerprint, sender_email, subject, email_date, status="SKIPPED_AUTOMATED")
         return {"status": "skipped", "reason": "Automated/promotional sender", "uid": uid}
 
+    # 2b. Ignore automated / promotional / OTP subject lines
+    if any(spat in subject_lower for spat in IGNORED_SUBJECT_PATTERNS):
+        await record_processed_email(db, uid, message_id, fingerprint, sender_email, subject, email_date, status="SKIPPED_SYSTEM_NOTICE")
+        return {"status": "skipped", "reason": "System notice or verification code email", "uid": uid}
+
     # 3. Check if subject contains existing Ticket ID (CMP-\d+)
     ticket_match = TICKET_ID_REGEX.search(subject)
+
 
     # 4. Strict filter: Must have ticket ID thread OR (recipient/NovaWear Apparel mentioned AND complaint keyword)
     is_sent_to_inbox = user_email.lower() in recipients_str
@@ -385,6 +405,15 @@ async def process_single_email_message(msg, db, user_email: str) -> Dict[str, An
     }
 
     cust_name = sender_email.split("@")[0].replace(".", " ").capitalize()
+    cust_id = f"USR-{int(datetime.utcnow().timestamp())}"
+
+    # Associate with existing registered user if present
+    existing_user = await db.users.find_one({
+        "email": {"$regex": f"^{re.escape(sender_email.strip())}$", "$options": "i"}
+    })
+    if existing_user:
+        cust_id = existing_user.get("user_id", cust_id)
+        cust_name = existing_user.get("name", cust_name)
 
     new_ticket = {
         "ticket_id": new_ticket_id,
@@ -397,9 +426,10 @@ async def process_single_email_message(msg, db, user_email: str) -> Dict[str, An
         "status": "In Triage",
         "email_uid": uid,
         "original_message_id": message_id,
-        "customer_id": f"USR-{int(datetime.utcnow().timestamp())}",
+        "customer_id": cust_id,
         "customer_name": cust_name,
         "customer_email": sender_email,
+
         # Department Routing & Unassigned Pool
         "department_id": ai_dept_id,
         "department": ai_dept,
@@ -553,20 +583,22 @@ async def fetch_latest_email_ticket() -> Dict[str, Any]:
         await ensure_email_indexes(db)
 
         try:
-            with MailBox(imap_server, port=imap_port).login(
-                user_email,
-                app_password,
-                initial_folder="INBOX"
-            ) as mailbox:
-                # Scan a bounded recent batch so duplicate mail cannot hide a nearby customer email.
-                latest_messages = list(mailbox.fetch(reverse=True, limit=50, mark_seen=True))
+            def _fetch_inbox_sync():
+                with MailBox(imap_server, port=imap_port, timeout=10).login(
+                    user_email,
+                    app_password,
+                    initial_folder="INBOX"
+                ) as mailbox:
+                    return list(mailbox.fetch(reverse=True, limit=15, mark_seen=False))
 
-                if not latest_messages:
-                    return {
-                        "status": "no_emails_found",
-                        "message": "INBOX is currently empty.",
-                        "checked_at": datetime.utcnow().isoformat()
-                    }
+            latest_messages = await asyncio.to_thread(_fetch_inbox_sync)
+
+            if not latest_messages:
+                return {
+                    "status": "no_emails_found",
+                    "message": "INBOX is currently empty.",
+                    "checked_at": datetime.utcnow().isoformat()
+                }
 
                 checked_at_utc = datetime.now(timezone.utc)
                 cutoff_utc = checked_at_utc - timedelta(seconds=30)
