@@ -690,3 +690,333 @@ async def delete_rule(rule_id: str):
         raise HTTPException(status_code=404, detail="Rule not found.")
     return {"status": "success", "message": f"Rule {rule_id} deleted."}
 
+
+@router.get("/analytics/trends")
+async def get_analytics_trends(range: str = "30d"):
+    """
+    Time-series trend data for the /admin/analytics page.
+    Generates volume_by_day, category breakdown, sentiment breakdown,
+    escalation trend, SLA risk trend, repeat trend, and AI accuracy.
+    """
+    db = get_database()
+    days_map = {"7d": 7, "30d": 30, "90d": 90}
+    num_days = days_map.get(range, 30)
+
+    now = datetime.utcnow()
+    start_date = now - timedelta(days=num_days)
+
+    tickets = await db.tickets.find({
+        "created_at": {"$gte": start_date.isoformat()}
+    }).to_list(length=1000)
+
+    # Volume by day
+    daily_counts = {}
+    escalation_counts = {}
+    sla_counts = {}
+    ai_counts = {}
+    for i in range(num_days):
+        d_str = (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
+        daily_counts[d_str] = 0
+        escalation_counts[d_str] = 0
+        sla_counts[d_str] = {"breached": 0, "at_risk": 0, "safe": 0}
+        ai_counts[d_str] = {"total": 0, "match": 0}
+
+    cat_counts = {}
+    sentiment_counts = {"positive": 0, "neutral": 0, "negative": 0, "urgent": 0}
+    total_count = len(tickets)
+    open_count = 0
+    resolved_count = 0
+    breached_count = 0
+
+    for t in tickets:
+        status = t.get("status", "")
+        if status in ["In Triage", "In Progress", "AI Review", "Escalated"]:
+            open_count += 1
+        elif status in ["Resolved", "Closed"]:
+            resolved_count += 1
+
+        if t.get("sla_breach"):
+            breached_count += 1
+
+        # Date parsing
+        created_dt = _parse_datetime(t.get("created_at"))
+        d_str = created_dt.strftime("%Y-%m-%d") if created_dt else None
+
+        if d_str and d_str in daily_counts:
+            daily_counts[d_str] += 1
+            if status == "Escalated":
+                escalation_counts[d_str] += 1
+
+            if t.get("sla_breach"):
+                sla_counts[d_str]["breached"] += 1
+            elif (t.get("sla_hours_remaining") or 99) <= 4:
+                sla_counts[d_str]["at_risk"] += 1
+            else:
+                sla_counts[d_str]["safe"] += 1
+
+            ai_counts[d_str]["total"] += 1
+            if t.get("match_status"):
+                ai_counts[d_str]["match"] += 1
+
+        cat = t.get("category") or "General"
+        cat_counts[cat] = cat_counts.get(cat, 0) + 1
+
+        sen = ((t.get("genai_output") or {}).get("sentiment") or "neutral").lower()
+        if sen in sentiment_counts:
+            sentiment_counts[sen] += 1
+
+    volume_by_day = [{"date": k, "count": v} for k, v in daily_counts.items()]
+    by_category = [{"category": k, "count": v} for k, v in cat_counts.items()]
+    escalation_by_day = [{"date": k, "count": v} for k, v in escalation_counts.items()]
+    sla_by_day = [{"date": k, **v} for k, v in sla_counts.items()]
+
+    ai_accuracy_by_day = []
+    for k, v in ai_counts.items():
+        pct = round((v["match"] / v["total"] * 100), 1) if v["total"] > 0 else 100.0
+        ai_accuracy_by_day.append({"date": k, "match_pct": pct})
+
+    # Repeat by week
+    num_weeks = max(1, num_days // 7)
+    repeat_by_week = []
+    for w in range(num_weeks):
+        w_start = start_date + timedelta(days=w * 7)
+        w_label = f"W{w+1}"
+        w_tickets = [t for t in tickets if _parse_datetime(t.get("created_at")) and w_start <= _parse_datetime(t.get("created_at")) < w_start + timedelta(days=7)]
+        repeats = sum(1 for t in w_tickets if t.get("duplicate_of") or t.get("is_repeat"))
+        pct = round((repeats / len(w_tickets) * 100), 1) if w_tickets else 0.0
+        repeat_by_week.append({"week": w_label, "repeat_pct": pct})
+
+    return {
+        "summary": {
+            "total": total_count,
+            "open": open_count,
+            "resolved": resolved_count,
+            "breach_rate": round((breached_count / total_count * 100), 1) if total_count > 0 else 0.0
+        },
+        "volume_by_day": volume_by_day,
+        "by_category": by_category,
+        "by_sentiment": sentiment_counts,
+        "escalation_by_day": escalation_by_day,
+        "sla_by_day": sla_by_day,
+        "repeat_by_week": repeat_by_week,
+        "ai_accuracy_by_day": ai_accuracy_by_day,
+    }
+
+
+# ── Feature 6: Native MongoDB Aggregation Pipeline for Analytics Summary ──
+@router.get("/analytics/summary")
+async def get_analytics_summary_aggregated():
+    """
+    Feature 6: Pure MongoDB Aggregation Pipeline for Analytics Summary.
+    Computes counts by category, sentiment, department, priority, escalation rate, and SLA risk count
+    directly within MongoDB Atlas engine — zero in-memory Python dataset iteration.
+    """
+    db = get_database()
+
+    pipeline_category = [{"$group": {"_id": "$category", "count": {"$sum": 1}}}]
+    pipeline_sentiment = [{"$group": {"_id": "$sentiment", "count": {"$sum": 1}}}]
+    pipeline_department = [{"$group": {"_id": "$department", "count": {"$sum": 1}}}]
+    pipeline_priority = [{"$group": {"_id": "$priority", "count": {"$sum": 1}}}]
+
+    cat_res = await db.tickets.aggregate(pipeline_category).to_list(length=100)
+    sen_res = await db.tickets.aggregate(pipeline_sentiment).to_list(length=100)
+    dept_res = await db.tickets.aggregate(pipeline_department).to_list(length=100)
+    pri_res = await db.tickets.aggregate(pipeline_priority).to_list(length=100)
+
+    total_tickets = await db.tickets.count_documents({})
+    escalated_count = await db.tickets.count_documents({"status": "Escalated"})
+    sla_risk_count = await db.tickets.count_documents({"$or": [{"sla_breach": True}, {"sla_hours_remaining": {"$lte": 4}}]})
+
+    escalation_rate = round((escalated_count / total_tickets * 100), 1) if total_tickets > 0 else 0.0
+
+    by_category = {item["_id"] or "Uncategorized": item["count"] for item in cat_res}
+    by_sentiment = {item["_id"] or "Neutral": item["count"] for item in sen_res}
+    by_department = {item["_id"] or "Unassigned": item["count"] for item in dept_res}
+    by_priority = {item["_id"] or "P2": item["count"] for item in pri_res}
+
+    return {
+        "total_tickets": total_tickets,
+        "by_category": by_category,
+        "by_sentiment": by_sentiment,
+        "by_department": by_department,
+        "by_priority": by_priority,
+        "escalation_rate": escalation_rate,
+        "sla_risk_count": sla_risk_count
+    }
+
+
+# ── Feature 7: Reports Generation & Export Endpoint ──
+import io
+import csv
+from fastapi.responses import StreamingResponse
+
+@router.get("/reports/preview")
+async def get_report_preview(
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    department: Optional[str] = Query(None),
+    priority: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    limit: int = Query(50)
+):
+    """Returns report preview matching filters."""
+    db = get_database()
+    query = {}
+    if status:
+        query["status"] = status
+    if department:
+        query["department"] = {"$regex": department, "$options": "i"}
+    if priority:
+        query["priority"] = priority
+    if category:
+        query["category"] = {"$regex": category, "$options": "i"}
+    if from_date or to_date:
+        date_q = {}
+        if from_date:
+            date_q["$gte"] = from_date
+        if to_date:
+            date_q["$lte"] = to_date
+        query["created_at"] = date_q
+
+    cursor = db.tickets.find(query).sort("created_at", -1).limit(limit)
+    tickets = await cursor.to_list(length=limit)
+    for t in tickets:
+        t["_id"] = str(t["_id"])
+    return {"tickets": tickets, "total": len(tickets)}
+
+
+@router.get("/reports/export")
+async def export_reports(
+    format: str = Query("csv"),  # csv | pdf | xlsx
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    department: Optional[str] = Query(None),
+    priority: Optional[str] = Query(None),
+    category: Optional[str] = Query(None)
+):
+    """
+    Feature 7: Export complaint reports in CSV, Excel (XLSX), or PDF format.
+    PDF generated via ReportLab (pure Python). XLSX generated via OpenPyXL. CSV via native csv module.
+    """
+    db = get_database()
+    query = {}
+    if status:
+        query["status"] = status
+    if department:
+        query["department"] = {"$regex": department, "$options": "i"}
+    if priority:
+        query["priority"] = priority
+    if category:
+        query["category"] = {"$regex": category, "$options": "i"}
+
+    cursor = db.tickets.find(query).sort("created_at", -1)
+    tickets = await cursor.to_list(length=5000)
+
+    headers = ["ticket_id", "title", "category", "department", "priority", "sentiment", "match_status", "escalation_status", "status", "created_at"]
+
+    rows = []
+    for t in tickets:
+        created_str = t.get("created_at").strftime("%Y-%m-%d %H:%M") if isinstance(t.get("created_at"), datetime) else str(t.get("created_at") or "")
+        rows.append({
+            "ticket_id": t.get("ticket_id", ""),
+            "title": t.get("title", ""),
+            "category": t.get("category", ""),
+            "department": t.get("department", ""),
+            "priority": t.get("priority", ""),
+            "sentiment": t.get("sentiment", ""),
+            "match_status": "Verified Match" if t.get("match_status", True) else "Mismatch Detected",
+            "escalation_status": "Escalated" if t.get("status") == "Escalated" or (t.get("genai_output") or {}).get("escalation_required") else "Standard",
+            "status": t.get("status", ""),
+            "created_at": created_str
+        })
+
+    fmt = format.lower()
+
+    if fmt == "csv":
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=headers)
+        writer.writeheader()
+        writer.writerows(rows)
+        output.seek(0)
+        return StreamingResponse(
+            io.BytesIO(output.getvalue().encode("utf-8")),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=novawear-complaints-report.csv"}
+        )
+
+    elif fmt == "xlsx":
+        import openpyxl
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Complaints Report"
+        ws.append(headers)
+        for r in rows:
+            ws.append([r[h] for h in headers])
+
+        bio = io.BytesIO()
+        wb.save(bio)
+        bio.seek(0)
+        return StreamingResponse(
+            bio,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=novawear-complaints-report.xlsx"}
+        )
+
+    elif fmt == "pdf":
+        from reportlab.lib.pagesizes import letter, landscape
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+
+        bio = io.BytesIO()
+        doc = SimpleDocTemplate(bio, pagesize=landscape(letter), rightMargin=20, leftMargin=20, topMargin=20, bottomMargin=20)
+        elements = []
+        styles = getSampleStyleSheet()
+
+        title_style = ParagraphStyle("ReportTitle", parent=styles["Heading1"], fontSize=16, textColor=colors.HexColor("#0B0E14"), spaceAfter=12)
+        elements.append(Paragraph("NovaWear Apparel — Complaint Intelligence Report", title_style))
+        elements.append(Paragraph(f"Generated on {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')} | Total Records: {len(rows)}", styles["Normal"]))
+        elements.append(Spacer(1, 12))
+
+        table_data = [[h.replace("_", " ").title() for h in headers]]
+        for r in rows:
+            table_data.append([
+                r["ticket_id"],
+                r["title"][:25] + "..." if len(r["title"]) > 25 else r["title"],
+                r["category"],
+                r["department"],
+                r["priority"],
+                r["sentiment"],
+                r["match_status"],
+                r["escalation_status"],
+                r["status"],
+                r["created_at"][:10]
+            ])
+
+        t = Table(table_data)
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#151922')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#F2EFEA')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F8FAFC')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+        ]))
+        elements.append(t)
+        doc.build(elements)
+        bio.seek(0)
+        return StreamingResponse(
+            bio,
+            media_type="application/pdf",
+            headers={"Content-Disposition": "attachment; filename=novawear-complaints-report.pdf"}
+        )
+
+    else:
+        raise HTTPException(status_code=400, detail="Invalid format. Supported formats: csv, xlsx, pdf.")
+
+
+

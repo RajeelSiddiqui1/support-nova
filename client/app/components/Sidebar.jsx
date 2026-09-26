@@ -4,8 +4,10 @@ import { usePathname } from 'next/navigation'
 import {
   Zap, LayoutDashboard, PlusCircle, MessageSquare, Ticket,
   Settings, LogOut, Database, BarChart3, Users,
-  Scale, ShieldCheck, FileText, UserCheck, Eye, Building2, FolderTree
+  Scale, ShieldCheck, FileText, UserCheck, Eye, Building2, FolderTree,
+  TrendingUp, ClipboardList
 } from 'lucide-react'
+import Logo from './Logo'
 
 const NAV = {
   customer: [
@@ -15,10 +17,10 @@ const NAV = {
     { icon: Ticket,          label: 'My Tickets',         href: '/customer/dashboard' },
   ],
   agent: [
-    { icon: LayoutDashboard, label: 'Workspace',          href: '/agent/workspace' },
+    { icon: LayoutDashboard, label: 'Workspace',          href: '/agent/workspace'    },
     { icon: MessageSquare,   label: 'Chat Queue',         href: '/agent/chat-tickets' },
-    { icon: Ticket,          label: 'Ticket Queue',        href: '/agent/workspace' },
-    { icon: Zap,             label: 'AI Pipeline',         href: '/agent/workspace' },
+    { icon: Ticket,          label: 'Ticket Queue',        href: '/agent/workspace'    },
+    { icon: Zap,             label: 'AI Pipeline',         href: '/agent/workspace'    },
   ],
   reviewer: [
     { icon: LayoutDashboard, label: 'Review Queue',        href: '/reviewer/queue' },
@@ -26,54 +28,54 @@ const NAV = {
     { icon: ShieldCheck,     label: 'Audit Log',           href: '/reviewer/queue' },
   ],
   admin: [
-    { icon: BarChart3,   label: 'Analytics',        href: '/admin/dashboard',  section: 'OVERVIEW'    },
-    { icon: FileText,    label: 'All Tickets',       href: '/admin/tickets',    section: 'TICKETS'     },
-    { icon: Users,       label: 'Users',             href: '/admin/users',      section: 'PEOPLE'      },
-    { icon: Building2,   label: 'Departments',       href: '/admin/departments', section: 'PEOPLE'     },
-    { icon: FolderTree,  label: 'Categories',        href: '/admin/categories', section: 'PEOPLE'      },
-    { icon: UserCheck,   label: 'Staff Management',  href: '/admin/dashboard',  section: 'PEOPLE'      },
-    { icon: Database,    label: 'Knowledge Base',    href: '/admin/policies',   section: 'SYSTEM'      },
-    { icon: Settings,    label: 'Rule Matrix',       href: '/admin/dashboard',  section: 'SYSTEM'      },
+    { icon: BarChart3,      label: 'Dashboard',        href: '/admin/dashboard',   section: 'OVERVIEW' },
+    { icon: TrendingUp,     label: 'Analytics',        href: '/admin/analytics',   section: 'OVERVIEW' },
+    { icon: FileText,       label: 'All Tickets',      href: '/admin/tickets',     section: 'TICKETS'  },
+    { icon: Users,          label: 'Users',            href: '/admin/users',       section: 'PEOPLE'   },
+    { icon: Building2,      label: 'Departments',      href: '/admin/departments', section: 'PEOPLE'   },
+    { icon: FolderTree,     label: 'Categories',       href: '/admin/categories',  section: 'PEOPLE'   },
+    { icon: UserCheck,      label: 'Staff Management', href: '/admin/dashboard',   section: 'PEOPLE'   },
+    { icon: Database,       label: 'Knowledge Base',   href: '/admin/policies',    section: 'SYSTEM'   },
+    { icon: Settings,       label: 'Rule Matrix',      href: '/admin/dashboard',   section: 'SYSTEM'   },
+    { icon: ClipboardList,  label: 'Reports',          href: '/admin/reports',     section: 'SYSTEM'   },
   ],
 }
 
+/* Per-role accent colors using brand tokens */
 const ROLE_META = {
-  customer: { label: 'Customer Portal',    color: '#7C3AED', bg: '#F5F3FF', emoji: '👤' },
-  agent:    { label: 'Agent Workspace',    color: '#059669', bg: '#ECFDF5', emoji: '🎧' },
-  reviewer: { label: 'Manager / Reviewer', color: '#D97706', bg: '#FFFBEB', emoji: '⚖️' },
-  admin:    { label: 'Admin Center',       color: '#E11D48', bg: '#FFF1F2', emoji: '⚙️' },
+  customer: { label: 'Customer Portal',    accent: '#C96F4A', accentDim: 'rgba(201,111,74,0.15)',   emoji: '👤' },
+  agent:    { label: 'Agent Workspace',    accent: '#4FA689', accentDim: 'rgba(79,166,137,0.14)',   emoji: '🎧' },
+  reviewer: { label: 'Manager / Reviewer', accent: '#C9A227', accentDim: 'rgba(201,162,39,0.13)',   emoji: '⚖️' },
+  admin:    { label: 'Admin Center',       accent: '#C1495B', accentDim: 'rgba(193,73,91,0.14)',    emoji: '⚙️' },
 }
 
 import { useState, useEffect } from 'react'
 
 export default function Sidebar({ role = 'customer', userName, userEmail }) {
   const pathname = usePathname()
-  const rKey = (role || 'customer').toLowerCase()
+  const rKey  = (role || 'customer').toLowerCase()
   const items = NAV[rKey] || NAV.customer
   const meta  = ROLE_META[rKey] || ROLE_META.customer
 
   const [profile, setProfile] = useState({
-    name: userName || 'User',
+    name:  userName  || 'User',
     email: userEmail || 'user@company.com'
   })
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-
     try {
       let resolvedUser = null
 
       // 1. Check URL query string for auth_user parameter (from Google OAuth redirect)
       const params = new URLSearchParams(window.location.search)
       const authUserParam = params.get('auth_user')
-
       if (authUserParam) {
         try {
           const decoded = JSON.parse(decodeURIComponent(authUserParam))
           if (decoded && (decoded.email || decoded.name)) {
             resolvedUser = decoded
             localStorage.setItem('user', JSON.stringify(decoded))
-            // Clean URL query without page reload
             const cleanUrl = window.location.pathname
             window.history.replaceState({}, document.title, cleanUrl)
           }
@@ -82,21 +84,20 @@ export default function Sidebar({ role = 'customer', userName, userEmail }) {
         }
       }
 
-      // 2. Check document cookies
+      // 2. Check cookies
       if (!resolvedUser) {
         const cookiePairs = document.cookie ? document.cookie.split('; ') : []
         const cookies = {}
-        const clean = (s) => (s || '').replace(/^["']|["']$/g, '').trim()
+        const clean = (s) => (s || '').replace(/^[\"']|[\"']$/g, '').trim()
         cookiePairs.forEach(pair => {
           const [k, v] = pair.split('=')
           if (k) cookies[k] = clean(decodeURIComponent(v || ''))
         })
-
         if (cookies.user_email || cookies.user_name) {
           resolvedUser = {
-            name: cookies.user_name,
-            email: cookies.user_email,
-            role: cookies.user_role || 'CUSTOMER',
+            name:   cookies.user_name,
+            email:  cookies.user_email,
+            role:   cookies.user_role   || 'CUSTOMER',
             status: cookies.user_status || 'ACTIVE'
           }
           localStorage.setItem('user', JSON.stringify(resolvedUser))
@@ -106,16 +107,14 @@ export default function Sidebar({ role = 'customer', userName, userEmail }) {
       // 3. Check localStorage / sessionStorage
       if (!resolvedUser) {
         const stored = localStorage.getItem('user') || sessionStorage.getItem('user')
-        if (stored) {
-          resolvedUser = JSON.parse(stored)
-        }
+        if (stored) resolvedUser = JSON.parse(stored)
       }
 
-      const cleanName = (s) => (s || '').replace(/^["']|["']$/g, '').trim()
+      const cleanName = (s) => (s || '').replace(/^[\"']|[\"']$/g, '').trim()
       if (resolvedUser) {
         setProfile({
-          name: cleanName(resolvedUser.name || resolvedUser.full_name) || userName || 'User',
-          email: cleanName(resolvedUser.email) || userEmail || 'user@company.com'
+          name:  cleanName(resolvedUser.name || resolvedUser.full_name) || userName  || 'User',
+          email: cleanName(resolvedUser.email)                          || userEmail || 'user@company.com'
         })
       } else if (userName && userEmail) {
         setProfile({ name: cleanName(userName), email: cleanName(userEmail) })
@@ -127,34 +126,26 @@ export default function Sidebar({ role = 'customer', userName, userEmail }) {
 
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  // Listen for global toggle/open/close sidebar events
   useEffect(() => {
     if (typeof window === 'undefined') return
-
     const handleToggle = () => setMobileOpen(prev => !prev)
     const handleOpen   = () => setMobileOpen(true)
     const handleClose  = () => setMobileOpen(false)
     const handleKey    = (e) => { if (e.key === 'Escape') setMobileOpen(false) }
-
     window.addEventListener('toggle-supportnova-sidebar', handleToggle)
-    window.addEventListener('open-supportnova-sidebar', handleOpen)
-    window.addEventListener('close-supportnova-sidebar', handleClose)
+    window.addEventListener('open-supportnova-sidebar',   handleOpen)
+    window.addEventListener('close-supportnova-sidebar',  handleClose)
     window.addEventListener('keydown', handleKey)
-
     return () => {
       window.removeEventListener('toggle-supportnova-sidebar', handleToggle)
-      window.removeEventListener('open-supportnova-sidebar', handleOpen)
-      window.removeEventListener('close-supportnova-sidebar', handleClose)
+      window.removeEventListener('open-supportnova-sidebar',   handleOpen)
+      window.removeEventListener('close-supportnova-sidebar',  handleClose)
       window.removeEventListener('keydown', handleKey)
     }
   }, [])
 
-  // Auto-close on route transition
-  useEffect(() => {
-    setMobileOpen(false)
-  }, [pathname])
+  useEffect(() => { setMobileOpen(false) }, [pathname])
 
-  // Lock mobile body scroll when drawer is open
   useEffect(() => {
     if (typeof document === 'undefined') return
     if (mobileOpen && window.innerWidth < 1024) {
@@ -162,28 +153,24 @@ export default function Sidebar({ role = 'customer', userName, userEmail }) {
     } else {
       document.body.style.overflow = ''
     }
-    return () => {
-      if (typeof document !== 'undefined') document.body.style.overflow = ''
-    }
+    return () => { if (typeof document !== 'undefined') document.body.style.overflow = '' }
   }, [mobileOpen])
 
-  // group admin items by section safely
   const sections = rKey === 'admin'
     ? [...new Set(items.map(i => i.section).filter(Boolean))]
     : null
 
   return (
     <>
-      {/* Mobile Backdrop Overlay */}
+      {/* Mobile Backdrop */}
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
           className="sidebar-backdrop"
           aria-hidden="true"
           style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.45)',
+            position: 'fixed', inset: 0,
+            background: 'rgba(11,14,20,0.72)',
             backdropFilter: 'blur(4px)',
             WebkitBackdropFilter: 'blur(4px)',
             zIndex: 90,
@@ -195,11 +182,11 @@ export default function Sidebar({ role = 'customer', userName, userEmail }) {
       <aside
         className={`app-sidebar ${mobileOpen ? 'mobile-open' : ''}`}
         style={{
-          background: 'rgba(255,255,255,0.94)',
+          background: 'var(--nw-surface)',
           backdropFilter: 'blur(24px)',
           WebkitBackdropFilter: 'blur(24px)',
-          borderRight: '1px solid rgba(226,232,240,0.7)',
-          boxShadow: '4px 0 32px rgba(148,163,184,0.08)',
+          borderRight: '1px solid var(--nw-border)',
+          boxShadow: '4px 0 32px rgba(11,14,20,0.4)',
           width: 250,
           display: 'flex',
           flexDirection: 'column',
@@ -207,21 +194,12 @@ export default function Sidebar({ role = 'customer', userName, userEmail }) {
         }}
       >
         {/* Logo & Mobile Dismiss Header */}
-        <div style={{ padding: '18px 18px 14px', borderBottom: '1px solid rgba(226,232,240,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-            <div style={{
-              width: 38, height: 38, borderRadius: 12,
-              background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 6px 18px rgba(124,58,237,0.35)',
-            }} className="animate-float">
-              <Zap size={17} color="white" />
-            </div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.3px' }}>NovaWear Apparel</div>
-              <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500 }}>AI Intelligence v1.0</div>
-            </div>
-          </div>
+        <div style={{
+          padding: '16px 18px 14px',
+          borderBottom: '1px solid var(--nw-border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+        }}>
+          <Logo size={36} variant="full" />
 
           {/* Close button on mobile */}
           <button
@@ -229,124 +207,160 @@ export default function Sidebar({ role = 'customer', userName, userEmail }) {
             className="sidebar-mobile-close"
             aria-label="Close menu"
             style={{
-              background: 'rgba(241,245,249,0.8)',
-              border: '1px solid rgba(226,232,240,0.8)',
+              background: 'var(--nw-elevated)',
+              border: '1px solid var(--nw-border-strong)',
               borderRadius: 8,
               width: 30, height: 30,
               cursor: 'pointer',
-              color: '#64748B',
+              color: 'var(--nw-text-muted)',
               alignItems: 'center',
               justifyContent: 'center',
+              flexShrink: 0,
             }}
           >
             <span style={{ fontSize: 16, lineHeight: 1, fontWeight: 'bold' }}>✕</span>
           </button>
         </div>
 
-      {/* Role Badge */}
-      <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(226,232,240,0.4)' }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '8px 12px', borderRadius: 10,
-          background: meta.bg, border: `1px solid ${meta.color}25`,
-          transition: 'all 0.2s',
-        }}>
-          <span style={{ fontSize: 15 }}>{meta.emoji}</span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: meta.color }}>{meta.label}</span>
-          <div className="pulse-dot" style={{ marginLeft: 'auto', width: 7, height: 7, borderRadius: '50%', background: meta.color }} />
+        {/* Role Badge */}
+        <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--nw-border)' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 12px', borderRadius: 10,
+            background: meta.accentDim,
+            border: `1px solid ${meta.accent}30`,
+            transition: 'all 0.2s',
+          }}>
+            <span style={{ fontSize: 15 }}>{meta.emoji}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: meta.accent }}>{meta.label}</span>
+            <div className="pulse-dot" style={{
+              marginLeft: 'auto', width: 7, height: 7,
+              borderRadius: '50%', background: meta.accent,
+            }} />
+          </div>
         </div>
-      </div>
 
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: '10px 10px', overflowY: 'auto' }}>
-        {rKey === 'admin' && sections && sections.length > 0 ? (
-          sections.map(section => (
-            <div key={section} style={{ marginBottom: 6 }}>
-              <div style={{ fontSize: 9, color: '#CBD5E1', letterSpacing: '0.1em', fontWeight: 700, padding: '6px 8px 3px', textTransform: 'uppercase' }}>
-                {section}
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: '10px 10px', overflowY: 'auto' }}>
+          {rKey === 'admin' && sections && sections.length > 0 ? (
+            sections.map(section => (
+              <div key={section} style={{ marginBottom: 6 }}>
+                <div style={{
+                  fontSize: 9, color: 'var(--nw-text-muted)',
+                  letterSpacing: '0.1em', fontWeight: 700,
+                  padding: '6px 8px 3px', textTransform: 'uppercase'
+                }}>
+                  {section}
+                </div>
+                {items.filter(i => i.section === section).map(item => {
+                  const active = pathname === item.href
+                  const Icon = item.icon
+                  return (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 9,
+                        padding: '8px 10px', borderRadius: 9, marginBottom: 1,
+                        textDecoration: 'none',
+                        background: active ? meta.accentDim : 'transparent',
+                        borderLeft: active ? `2.5px solid ${meta.accent}` : '2.5px solid transparent',
+                        color: active ? meta.accent : 'var(--nw-text-muted)',
+                        fontSize: 13, fontWeight: active ? 600 : 400,
+                        transition: 'all 0.15s ease',
+                        boxShadow: active ? `0 2px 12px ${meta.accent}18` : 'none',
+                      }}
+                    >
+                      <Icon size={14} />
+                      {item.label}
+                    </Link>
+                  )
+                })}
               </div>
-              {items.filter(i => i.section === section).map(item => {
+            ))
+          ) : (
+            <>
+              <div style={{
+                fontSize: 9, color: 'var(--nw-text-muted)',
+                letterSpacing: '0.1em', fontWeight: 700,
+                padding: '4px 8px 6px', textTransform: 'uppercase'
+              }}>
+                NAVIGATION
+              </div>
+              {items.map(item => {
                 const active = pathname === item.href
                 const Icon = item.icon
-                const targetHref = item.href || '/admin/dashboard'
                 return (
-                  <Link key={item.label} href={targetHref} onClick={() => setMobileOpen(false)} style={{
-                    display: 'flex', alignItems: 'center', gap: 9,
-                    padding: '8px 10px', borderRadius: 9, marginBottom: 1,
-                    textDecoration: 'none',
-                    background: active ? `${meta.color}12` : 'transparent',
-                    borderLeft: active ? `2.5px solid ${meta.color}` : '2.5px solid transparent',
-                    color: active ? meta.color : '#64748B',
-                    fontSize: 13, fontWeight: active ? 600 : 400,
-                    transition: 'all 0.15s ease',
-                    boxShadow: active ? `0 2px 12px ${meta.color}15` : 'none',
-                  }}>
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 9,
+                      padding: '8px 10px', borderRadius: 9, marginBottom: 2,
+                      textDecoration: 'none',
+                      background: active ? meta.accentDim : 'transparent',
+                      borderLeft: active ? `2.5px solid ${meta.accent}` : '2.5px solid transparent',
+                      color: active ? meta.accent : 'var(--nw-text-muted)',
+                      fontSize: 13, fontWeight: active ? 600 : 400,
+                      transition: 'all 0.15s ease',
+                      boxShadow: active ? `0 2px 12px ${meta.accent}18` : 'none',
+                    }}
+                  >
                     <Icon size={14} />
                     {item.label}
                   </Link>
                 )
               })}
-            </div>
-          ))
-        ) : (
-          <>
-            <div style={{ fontSize: 9, color: '#CBD5E1', letterSpacing: '0.1em', fontWeight: 700, padding: '4px 8px 6px', textTransform: 'uppercase' }}>
-              NAVIGATION
-            </div>
-            {items.map(item => {
-              const active = pathname === item.href
-              const Icon = item.icon
-              const targetHref = item.href || '/customer/dashboard'
-              return (
-                <Link key={item.label} href={targetHref} onClick={() => setMobileOpen(false)} style={{
-                  display: 'flex', alignItems: 'center', gap: 9,
-                  padding: '8px 10px', borderRadius: 9, marginBottom: 2,
-                  textDecoration: 'none',
-                  background: active ? `${meta.color}12` : 'transparent',
-                  borderLeft: active ? `2.5px solid ${meta.color}` : '2.5px solid transparent',
-                  color: active ? meta.color : '#64748B',
-                  fontSize: 13, fontWeight: active ? 600 : 400,
-                  transition: 'all 0.15s ease',
-                }}>
-                  <Icon size={14} />
-                  {item.label}
-                </Link>
-              )
-            })}
-          </>
-        )}
+            </>
+          )}
+        </nav>
 
-        {/* Role Switcher */}
-    
-      </nav>
-
-      {/* User */}
-      <div style={{ padding: 12, borderTop: '1px solid rgba(226,232,240,0.5)' }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 9,
-          padding: '9px 11px', borderRadius: 11,
-          background: 'rgba(248,250,252,0.9)', border: '1px solid rgba(226,232,240,0.6)',
-          transition: 'all 0.2s',
-        }}>
+        {/* User Footer */}
+        <div style={{ padding: 12, borderTop: '1px solid var(--nw-border)' }}>
           <div style={{
-            width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-            background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 12, fontWeight: 700, color: 'white',
-            boxShadow: '0 4px 10px rgba(124,58,237,0.3)',
+            display: 'flex', alignItems: 'center', gap: 9,
+            padding: '9px 11px', borderRadius: 11,
+            background: 'var(--nw-elevated)', border: '1px solid var(--nw-border-strong)',
+            transition: 'all 0.2s',
           }}>
-            {(profile.name || 'U').charAt(0).toUpperCase()}
+            <div style={{
+              width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+              background: `linear-gradient(135deg, ${meta.accent}, ${meta.accent}99)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 700, color: 'var(--nw-text-inverse)',
+              boxShadow: `0 4px 10px ${meta.accent}40`,
+            }}>
+              {(profile.name || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 12, fontWeight: 700, color: 'var(--nw-text-primary)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+              }}>
+                {profile.name}
+              </div>
+              <div style={{
+                fontSize: 10, color: 'var(--nw-text-muted)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+              }}>
+                {profile.email}
+              </div>
+            </div>
+            <Link
+              href="/login"
+              onClick={() => setMobileOpen(false)}
+              style={{
+                color: 'var(--nw-text-muted)', display: 'flex',
+                padding: 4, borderRadius: 6, transition: 'all 0.15s'
+              }}
+            >
+              <LogOut size={13} />
+            </Link>
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.name}</div>
-            <div style={{ fontSize: 10, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.email}</div>
-          </div>
-          <Link href="/login" onClick={() => setMobileOpen(false)} style={{ color: '#94A3B8', display: 'flex', padding: 4, borderRadius: 6, transition: 'all 0.15s' }}>
-            <LogOut size={13} />
-          </Link>
         </div>
-      </div>
-    </aside>
+      </aside>
     </>
   )
 }

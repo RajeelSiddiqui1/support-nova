@@ -16,6 +16,75 @@ class TicketStatus(str, Enum):
     RESOLVED = "Resolved"
     CLOSED = "Closed"
 
+# Feature 4: Secondary Issue Item
+class SecondaryIssueItem(BaseModel):
+    category: str
+    department: str
+    description: str
+
+# Feature 1: Follow-Up Item & Schemas
+class FollowUpItem(BaseModel):
+    follow_up_id: str
+    type: str  # info-request, resolution-confirmation, refund-status, replacement-status, escalation-ack, closure-confirmation
+    message: str
+    scheduled_at: datetime
+    sent_at: Optional[datetime] = None
+    status: str = "pending"  # pending, sent, cancelled
+
+class GenerateFollowUpRequest(BaseModel):
+    type: str
+    custom_delay_hours: Optional[int] = 24
+
+class FollowUpListResponse(BaseModel):
+    ticket_id: str
+    follow_ups: List[FollowUpItem] = []
+
+# Feature 2: Clarification Schemas
+class ClarificationReplyRequest(BaseModel):
+    reply: str
+
+class ClarificationReplyResponse(BaseModel):
+    status: str
+    updated_description: str
+    clarification_status: str
+
+# Feature 3: Complaint Summary Schema
+class StructuredComplaintSummary(BaseModel):
+    issue: str
+    category: str
+    sentiment: str
+    urgency: str
+    key_facts: List[str] = []
+    one_line_summary: str
+
+# Feature 5: Escalation Notes Schemas
+class StructuredEscalationNotes(BaseModel):
+    complaint_summary: str
+    key_facts: List[str] = []
+    escalation_reason: str
+    actions_taken: List[str] = []
+    relevant_policy_id: Optional[str] = None
+    required_next_action: str
+
+class EscalationRequest(BaseModel):
+    escalation_reason: str
+    actions_taken: List[str] = []
+
+# Feature 9: Hallucination Check Schema
+class HallucinationCheckResult(BaseModel):
+    has_hallucination: bool
+    hallucination_flags: List[str] = []
+
+# Feature 11: Verification Score Breakdown
+class VerificationScoreBreakdown(BaseModel):
+    category_match: float = 0.0
+    department_match: float = 0.0
+    urgency_match: float = 0.0
+    escalation_match: float = 0.0
+    policy_citation_match: float = 0.0
+    total_score: float = 100.0
+
+# Extended Pipeline Outputs
 class GenAIStructuredOutput(BaseModel):
     complaint_id: str
     issue_category: str
@@ -24,6 +93,10 @@ class GenAIStructuredOutput(BaseModel):
     urgency: str
     priority: PriorityLevel
     department: str
+    primary_department: Optional[str] = None
+    supporting_departments: List[str] = []
+    primary_issue: Optional[Dict[str, str]] = None
+    secondary_issues: List[SecondaryIssueItem] = []
     policy_id: Optional[str] = None
     policy_section: Optional[str] = None
     resolution_steps: List[str] = []
@@ -37,6 +110,8 @@ class PythonRuleOutput(BaseModel):
     category_verified: bool
     escalation_required: bool
     refund_eligible: bool
+    verified_primary_department: Optional[str] = None
+    verified_secondary_departments: List[str] = []
     mandatory_actions: List[str] = []
     prohibited_actions: List[str] = []
     policy_reference: str
@@ -72,6 +147,38 @@ class TicketBase(BaseModel):
     python_rule_output: Optional[PythonRuleOutput] = None
     match_status: bool = True  # True = Verified Match, False = Mismatch Detected
     
+    # Feature 1: Follow-Ups
+    follow_ups: List[FollowUpItem] = []
+
+    # Feature 2: Missing Information & Clarifications
+    missing_fields: List[str] = []
+    clarification_questions: List[str] = []
+    clarification_status: str = "none"  # "none" | "pending" | "answered"
+
+    # Feature 3: Complaint Summary
+    complaint_summary: Optional[StructuredComplaintSummary] = None
+
+    # Feature 4 & 10: Multi-Issue & Multi-Department
+    primary_issue: Optional[Dict[str, str]] = None
+    secondary_issues: List[SecondaryIssueItem] = []
+    primary_department: Optional[str] = None
+    supporting_departments: List[str] = []
+
+    # Feature 5: Escalation Notes
+    escalation_notes: Optional[StructuredEscalationNotes] = None
+
+    # Feature 8: Repeat Complaint Detection
+    is_repeat: bool = False
+    related_ticket_ids: List[str] = []
+    repeat_similarity_score: float = 0.0
+
+    # Feature 9: Explicit Hallucination Flags
+    has_hallucination: bool = False
+    hallucination_flags: List[str] = []
+
+    # Feature 11: Verification Score (0-100)
+    verification_score: float = 100.0
+
     attachments: List[str] = []
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

@@ -2,12 +2,13 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Zap, ShieldCheck, ArrowRight, Lock, Mail, AlertTriangle, CheckCircle, RefreshCw, UserCheck, ShieldAlert } from 'lucide-react'
+import Logo from '../components/Logo'
 
 const ROLES = [
-  { key: 'customer',  emoji: '👤', label: 'Customer Portal',    href: '/customer/dashboard', color: '#7C3AED', bg: '#F5F3FF' },
-  { key: 'agent',     emoji: '🎧', label: 'Agent Workspace',    href: '/agent/workspace',    color: '#059669', bg: '#ECFDF5' },
-  { key: 'reviewer',  emoji: '⚖️', label: 'Manager / Reviewer', href: '/reviewer/queue',     color: '#D97706', bg: '#FFFBEB' },
-  { key: 'admin',     emoji: '⚙️', label: 'Admin Center',       href: '/admin/dashboard',    color: '#E11D48', bg: '#FFF1F2' },
+  { key: 'customer',  emoji: '👤', label: 'Customer Portal',    href: '/customer/dashboard', color: '#C96F4A', bg: 'rgba(201,111,74,0.15)' },
+  { key: 'agent',     emoji: '🎧', label: 'Agent Workspace',    href: '/agent/workspace',    color: '#4FA689', bg: 'rgba(79,166,137,0.14)' },
+  { key: 'reviewer',  emoji: '⚖️', label: 'Manager / Reviewer', href: '/reviewer/queue',     color: '#C9A227', bg: 'rgba(201,162,39,0.13)' },
+  { key: 'admin',     emoji: '⚙️', label: 'Admin Center',       href: '/admin/dashboard',    color: '#C1495B', bg: 'rgba(193,73,91,0.14)' },
 ]
 
 import { API_BASE } from '../lib/api'
@@ -153,7 +154,7 @@ export default function LoginPage() {
 
   const pageBg = {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #F8FAFC 0%, #EEF2FF 55%, #F0FDF4 100%)',
+    background: 'var(--nw-base)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     padding: '40px 16px', position: 'relative', overflow: 'hidden',
   }
@@ -164,38 +165,29 @@ export default function LoginPage() {
 
         {/* Header */}
         <div className="animate-fade-up" style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 58, height: 58, borderRadius: 18, marginBottom: 12,
-            background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
-            boxShadow: '0 8px 28px rgba(124,58,237,0.35)',
-          }} className="animate-float">
-            <Zap size={26} color="white" />
-          </div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0F172A', marginBottom: 4 }}>NovaWear Apparel</h1>
-          <p style={{ color: '#64748B', fontSize: 13 }}>AWS-Style Secure Complaint Intelligence Portal</p>
+          <Logo size={56} variant="full" />
         </div>
 
         {/* Main Card */}
         <div className="animate-fade-up d100" style={{
-          background: 'rgba(255,255,255,0.86)',
+          background: 'var(--nw-surface)',
           backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
-          border: '1px solid rgba(255,255,255,0.95)',
+          border: '1px solid var(--nw-border)',
           borderRadius: 20, padding: 28,
-          boxShadow: '0 8px 40px rgba(148,163,184,0.15)',
+          boxShadow: '0 8px 40px rgba(11,14,20,0.4)',
         }}>
 
           {/* Deactivation Alert */}
           {errorMsg && (
             <div className="animate-shake" style={{
               marginBottom: 18, padding: '12px 14px', borderRadius: 12,
-              background: '#FFF1F2', border: '1px solid rgba(225,29,72,0.25)',
+              background: 'var(--nw-danger-dim)', border: '1px solid rgba(193,73,91,0.35)',
               display: 'flex', gap: 10, alignItems: 'flex-start',
             }}>
-              <AlertTriangle size={16} color="#E11D48" style={{ marginTop: 2, flexShrink: 0 }} />
+              <AlertTriangle size={16} color="var(--nw-danger)" style={{ marginTop: 2, flexShrink: 0 }} />
               <div>
-                <p style={{ fontSize: 12, fontWeight: 700, color: '#E11D48', marginBottom: 2 }}>Authentication Notice</p>
-                <p style={{ fontSize: 12, color: '#9F1239', lineHeight: 1.5 }}>{errorMsg}</p>
+                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--nw-danger)', marginBottom: 2 }}>Authentication Notice</p>
+                <p style={{ fontSize: 12, color: '#E8758A', lineHeight: 1.5 }}>{errorMsg}</p>
               </div>
             </div>
           )}
@@ -206,23 +198,23 @@ export default function LoginPage() {
               <form onSubmit={handleCheckEmail}>
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      Staff Login (Email & Password)
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--nw-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Staff Login (Email &amp; Password)
                     </label>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: '#059669', background: '#ECFDF5', padding: '2px 6px', borderRadius: 4 }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: '#4FA689', background: 'rgba(79,166,137,0.14)', padding: '2px 6px', borderRadius: 4 }}>
                       Staff Only
                     </span>
                   </div>
-                  <p style={{ fontSize: 11, color: '#64748B', marginBottom: 8, lineHeight: 1.4 }}>
-                    Admin, Manager, Reviewer, and Agents must sign in with their staff email & password.
+                  <p style={{ fontSize: 11, color: 'var(--nw-text-secondary)', marginBottom: 8, lineHeight: 1.4 }}>
+                    Admin, Manager, Reviewer, and Agents must sign in with their staff email &amp; password.
                   </p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 12, border: '1.5px solid rgba(226,232,240,0.9)', background: 'rgba(248,250,252,0.9)' }}>
-                    <Mail size={16} color="#94A3B8" />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 12, border: '1.5px solid var(--nw-border-strong)', background: 'var(--nw-elevated)' }}>
+                    <Mail size={16} color="var(--nw-text-muted)" />
                     <input
                       type="email" required value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="Enter staff email address…"
-                      style={{ border: 'none', background: 'none', outline: 'none', fontSize: 13, color: '#0F172A', width: '100%' }}
+                      style={{ border: 'none', background: 'none', outline: 'none', fontSize: 13, color: 'var(--nw-text-primary)', width: '100%' }}
                     />
                   </div>
                 </div>
@@ -231,10 +223,10 @@ export default function LoginPage() {
                   type="submit" disabled={loading}
                   style={{
                     width: '100%', padding: '12px 20px', borderRadius: 12, border: 'none',
-                    background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
+                    background: 'var(--nw-accent)',
                     color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    boxShadow: '0 4px 16px rgba(124,58,237,0.35)', transition: 'all 0.2s', marginBottom: 16
+                    boxShadow: '0 4px 16px rgba(201,111,74,0.35)', transition: 'all 0.2s', marginBottom: 16
                   }}
                 >
                   {loading ? <RefreshCw size={16} className="animate-spin" /> : <>Continue with Email <ArrowRight size={15} /></>}
@@ -243,14 +235,14 @@ export default function LoginPage() {
 
               {/* Google OAuth Divider & Button on Step 1 for Customer */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                <div style={{ flex: 1, height: 1, background: 'rgba(226,232,240,0.8)' }} />
-                <span style={{ fontSize: 11, color: '#7C3AED', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Customer Portal</span>
-                <div style={{ flex: 1, height: 1, background: 'rgba(226,232,240,0.8)' }} />
+                <div style={{ flex: 1, height: 1, background: 'var(--nw-border)' }} />
+                <span style={{ fontSize: 11, color: 'var(--nw-accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Customer Portal</span>
+                <div style={{ flex: 1, height: 1, background: 'var(--nw-border)' }} />
               </div>
 
               <div style={{ marginBottom: 10, textAlign: 'center' }}>
-                <p style={{ fontSize: 11, color: '#64748B', lineHeight: 1.4, margin: '0 0 10px 0' }}>
-                  Customers must log in exclusively using Google. (Email & password login is prohibited for customers).
+                <p style={{ fontSize: 11, color: 'var(--nw-text-secondary)', lineHeight: 1.4, margin: '0 0 10px 0' }}>
+                  Customers must log in exclusively using Google. (Email &amp; password login is prohibited for customers).
                 </p>
               </div>
 
@@ -258,10 +250,10 @@ export default function LoginPage() {
                 type="button" onClick={handleGoogle} disabled={googleLoading}
                 style={{
                   width: '100%', padding: '11px 18px', borderRadius: 11,
-                  border: '1.5px solid rgba(124,58,237,0.3)', background: 'rgba(255,255,255,0.98)',
-                  color: '#0F172A', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  border: '1.5px solid rgba(201,111,74,0.3)', background: 'var(--nw-elevated)',
+                  color: 'var(--nw-text-primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
-                  boxShadow: '0 2px 10px rgba(124,58,237,0.08)', transition: 'all 0.2s',
+                  boxShadow: '0 2px 10px rgba(11,14,20,0.3)', transition: 'all 0.2s',
                 }}
               >
                 {googleLoading ? <RefreshCw size={14} className="animate-spin" /> : (
@@ -280,26 +272,26 @@ export default function LoginPage() {
           {/* STEP 2: Password */}
           {step === 2 && (
             <form onSubmit={handleLoginSubmit} className="animate-fade-in">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, padding: '8px 12px', borderRadius: 10, background: 'rgba(248,250,252,0.8)', border: '1px solid rgba(226,232,240,0.8)' }}>
-                <span style={{ fontSize: 12, color: '#334155', fontWeight: 600 }}>{email}</span>
-                <button type="button" onClick={() => { setStep(1); setErrorMsg('') }} style={{ background: 'none', border: 'none', color: '#7C3AED', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Change</button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, padding: '8px 12px', borderRadius: 10, background: 'var(--nw-elevated)', border: '1px solid var(--nw-border)' }}>
+                <span style={{ fontSize: 12, color: 'var(--nw-text-primary)', fontWeight: 600 }}>{email}</span>
+                <button type="button" onClick={() => { setStep(1); setErrorMsg('') }} style={{ background: 'none', border: 'none', color: 'var(--nw-accent)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Change</button>
               </div>
 
               {/* Password Input */}
               <div style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Password</label>
-                  <Link href={`/auth/forgot-password?email=${encodeURIComponent(email)}`} style={{ fontSize: 11, color: '#7C3AED', fontWeight: 600, textDecoration: 'none' }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--nw-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Password</label>
+                  <Link href={`/auth/forgot-password?email=${encodeURIComponent(email)}`} style={{ fontSize: 11, color: 'var(--nw-accent)', fontWeight: 600, textDecoration: 'none' }}>
                     Forgot password?
                   </Link>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 12, border: '1.5px solid rgba(226,232,240,0.9)', background: 'rgba(248,250,252,0.9)' }}>
-                  <Lock size={16} color="#94A3B8" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 12, border: '1.5px solid var(--nw-border-strong)', background: 'var(--nw-elevated)' }}>
+                  <Lock size={16} color="var(--nw-text-muted)" />
                   <input
                     type="password" required value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password…"
-                    style={{ border: 'none', background: 'none', outline: 'none', fontSize: 13, color: '#0F172A', width: '100%' }}
+                    style={{ border: 'none', background: 'none', outline: 'none', fontSize: 13, color: 'var(--nw-text-primary)', width: '100%' }}
                   />
                 </div>
               </div>
@@ -308,10 +300,10 @@ export default function LoginPage() {
                 type="submit" disabled={loading}
                 style={{
                   width: '100%', padding: '12px 20px', borderRadius: 12, border: 'none',
-                  background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
+                  background: 'var(--nw-accent)',
                   color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  boxShadow: '0 4px 16px rgba(124,58,237,0.35)', transition: 'all 0.2s'
+                  boxShadow: '0 4px 16px rgba(201,111,74,0.35)', transition: 'all 0.2s'
                 }}
               >
                 {loading ? <RefreshCw size={16} className="animate-spin" /> : 'Sign In'}
@@ -320,14 +312,14 @@ export default function LoginPage() {
           )}
 
           {/* Quick Staff Switcher for Preview */}
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(226,232,240,0.6)' }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8, textAlign: 'center' }}>
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--nw-border)' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8, textAlign: 'center' }}>
               Direct Preview Links
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               {ROLES.map(r => (
                 <Link key={r.key} href={r.href || '/login'} style={{ textDecoration: 'none' }}>
-                  <div style={{ padding: '6px 8px', borderRadius: 8, background: r.bg, border: `1px solid ${r.color}25`, fontSize: 11, fontWeight: 600, color: r.color, textAlign: 'center' }}>
+                  <div style={{ padding: '6px 8px', borderRadius: 8, background: r.bg, border: `1px solid ${r.color}40`, fontSize: 11, fontWeight: 600, color: r.color, textAlign: 'center' }}>
                     {r.emoji} {r.label}
                   </div>
                 </Link>

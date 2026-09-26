@@ -11,12 +11,12 @@ import {
 import { API_BASE } from '../../lib/api'
 
 const glass = (extra = {}) => ({
-  background: 'rgba(255,255,255,0.82)',
-  backdropFilter: 'blur(24px)',
-  WebkitBackdropFilter: 'blur(24px)',
-  border: '1px solid rgba(255,255,255,0.95)',
+  background: 'var(--nw-glass-bg)',
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
+  border: '1px solid var(--nw-glass-border)',
   borderRadius: 16,
-  boxShadow: '0 4px 28px rgba(148,163,184,0.1), 0 1px 4px rgba(148,163,184,0.06)',
+  boxShadow: '0 4px 24px rgba(11,14,20,0.3)',
   ...extra,
 })
 
@@ -202,7 +202,7 @@ export default function CategoriesPage() {
   const totalPoliciesLinked = categories.reduce((acc, c) => acc + (c.policy_count || 0), 0)
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#F8FAFC' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--nw-base)' }}>
       <Sidebar role="admin" userName="Admin Nova" userEmail="admin@novawearapparel.com" />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' }}>
@@ -214,11 +214,11 @@ export default function CategoriesPage() {
           {toastMsg && (
             <div style={{
               position: 'fixed', top: 24, right: 32, zIndex: 9999,
-              background: '#0F172A', color: '#FFF', padding: '12px 20px', borderRadius: 12,
-              boxShadow: '0 10px 30px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: 10,
-              fontSize: 14, fontWeight: 600
+              background: 'var(--nw-surface)', color: 'var(--nw-text-primary)', padding: '12px 20px', borderRadius: 12,
+              boxShadow: '0 10px 30px rgba(11,14,20,0.4)', display: 'flex', alignItems: 'center', gap: 10,
+              fontSize: 14, fontWeight: 600, border: '1px solid var(--nw-border-strong)'
             }}>
-              <CheckCircle size={18} color="#10B981" />
+              <CheckCircle size={18} color="#4FA689" />
               <span>{toastMsg}</span>
             </div>
           )}
@@ -226,10 +226,10 @@ export default function CategoriesPage() {
           {/* Page Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.5px' }}>
+              <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0, letterSpacing: '-0.5px' }}>
                 Category Directory
               </h1>
-              <p style={{ fontSize: 13, color: '#64748B', margin: '4px 0 0' }}>
+              <p style={{ fontSize: 13, color: 'var(--nw-text-secondary)', margin: '4px 0 0' }}>
                 Define policy classification categories dynamically linked across all KB documents.
               </p>
             </div>
@@ -239,7 +239,7 @@ export default function CategoriesPage() {
                 onClick={fetchCategories}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 11,
-                  border: '1px solid #E2E8F0', background: '#FFF', color: '#475569', fontSize: 13, fontWeight: 600,
+                  border: '1px solid var(--nw-border-strong)', background: 'var(--nw-surface)', color: 'var(--nw-text-secondary)', fontSize: 13, fontWeight: 600,
                   cursor: 'pointer', transition: 'all 0.2s'
                 }}
               >
@@ -251,8 +251,8 @@ export default function CategoriesPage() {
                 onClick={() => { setShowCreate(true); setCreateErr(''); }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 11,
-                  border: 'none', background: 'linear-gradient(135deg, #7C3AED, #4F46E5)', color: '#FFF',
-                  fontSize: 13, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(124,58,237,0.35)',
+                  border: 'none', background: 'linear-gradient(135deg, #C96F4A, #C1495B)', color: '#FFF',
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(201,111,74,0.35)',
                   transition: 'all 0.2s'
                 }}
               >
@@ -264,37 +264,37 @@ export default function CategoriesPage() {
 
           {/* Stats Bar */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 24 }}>
-            <StatCard label="Total Categories" value={totalCats} icon={FolderTree} iconBg="#F5F3FF" iconColor="#7C3AED" />
-            <StatCard label="Active Categories" value={activeCats} icon={CheckCircle} iconBg="#ECFDF5" iconColor="#059669" />
-            <StatCard label="Inactive Categories" value={totalCats - activeCats} icon={XCircle} iconBg="#FEF2F2" iconColor="#EF4444" />
-            <StatCard label="Linked Policies" value={totalPoliciesLinked} icon={BookOpen} iconBg="#EFF6FF" iconColor="#2563EB" />
+            <StatCard label="Total Categories" value={totalCats} icon={FolderTree} iconBg="var(--nw-accent-dim)" iconColor="#C96F4A" />
+            <StatCard label="Active Categories" value={activeCats} icon={CheckCircle} iconBg="var(--nw-success-dim)" iconColor="#4FA689" />
+            <StatCard label="Inactive Categories" value={totalCats - activeCats} icon={XCircle} iconBg="var(--nw-danger-dim)" iconColor="#C1495B" />
+            <StatCard label="Linked Policies" value={totalPoliciesLinked} icon={BookOpen} iconBg="var(--nw-info-dim)" iconColor="#4A9BC9" />
           </div>
 
           {/* Search & Filter */}
           <div style={{ ...glass(), padding: '16px 20px', marginBottom: 24, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ position: 'relative', flex: '1 1 200px' }}>
-              <Search size={16} color="#94A3B8" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
+              <Search size={16} color="var(--nw-text-muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
                 placeholder="Search categories by name, code, or description..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
-                  width: '100%', padding: '10px 14px 10px 42px', borderRadius: 10, border: '1px solid #E2E8F0',
-                  fontSize: 13, background: '#FFF', outline: 'none'
+                  width: '100%', padding: '10px 14px 10px 42px', borderRadius: 10, border: '1px solid var(--nw-border-strong)',
+                  fontSize: 13, background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', outline: 'none'
                 }}
               />
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Filter size={15} color="#64748B" />
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Status:</span>
+              <Filter size={15} color="var(--nw-text-secondary)" />
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--nw-text-secondary)' }}>Status:</span>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusF(e.target.value)}
                 style={{
-                  padding: '9px 14px', borderRadius: 10, border: '1px solid #E2E8F0',
-                  background: '#FFF', fontSize: 13, fontWeight: 600, color: '#1E293B', outline: 'none', cursor: 'pointer'
+                  padding: '9px 14px', borderRadius: 10, border: '1px solid var(--nw-border-strong)',
+                  background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer'
                 }}
               >
                 <option value="All">All Statuses</option>
@@ -323,7 +323,7 @@ export default function CategoriesPage() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                     <span style={{
                       padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 800,
-                      background: '#F1F5F9', color: '#475569', letterSpacing: '0.5px'
+                      background: 'var(--nw-elevated)', color: 'var(--nw-text-secondary)', letterSpacing: '0.5px'
                     }}>
                       {cat.code}
                     </span>
@@ -331,26 +331,26 @@ export default function CategoriesPage() {
                     <span style={{
                       display: 'inline-flex', alignItems: 'center', gap: 5,
                       padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                      background: cat.status === 'ACTIVE' ? '#ECFDF5' : '#FEF2F2',
-                      color: cat.status === 'ACTIVE' ? '#059669' : '#EF4444'
+                      background: cat.status === 'ACTIVE' ? 'var(--nw-success-dim)' : 'var(--nw-danger-dim)',
+                      color: cat.status === 'ACTIVE' ? '#4FA689' : '#E8758A'
                     }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cat.status === 'ACTIVE' ? '#10B981' : '#EF4444' }} />
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cat.status === 'ACTIVE' ? '#4FA689' : '#E8758A' }} />
                       {cat.status}
                     </span>
                   </div>
 
-                  <h3 style={{ fontSize: 17, fontWeight: 800, color: '#0F172A', margin: '0 0 6px' }}>
+                  <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--nw-text-primary)', margin: '0 0 6px' }}>
                     {cat.name}
                   </h3>
 
-                  <p style={{ fontSize: 12.5, color: '#64748B', lineHeight: 1.5, margin: '0 0 16px', minHeight: 38 }}>
+                  <p style={{ fontSize: 12.5, color: 'var(--nw-text-secondary)', lineHeight: 1.5, margin: '0 0 16px', minHeight: 38 }}>
                     {cat.description || 'No description provided.'}
                   </p>
                 </div>
 
-                <div style={{ paddingTop: 14, borderTop: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#475569', fontSize: 12, fontWeight: 600 }}>
-                    <BookOpen size={14} color="#7C3AED" />
+                <div style={{ paddingTop: 14, borderTop: '1px solid var(--nw-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--nw-text-secondary)', fontSize: 12, fontWeight: 600 }}>
+                    <BookOpen size={14} color="var(--nw-accent)" />
                     <span>{cat.policy_count || 0} Linked Policies</span>
                   </div>
 
@@ -359,8 +359,8 @@ export default function CategoriesPage() {
                       onClick={() => handleEditOpen(cat)}
                       title="Edit Category"
                       style={{
-                        padding: 7, borderRadius: 8, border: '1px solid #E2E8F0', background: '#FFF',
-                        color: '#475569', cursor: 'pointer'
+                        padding: 7, borderRadius: 8, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-elevated)',
+                        color: 'var(--nw-text-secondary)', cursor: 'pointer'
                       }}
                     >
                       <Edit3 size={14} />
@@ -370,8 +370,8 @@ export default function CategoriesPage() {
                       onClick={() => setDeleteCat(cat)}
                       title="Delete Category"
                       style={{
-                        padding: 7, borderRadius: 8, border: '1px solid #FEE2E2', background: '#FEF2F2',
-                        color: '#EF4444', cursor: 'pointer'
+                        padding: 7, borderRadius: 8, border: '1px solid rgba(193,73,91,0.3)', background: 'var(--nw-danger-dim)',
+                        color: '#E8758A', cursor: 'pointer'
                       }}
                     >
                       <Trash2 size={14} />
@@ -383,9 +383,9 @@ export default function CategoriesPage() {
           </div>
 
           {filteredCategories.length === 0 && (
-            <div style={{ ...glass(), padding: 48, textAlign: 'center', color: '#64748B' }}>
-              <FolderTree size={36} color="#CBD5E1" style={{ marginBottom: 12 }} />
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1E293B', margin: '0 0 4px' }}>No Categories Found</h3>
+            <div style={{ ...glass(), padding: 48, textAlign: 'center', color: 'var(--nw-text-secondary)' }}>
+              <FolderTree size={36} color="var(--nw-text-muted)" style={{ marginBottom: 12 }} />
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--nw-text-primary)', margin: '0 0 4px' }}>No Categories Found</h3>
               <p style={{ fontSize: 13, margin: 0 }}>Try clearing your search query or filter options.</p>
             </div>
           )}
@@ -396,27 +396,27 @@ export default function CategoriesPage() {
       {/* CREATE CATEGORY MODAL */}
       {showCreateModal && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
+          position: 'fixed', inset: 0, zIndex: 999, background: 'var(--nw-overlay)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 'min(480px, 94vw)', padding: '24px 20px', background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(480px, 94vw)', padding: '24px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <FolderTree size={18} color="#7C3AED" />
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--nw-accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <FolderTree size={18} color="var(--nw-accent)" />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>Create Category</h2>
-                  <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>Add a new policy classification category</p>
+                  <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0 }}>Create Category</h2>
+                  <p style={{ fontSize: 12, color: 'var(--nw-text-secondary)', margin: 0 }}>Add a new policy classification category</p>
                 </div>
               </div>
-              <button onClick={() => setShowCreate(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
+              <button onClick={() => setShowCreate(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--nw-text-muted)' }}>
                 <X size={18} />
               </button>
             </div>
 
             {createErr && (
-              <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ background: 'var(--nw-danger-dim)', border: '1px solid rgba(193,73,91,0.3)', color: '#E8758A', padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <AlertCircle size={16} />
                 <span>{createErr}</span>
               </div>
@@ -424,46 +424,46 @@ export default function CategoriesPage() {
 
             <form onSubmit={handleCreate}>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Category Name *</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Category Name *</label>
                 <input
                   type="text"
                   placeholder="e.g., Shipping Delays, Warranty Claims"
                   value={createForm.name}
                   onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 13, outline: 'none' }}
                   required
                 />
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Category Code *</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Category Code *</label>
                 <input
                   type="text"
                   placeholder="e.g., DEL, REF, WAR, BIL"
                   value={createForm.code}
                   onChange={(e) => setCreateForm({ ...createForm, code: e.target.value.toUpperCase() })}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', textTransform: 'uppercase' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 13, outline: 'none', textTransform: 'uppercase' }}
                   required
                 />
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Description</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Description</label>
                 <textarea
                   rows={3}
                   placeholder="Briefly describe what policies fall under this category..."
                   value={createForm.description}
                   onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', resize: 'vertical' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 13, outline: 'none', resize: 'vertical' }}
                 />
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Status</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Status</label>
                 <select
                   value={createForm.status}
                   onChange={(e) => setCreateForm({ ...createForm, status: e.target.value })}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', background: '#FFF' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 13, outline: 'none' }}
                 >
                   <option value="ACTIVE">ACTIVE</option>
                   <option value="INACTIVE">INACTIVE</option>
@@ -474,7 +474,7 @@ export default function CategoriesPage() {
                 <button
                   type="button"
                   onClick={() => setShowCreate(false)}
-                  style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid #CBD5E1', background: '#FFF', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                  style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'transparent', color: 'var(--nw-text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
@@ -482,7 +482,7 @@ export default function CategoriesPage() {
                   type="submit"
                   disabled={createLoading}
                   style={{
-                    padding: '10px 22px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg, #7C3AED, #4F46E5)',
+                    padding: '10px 22px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg, #C96F4A, #C1495B)',
                     color: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: createLoading ? 0.7 : 1
                   }}
                 >
@@ -497,70 +497,70 @@ export default function CategoriesPage() {
       {/* EDIT CATEGORY MODAL */}
       {editCat && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
+          position: 'fixed', inset: 0, zIndex: 999, background: 'var(--nw-overlay)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 'min(480px, 94vw)', padding: '24px 20px', background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(480px, 94vw)', padding: '24px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#F5F3FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Edit3 size={18} color="#7C3AED" />
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--nw-accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Edit3 size={18} color="var(--nw-accent)" />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>Edit Category</h2>
-                  <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>Update details for {editCat.name}</p>
+                  <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0 }}>Edit Category</h2>
+                  <p style={{ fontSize: 12, color: 'var(--nw-text-secondary)', margin: 0 }}>Update details for {editCat.name}</p>
                 </div>
               </div>
-              <button onClick={() => setEditCat(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
+              <button onClick={() => setEditCat(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--nw-text-muted)' }}>
                 <X size={18} />
               </button>
             </div>
 
             {editErr && (
-              <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 16 }}>
+              <div style={{ background: 'var(--nw-danger-dim)', border: '1px solid rgba(193,73,91,0.3)', color: '#E8758A', padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 16 }}>
                 {editErr}
               </div>
             )}
 
             <form onSubmit={handleEditSubmit}>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Category Name</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Category Name</label>
                 <input
                   type="text"
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 13, outline: 'none' }}
                   required
                 />
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Category Code</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Category Code</label>
                 <input
                   type="text"
                   value={editForm.code}
                   onChange={(e) => setEditForm({ ...editForm, code: e.target.value.toUpperCase() })}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', textTransform: 'uppercase' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 13, outline: 'none', textTransform: 'uppercase' }}
                   required
                 />
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Description</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Description</label>
                 <textarea
                   rows={3}
                   value={editForm.description}
                   onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', resize: 'vertical' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 13, outline: 'none', resize: 'vertical' }}
                 />
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Status</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--nw-text-secondary)', marginBottom: 6 }}>Status</label>
                 <select
                   value={editForm.status}
                   onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid #CBD5E1', fontSize: 13, outline: 'none', background: '#FFF' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 13, outline: 'none' }}
                 >
                   <option value="ACTIVE">ACTIVE</option>
                   <option value="INACTIVE">INACTIVE</option>
@@ -571,7 +571,7 @@ export default function CategoriesPage() {
                 <button
                   type="button"
                   onClick={() => setEditCat(null)}
-                  style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid #CBD5E1', background: '#FFF', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                  style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'transparent', color: 'var(--nw-text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
@@ -579,7 +579,7 @@ export default function CategoriesPage() {
                   type="submit"
                   disabled={editLoading}
                   style={{
-                    padding: '10px 22px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg, #7C3AED, #4F46E5)',
+                    padding: '10px 22px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg, #C96F4A, #C1495B)',
                     color: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: editLoading ? 0.7 : 1
                   }}
                 >
@@ -594,24 +594,24 @@ export default function CategoriesPage() {
       {/* DELETE CONFIRMATION MODAL */}
       {deleteCat && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)',
+          position: 'fixed', inset: 0, zIndex: 999, background: 'var(--nw-overlay)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
         }}>
-          <div style={{ ...glass(), width: '100%', maxWidth: 'min(420px, 94vw)', padding: '24px 20px', background: '#FFF' }}>
+          <div style={{ ...glass(), width: '100%', maxWidth: 'min(420px, 94vw)', padding: '24px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-              <div style={{ width: 42, height: 42, borderRadius: 12, background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <AlertCircle size={22} color="#EF4444" />
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: 'var(--nw-danger-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AlertCircle size={22} color="#E8758A" />
               </div>
               <div>
-                <h3 style={{ fontSize: 17, fontWeight: 800, color: '#0F172A', margin: 0 }}>Delete Category?</h3>
-                <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>This action cannot be undone.</p>
+                <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0 }}>Delete Category?</h3>
+                <p style={{ fontSize: 12, color: 'var(--nw-text-secondary)', margin: 0 }}>This action cannot be undone.</p>
               </div>
             </div>
 
-            <p style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, marginBottom: 20 }}>
-              Are you sure you want to delete category <strong>{deleteCat.name} ({deleteCat.code})</strong>?
+            <p style={{ fontSize: 13, color: 'var(--nw-text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
+              Are you sure you want to delete category <strong style={{ color: 'var(--nw-text-primary)' }}>{deleteCat.name} ({deleteCat.code})</strong>?
               {deleteCat.policy_count > 0 && (
-                <span style={{ display: 'block', marginTop: 8, color: '#DC2626', fontWeight: 600 }}>
+                <span style={{ display: 'block', marginTop: 8, color: '#E8758A', fontWeight: 600 }}>
                   ⚠️ Warning: {deleteCat.policy_count} policies linked to this category will be reset to General.
                 </span>
               )}
@@ -621,7 +621,7 @@ export default function CategoriesPage() {
               <button
                 type="button"
                 onClick={() => setDeleteCat(null)}
-                style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid #CBD5E1', background: '#FFF', color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid var(--nw-border-strong)', background: 'transparent', color: 'var(--nw-text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
               >
                 Cancel
               </button>
@@ -630,7 +630,7 @@ export default function CategoriesPage() {
                 onClick={handleDelete}
                 disabled={deleteLoading}
                 style={{
-                  padding: '10px 22px', borderRadius: 9, border: 'none', background: '#DC2626',
+                  padding: '10px 22px', borderRadius: 9, border: 'none', background: 'var(--nw-danger)',
                   color: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: deleteLoading ? 0.7 : 1
                 }}
               >

@@ -123,7 +123,7 @@ function ForgotPasswordContent() {
 
   const pageBg = {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #F8FAFC 0%, #EEF2FF 55%, #F0FDF4 100%)',
+    background: 'var(--nw-base)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     padding: '40px 16px',
   }
@@ -132,24 +132,24 @@ function ForgotPasswordContent() {
     <div style={pageBg}>
       <div style={{ width: '100%', maxWidth: 440 }}>
         <div style={{
-          background: 'rgba(255,255,255,0.86)',
+          background: 'var(--nw-surface)',
           backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
-          border: '1px solid rgba(255,255,255,0.95)',
+          border: '1px solid var(--nw-border)',
           borderRadius: 20, padding: 28,
-          boxShadow: '0 8px 40px rgba(148,163,184,0.15)',
+          boxShadow: '0 8px 40px rgba(11,14,20,0.4)',
         }}>
 
           {successMsg ? (
             <div className="animate-fade-in" style={{ textAlign: 'center', padding: '20px 10px' }}>
-              <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#ECFDF5', border: '2px solid rgba(5,150,105,0.25)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CheckCircle size={28} color="#059669" />
+              <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--nw-success-dim)', border: '2px solid rgba(79,166,137,0.3)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle size={28} color="var(--nw-success)" />
               </div>
-              <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0F172A', marginBottom: 8 }}>Password Reset!</h2>
-              <p style={{ color: '#64748B', fontSize: 13, lineHeight: 1.6, marginBottom: 22 }}>{successMsg}</p>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--nw-text-primary)', marginBottom: 8 }}>Password Reset!</h2>
+              <p style={{ color: 'var(--nw-text-secondary)', fontSize: 13, lineHeight: 1.6, marginBottom: 22 }}>{successMsg}</p>
               <Link href="/login" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 padding: '12px 24px', borderRadius: 12, textDecoration: 'none',
-                background: 'linear-gradient(135deg,#7C3AED,#4F46E5)',
+                background: 'var(--nw-accent)',
                 color: 'white', fontSize: 13, fontWeight: 700,
               }}>
                 Login Now <ArrowRight size={15} />
@@ -161,14 +161,14 @@ function ForgotPasswordContent() {
                 <div style={{
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                   width: 52, height: 52, borderRadius: 16, marginBottom: 10,
-                  background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)',
+                  background: 'var(--nw-accent-dim)', border: '1px solid rgba(201,111,74,0.25)',
                 }}>
-                  <KeyRound size={24} color="#7C3AED" />
+                  <KeyRound size={24} color="var(--nw-accent)" />
                 </div>
-                <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0F172A', marginBottom: 4 }}>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--nw-text-primary)', marginBottom: 4 }}>
                   {step === 1 ? 'Forgot Password' : step === 2 ? 'Verify OTP Code' : 'Set New Password'}
                 </h2>
-                <p style={{ color: '#64748B', fontSize: 12 }}>
+                <p style={{ color: 'var(--nw-text-secondary)', fontSize: 12 }}>
                   {step === 1 && 'We will send a 6-digit OTP code to your registered email.'}
                   {step === 2 && `Enter the 6-digit OTP code sent to ${email}`}
                   {step === 3 && 'Enter your new permanent password below.'}
@@ -176,7 +176,7 @@ function ForgotPasswordContent() {
               </div>
 
               {errorMsg && (
-                <div style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 10, background: '#FFF1F2', border: '1px solid rgba(225,29,72,0.25)', color: '#E11D48', fontSize: 12 }}>
+                <div style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 10, background: 'var(--nw-danger-dim)', border: '1px solid rgba(193,73,91,0.35)', color: 'var(--nw-danger)', fontSize: 12 }}>
                   ⚠️ {errorMsg}
                 </div>
               )}
@@ -185,19 +185,19 @@ function ForgotPasswordContent() {
               {step === 1 && (
                 <form onSubmit={handleRequestOTP}>
                   <div style={{ marginBottom: 18 }}>
-                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--nw-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
                       Registered Email Address
                     </label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 12, border: '1.5px solid rgba(226,232,240,0.9)', background: 'rgba(248,250,252,0.9)' }}>
-                      <Mail size={16} color="#94A3B8" />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 12, border: '1.5px solid var(--nw-border-strong)', background: 'var(--nw-elevated)' }}>
+                      <Mail size={16} color="var(--nw-text-muted)" />
                       <input
                         type="email" required value={email} onChange={e => setEmail(e.target.value)}
                         placeholder="user@company.com"
-                        style={{ border: 'none', background: 'none', outline: 'none', fontSize: 13, color: '#0F172A', width: '100%' }}
+                        style={{ border: 'none', background: 'none', outline: 'none', fontSize: 13, color: 'var(--nw-text-primary)', width: '100%' }}
                       />
                     </div>
                   </div>
-                  <button type="submit" disabled={loading} style={{ width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7C3AED,#4F46E5)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <button type="submit" disabled={loading} style={{ width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'var(--nw-accent)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                     {loading ? <RefreshCw size={16} className="animate-spin" /> : 'Send OTP Code'}
                   </button>
                 </form>
@@ -206,33 +206,33 @@ function ForgotPasswordContent() {
               {/* STEP 2: Verify OTP */}
               {step === 2 && (
                 <form onSubmit={handleVerifyOTP}>
-                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)', marginBottom: 16 }}>
-                    <p style={{ fontSize: 11, color: '#64748B', lineHeight: 1.5 }}>
-                      💡 <strong>OTP Code Info:</strong> Check your email inbox. (If real SMTP is not configured in <code style={{ fontFamily:'monospace', color:'#7C3AED' }}>server/.env</code>, the 6-digit OTP code is printed directly in the FastAPI terminal console).
+                  <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--nw-accent-dim)', border: '1px solid rgba(201,111,74,0.2)', marginBottom: 16 }}>
+                    <p style={{ fontSize: 11, color: 'var(--nw-text-secondary)', lineHeight: 1.5 }}>
+                      💡 <strong>OTP Code Info:</strong> Check your email inbox. (If real SMTP is not configured in <code style={{ fontFamily:'monospace', color:'var(--nw-accent)' }}>server/.env</code>, the 6-digit OTP code is printed directly in the FastAPI terminal console).
                     </p>
                   </div>
 
                   <div style={{ marginBottom: 18 }}>
-                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, textAlign: 'center' }}>
+                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--nw-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, textAlign: 'center' }}>
                       6-Digit OTP Code
                     </label>
                     <input
                       type="text" maxLength={6} required value={otpCode} onChange={e => setOtp(e.target.value)}
                       placeholder="123456"
-                      style={{ width: '100%', padding: '14px', textAlign: 'center', fontFamily: 'monospace', fontSize: 24, fontWeight: 700, letterSpacing: 8, borderRadius: 12, border: '2px solid rgba(124,58,237,0.3)', background: 'rgba(245,253,255,0.8)', color: '#7C3AED', outline: 'none' }}
+                      style={{ width: '100%', padding: '14px', textAlign: 'center', fontFamily: 'monospace', fontSize: 24, fontWeight: 700, letterSpacing: 8, borderRadius: 12, border: '2px solid rgba(201,111,74,0.35)', background: 'var(--nw-elevated)', color: 'var(--nw-accent)', outline: 'none', boxSizing: 'border-box' }}
                     />
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748B' }}>
-                      <Clock size={13} /> Resend code in: <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#7C3AED' }}>{timer}s</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--nw-text-secondary)' }}>
+                      <Clock size={13} /> Resend code in: <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--nw-accent)' }}>{timer}s</span>
                     </div>
-                    <button type="button" disabled={!canResend} onClick={handleRequestOTP} style={{ background: 'none', border: 'none', color: canResend ? '#7C3AED' : '#CBD5E1', fontSize: 12, fontWeight: 700, cursor: canResend ? 'pointer' : 'default' }}>
+                    <button type="button" disabled={!canResend} onClick={handleRequestOTP} style={{ background: 'none', border: 'none', color: canResend ? 'var(--nw-accent)' : 'var(--nw-text-muted)', fontSize: 12, fontWeight: 700, cursor: canResend ? 'pointer' : 'default' }}>
                       Resend OTP
                     </button>
                   </div>
 
-                  <button type="submit" disabled={loading} style={{ width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#7C3AED,#4F46E5)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <button type="submit" disabled={loading} style={{ width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'var(--nw-accent)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                     {loading ? <RefreshCw size={16} className="animate-spin" /> : 'Verify OTP'}
                   </button>
                 </form>
@@ -242,14 +242,14 @@ function ForgotPasswordContent() {
               {step === 3 && (
                 <form onSubmit={handleResetPassword}>
                   <div style={{ marginBottom: 14 }}>
-                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>New Password</label>
-                    <input type="password" required value={newPassword} onChange={e => setNewPass(e.target.value)} placeholder="Enter new password…" style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid rgba(226,232,240,0.8)', background: 'rgba(248,250,252,0.8)', fontSize: 13, outline: 'none' }} />
+                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--nw-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>New Password</label>
+                    <input type="password" required value={newPassword} onChange={e => setNewPass(e.target.value)} placeholder="Enter new password…" style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid var(--nw-border-strong)', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   <div style={{ marginBottom: 18 }}>
-                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Confirm Password</label>
-                    <input type="password" required value={confirmPass} onChange={e => setConfirm(e.target.value)} placeholder="Confirm new password…" style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid rgba(226,232,240,0.8)', background: 'rgba(248,250,252,0.8)', fontSize: 13, outline: 'none' }} />
+                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--nw-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Confirm Password</label>
+                    <input type="password" required value={confirmPass} onChange={e => setConfirm(e.target.value)} placeholder="Confirm new password…" style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid var(--nw-border-strong)', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
                   </div>
-                  <button type="submit" disabled={loading} style={{ width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <button type="submit" disabled={loading} style={{ width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'var(--nw-success)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                     {loading ? <RefreshCw size={16} className="animate-spin" /> : 'Reset Password'}
                   </button>
                 </form>
@@ -264,7 +264,7 @@ function ForgotPasswordContent() {
 
 export default function ForgotPasswordPage() {
   return (
-    <Suspense fallback={<div style={{ textAlign: 'center', padding: 40, color: '#7C3AED' }}>Loading...</div>}>
+    <Suspense fallback={<div style={{ textAlign: 'center', padding: 40, color: 'var(--nw-accent)' }}>Loading...</div>}>
       <ForgotPasswordContent />
     </Suspense>
   )
