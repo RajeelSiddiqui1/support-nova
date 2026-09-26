@@ -14,8 +14,17 @@ from lib.dept_resolver import resolve_ai_department, get_active_department_names
 
 router = APIRouter(prefix="/api/tickets", tags=["Ticket & Complaint Intelligence"])
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "complaints")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+import tempfile
+
+if os.getenv("VERCEL") or os.getenv("VERCEL_ENV"):
+    UPLOAD_DIR = os.path.join(tempfile.gettempdir(), "uploads", "complaints")
+else:
+    UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "complaints")
+
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except Exception as e:
+    print(f"[COMPLAINT UPLOAD DIR NOTICE] {e}")
 
 def clean_quotes_py(val: Optional[str], default: str = "") -> str:
     if not val:

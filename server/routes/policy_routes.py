@@ -12,8 +12,17 @@ from lib.s3_service import s3_service
 
 router = APIRouter(prefix="/api/policies", tags=["Policy & Knowledge Base Management"])
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "policies")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+import tempfile
+
+if os.getenv("VERCEL") or os.getenv("VERCEL_ENV"):
+    UPLOAD_DIR = os.path.join(tempfile.gettempdir(), "uploads", "policies")
+else:
+    UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "policies")
+
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except Exception as e:
+    print(f"[POLICY UPLOAD DIR NOTICE] {e}")
 
 @router.get("")
 @router.get("/")

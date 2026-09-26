@@ -104,12 +104,23 @@ class S3Service:
                 logger.error(f"S3 put_object failed ({e}). Falling back to local storage.", exc_info=True)
 
         # Fallback for local development when AWS credentials not yet provided
-        local_base = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+        import tempfile
+        if os.getenv("VERCEL") or os.getenv("VERCEL_ENV"):
+            local_base = os.path.join(tempfile.gettempdir(), "uploads")
+        else:
+            local_base = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+            
         local_target = os.path.join(local_base, s3_key.replace("/", os.sep))
-        os.makedirs(os.path.dirname(local_target), exist_ok=True)
+        try:
+            os.makedirs(os.path.dirname(local_target), exist_ok=True)
+        except Exception as me:
+            logger.warning(f"Local upload directory creation failed: {me}")
 
-        with open(local_target, "wb") as f:
-            f.write(file_bytes)
+        try:
+            with open(local_target, "wb") as f:
+                f.write(file_bytes)
+        except Exception as fe:
+            logger.warning(f"Local file write skipped on read-only filesystem: {fe}")
 
         fallback_url = f"/uploads/{s3_key}"
         return {
