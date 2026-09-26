@@ -359,31 +359,37 @@ export default function AgentWorkspace() {
 
   // Filter Queue based on Department & Scope
   const filteredQueue = tickets.filter(t => {
-    // 1. Department Filter: match current working agent's department
+    // Check if directly assigned to this agent (e.g. by reviewer after triage)
+    const isAssignedToMe = Boolean(
+      currentAgent?.user_id &&
+      (t.assigned_agent_id === currentAgent.user_id || t.assignedAgentId === currentAgent.user_id)
+    )
+
+    // 1. Department Filter:
+    // If ticket is directly assigned to me, it ALWAYS passes!
+    // Otherwise, match current working agent's department
     const deptMatch = !currentAgent?.department ||
       (t.department && t.department.toLowerCase() === currentAgent.department.toLowerCase()) ||
       (t.department_id && currentAgent.department_id && t.department_id === currentAgent.department_id)
 
-    if (!deptMatch) return false
+    if (!isAssignedToMe && !deptMatch) return false
 
     // 2. Queue Scope Filter:
-    // - MY_QUEUE: Only tickets assigned to this specific agent (immediately disappears if reassigned to another agent!)
+    // - MY_QUEUE: Only tickets assigned to this specific agent
     // - UNASSIGNED: Only unassigned tickets in this department
-    // - ALL_DEPT: All tickets in this department
+    // - ALL_DEPT: All tickets in this department + any ticket assigned to this agent
     if (queueScope === 'MY_QUEUE') {
-      if (t.assigned_agent_id !== currentAgent?.user_id) return false
+      if (!isAssignedToMe) return false
     } else if (queueScope === 'UNASSIGNED') {
       if (t.assigned_agent_id) return false
     }
 
     // 3. Department or Policy Mismatch Exclusion:
     // Tickets with department mismatch or under AI Review belong to the Reviewer/Manager queue ONLY!
-    // They must not appear in the open agent pool until a reviewer has triaged or assigned them.
+    // UNLESS a reviewer has explicitly assigned this ticket to this agent (isAssignedToMe is true).
     const isUnderReview = t.status === 'AI Review' || t.status === 'NEEDS_REVIEW' || t.department_mismatch || t.match_status === false
-    if (isUnderReview) {
-      if (!t.assigned_agent_id || t.assigned_agent_id !== currentAgent?.user_id) {
-        return false
-      }
+    if (isUnderReview && !isAssignedToMe) {
+      return false
     }
 
     // 4. Status filter
@@ -419,7 +425,7 @@ export default function AgentWorkspace() {
     confidence_score: 95.0
   }
 
-  const isMismatch = Boolean(selectedTicket?.department_mismatch)
+  const isMismatch = Boolean(selectedTicket?.department_mismatch) && !selectedTicket?.reviewer_override
   const auditHistory = selectedTicket?.assigned_agent_history || selectedTicket?.assignedAgentHistory || []
   const isRevoked = Boolean(selectedTicket?.revoked_agent_ids?.includes(currentAgent?.user_id))
   const revokedDetail = selectedTicket?.revoked_agents?.slice().reverse().find(r => r.agent_id === currentAgent?.user_id)
@@ -873,10 +879,15 @@ export default function AgentWorkspace() {
                   {isMismatch ? <AlertTriangle size={18} color="var(--nw-warning)" /> : <CheckCircle size={18} color="var(--nw-success)" />}
                   <div>
                     <span style={{ fontWeight: 800, color: isMismatch ? '#E8B56B' : '#4FA689', fontSize: 13 }}>
-                      {isMismatch ? '⚠️ DEPARTMENT MISMATCH DETECTED' : '✅ DEPARTMENT MATCH VERIFIED'}
+                      {isMismatch ? '⚠️ DEPARTMENT MISMATCH DETECTED' : (selectedTicket.reviewer_override ? '✅ REVIEWER TRIAGED & ASSIGNED' : '✅ DEPARTMENT MATCH VERIFIED')}
                     </span>
                     <p style={{ fontSize: 12, color: 'var(--nw-text-secondary)', margin: '2px 0 0' }}>
-                      Customer Selected: <strong>{selectedTicket.customer_department || selectedTicket.department}</strong> | AI Assigned Department: <strong>{selectedTicket.department || genai.department || 'Logistics'} {selectedTicket.department_id ? `(${selectedTicket.department_id})` : ''}</strong>
+                      Customer Selected: <strong>{selectedTicket.customer_department || selectedTicket.department}</strong> | Active Department: <strong>{selectedTicket.department || genai.department || 'Logistics'} {selectedTicket.department_id ? `(${selectedTicket.department_id})` : ''}</strong>
+                      {selectedTicket.reviewer_override && (
+                        <span style={{ marginLeft: 8, color: 'var(--nw-accent)', fontWeight: 700 }}>
+                          (Assigned by {selectedTicket.reviewed_by_name || 'Reviewer'})
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -1017,8 +1028,8 @@ export default function AgentWorkspace() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{
                               fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 4,
-                              background: ev.action?.includes('AUTO_CLAIM') ? '#ECFDF5' : ev.action?.includes('REASSIGN') ? '#EFF6FF' : '#FEF2F2',
-                              color: ev.action?.includes('AUTO_CLAIM') ? '#059669' : ev.action?.includes('REASSIGN') ? '#2563EB' : '#DC2626'
+                              background: ev.action?.includes('AUTO_CLAIM') ? 'var(--nw-success-dim)' : ev.action?.includes('REASSIGN') ? 'var(--nw-info-dim)' : 'var(--nw-danger-dim)',
+                              color: ev.action?.includes('AUTO_CLAIM') ? '#4FA689' : ev.action?.includes('REASSIGN') ? '#72B4D8' : '#E8758A'
                             }}>
                               {ev.action?.includes('AUTO_CLAIM') ? '🎯 Auto-Claimed' : ev.action?.includes('REASSIGN') ? '🔄 Reassigned' : '🏢 Dept Changed'}
                             </span>

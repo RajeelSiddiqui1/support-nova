@@ -260,32 +260,38 @@ export default function ReviewerQueue() {
     if (!selectedTicket || !currentManager) return
     setRevokeMode(mode)
     setShowRevoke(true)
-    setRevokeReason('')
+    setRevokeReason(selectedTicket.assigned_agent_id ? '' : 'Assigned by Reviewer after policy and department triage')
     setNewAgentId('')
     try {
-      const q = currentManager.department_id
-        ? `department_id=${encodeURIComponent(currentManager.department_id)}`
-        : `department=${encodeURIComponent(currentManager.department || '')}`
-      const res = await fetch(`${API_BASE}/api/admin/department-agents?${q}`)
-      if (res.ok) {
-        const data = await res.json()
-        setDeptAgents(data)
-        // Select an agent other than currently assigned
-        const others = data.filter(a => a.user_id !== selectedTicket.assigned_agent_id)
-        if (others.length > 0) setNewAgentId(others[0].user_id)
+      // First try to fetch active agents belonging to ticket's department
+      const targetDeptId = selectedTicket.department_id || currentManager.department_id
+      const targetDept = selectedTicket.department || currentManager.department
+      const q = targetDeptId
+        ? `department_id=${encodeURIComponent(targetDeptId)}`
+        : (targetDept ? `department=${encodeURIComponent(targetDept)}` : '')
+      let res = await fetch(`${API_BASE}/api/admin/department-agents?${q}`)
+      let data = res.ok ? await res.json() : []
+      if (!Array.isArray(data) || data.length === 0) {
+        // Fallback: fetch all active agents across departments so reviewer is never blocked
+        res = await fetch(`${API_BASE}/api/admin/department-agents`)
+        data = res.ok ? await res.json() : []
       }
+      setDeptAgents(data)
+      const others = data.filter(a => a.user_id !== selectedTicket.assigned_agent_id)
+      if (others.length > 0) setNewAgentId(others[0].user_id)
+      else if (data.length > 0) setNewAgentId(data[0].user_id)
     } catch (e) {}
   }
 
   const handleRevokeSubmit = async (e) => {
     e.preventDefault()
     if (!selectedTicket || !revokeReason.trim()) {
-      alert('Please provide the mandatory removal / policy violation reason.')
+      alert('Please provide the assignment or revocation reason.')
       return
     }
 
     if (revokeMode === 'reassign' && !newAgentId) {
-      alert('Please select a replacement agent from the department.')
+      alert('Please select an agent to assign.')
       return
     }
 
@@ -298,7 +304,7 @@ export default function ReviewerQueue() {
           body: JSON.stringify({
             manager_id: currentManager.user_id,
             manager_name: currentManager.name,
-            manager_role: 'MANAGER',
+            manager_role: currentManager.role || 'REVIEWER',
             reason: revokeReason.trim()
           })
         })
@@ -321,20 +327,24 @@ export default function ReviewerQueue() {
             new_agent_id: newAgentId,
             reassigned_by_id: currentManager.user_id,
             reassigned_by_name: currentManager.name,
-            reassigned_by_role: 'MANAGER',
+            reassigned_by_role: currentManager.role || 'REVIEWER',
             reason: revokeReason.trim()
           })
         })
 
         const data = await res.json()
         if (!res.ok) {
-          alert(data.detail || 'Failed to revoke and reassign ticket.')
+          alert(data.detail || 'Failed to assign / reassign ticket.')
           setRevokeLoad(false)
           return
         }
 
         setShowRevoke(false)
-        setActionAlert(`✅ Access Revoked from ${selectedTicket.assigned_agent || 'previous agent'} & Reassigned! Notification emails dispatched to both agents.`)
+        const isReassign = Boolean(selectedTicket.assigned_agent_id)
+        setActionAlert(isReassign
+          ? `✅ Access Revoked from ${selectedTicket.assigned_agent || 'previous agent'} & Reassigned! Notification emails dispatched.`
+          : `✅ Ticket assigned to agent successfully! Ticket moved to 'In Progress'.`
+        )
         fetchDepartmentActivity()
       }
     } catch (err) {
@@ -493,12 +503,12 @@ export default function ReviewerQueue() {
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: revokeMode === 'pool' ? '#FEF3C7' : '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: revokeMode === 'pool' ? '#D97706' : '#DC2626' }}>
-                    {revokeMode === 'pool' ? <Zap size={20} /> : <UserX size={20} />}
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: revokeMode === 'pool' ? 'var(--nw-warning-dim)' : (!selectedTicket?.assigned_agent_id ? 'var(--nw-accent-dim)' : 'var(--nw-danger-dim)'), display: 'flex', alignItems: 'center', justifyContent: 'center', color: revokeMode === 'pool' ? '#E8B56B' : (!selectedTicket?.assigned_agent_id ? 'var(--nw-accent)' : '#E8758A') }}>
+                    {revokeMode === 'pool' ? <Zap size={20} /> : (!selectedTicket?.assigned_agent_id ? <UserCheck size={20} /> : <UserX size={20} />)}
                   </div>
                   <div>
                     <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--nw-text-primary)', margin: 0 }}>
-                      {revokeMode === 'pool' ? 'Revoke Access & Release to Open Pool' : 'Revoke Access & Reassign Ticket'}
+                      {!selectedTicket?.assigned_agent_id ? 'Assign Ticket to Agent' : (revokeMode === 'pool' ? 'Revoke Access & Release to Open Pool' : 'Revoke Access & Reassign Ticket')}
                     </h3>
                     <p style={{ fontSize: 11, color: 'var(--nw-text-muted)', margin: '2px 0 0' }}>Ticket: <strong>[{selectedTicket?.ticket_id}]</strong></p>
                   </div>
@@ -508,53 +518,66 @@ export default function ReviewerQueue() {
                 </button>
               </div>
 
-              {/* Mode Switcher Tabs */}
-              <div style={{ display: 'flex', gap: 6, marginBottom: 14, background: 'var(--nw-elevated)', padding: 4, borderRadius: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => setRevokeMode('reassign')}
-                  style={{
-                    flex: 1, padding: '7px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-                    border: 'none',
-                    background: revokeMode === 'reassign' ? '#FFF' : 'transparent',
-                    color: revokeMode === 'reassign' ? '#7C3AED' : '#64748B',
-                    boxShadow: revokeMode === 'reassign' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
-                  }}
-                >
-                  🔄 Reassign to Specific Agent
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRevokeMode('pool')}
-                  style={{
-                    flex: 1, padding: '7px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-                    border: 'none',
-                    background: revokeMode === 'pool' ? '#FFF' : 'transparent',
-                    color: revokeMode === 'pool' ? '#D97706' : '#64748B',
-                    boxShadow: revokeMode === 'pool' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
-                  }}
-                >
-                  ⚡ Release to Open Pool (Remove Agent)
-                </button>
-              </div>
+              {/* Mode Switcher Tabs (Only if ticket is already assigned) */}
+              {selectedTicket?.assigned_agent_id && (
+                <div style={{ display: 'flex', gap: 6, marginBottom: 14, background: 'var(--nw-elevated)', padding: 4, borderRadius: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setRevokeMode('reassign')}
+                    style={{
+                      flex: 1, padding: '7px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                      border: 'none',
+                      background: revokeMode === 'reassign' ? 'var(--nw-accent)' : 'transparent',
+                      color: revokeMode === 'reassign' ? 'var(--nw-text-inverse)' : 'var(--nw-text-secondary)',
+                      boxShadow: revokeMode === 'reassign' ? '0 2px 6px rgba(0,0,0,0.2)' : 'none'
+                    }}
+                  >
+                    🔄 Reassign to Specific Agent
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRevokeMode('pool')}
+                    style={{
+                      flex: 1, padding: '7px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                      border: 'none',
+                      background: revokeMode === 'pool' ? 'var(--nw-warning)' : 'transparent',
+                      color: revokeMode === 'pool' ? 'var(--nw-text-inverse)' : 'var(--nw-text-secondary)',
+                      boxShadow: revokeMode === 'pool' ? '0 2px 6px rgba(0,0,0,0.2)' : 'none'
+                    }}
+                  >
+                    ⚡ Release to Open Pool (Remove Agent)
+                  </button>
+                </div>
+              )}
 
-              {/* Notice of Removal */}
-              <div style={{ background: 'var(--nw-danger-dim)', borderLeft: '4px solid #EF4444', padding: '10px 14px', borderRadius: 6, marginBottom: 14 }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#991B1B' }}>
-                  Agent to be Removed: {selectedTicket?.assigned_agent || 'Unassigned'} ({selectedTicket?.assigned_agent_email || 'No email'})
-                </p>
-                <p style={{ margin: '3px 0 0', fontSize: 11, color: '#B91C1C' }}>
-                  ⚠️ This agent's edit & reply access to this ticket will be strictly terminated. They will be permanently barred from claiming or modifying this ticket.
-                </p>
-              </div>
-
-              {revokeMode === 'pool' && (
-                <div style={{ background: 'var(--nw-warning-dim)', borderLeft: '4px solid #F59E0B', padding: '10px 14px', borderRadius: 6, marginBottom: 14 }}>
-                  <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: '#92400E' }}>
-                    ⚡ Open Department Pool (50+ Agents Queue):
+              {/* Notice of Removal (Only if currently assigned) */}
+              {selectedTicket?.assigned_agent_id ? (
+                <div style={{ background: 'var(--nw-danger-dim)', borderLeft: '4px solid #E8758A', padding: '10px 14px', borderRadius: 6, marginBottom: 14 }}>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#E8758A' }}>
+                    Agent to be Removed: {selectedTicket?.assigned_agent || 'Assigned Agent'} ({selectedTicket?.assigned_agent_email || 'No email'})
                   </p>
-                  <p style={{ margin: '3px 0 0', fontSize: 11, color: '#78350F', lineHeight: 1.4 }}>
-                    The ticket will return to <strong>'In Triage'</strong> in the unassigned pool. Any other active agent in {currentManager?.department} can claim it on first response. The removed agent is permanently locked out.
+                  <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--nw-text-secondary)' }}>
+                    ⚠️ This agent's edit & reply access to this ticket will be strictly terminated. They will be permanently barred from claiming or modifying this ticket.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ background: 'var(--nw-accent-dim)', borderLeft: '4px solid var(--nw-accent)', padding: '10px 14px', borderRadius: 6, marginBottom: 14 }}>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'var(--nw-accent)' }}>
+                    📋 Reviewer Triage Assignment
+                  </p>
+                  <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--nw-text-secondary)' }}>
+                    Assigning an agent will resolve the department/policy hold, move ticket status to <strong>'In Progress'</strong>, and notify the selected agent.
+                  </p>
+                </div>
+              )}
+
+              {revokeMode === 'pool' && selectedTicket?.assigned_agent_id && (
+                <div style={{ background: 'var(--nw-warning-dim)', borderLeft: '4px solid #E8B56B', padding: '10px 14px', borderRadius: 6, marginBottom: 14 }}>
+                  <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: '#E8B56B' }}>
+                    ⚡ Open Department Pool (Active Agents Queue):
+                  </p>
+                  <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--nw-text-secondary)', lineHeight: 1.4 }}>
+                    The ticket will return to <strong>'In Triage'</strong> in the unassigned pool. Any other active agent can claim it on first response.
                   </p>
                 </div>
               )}
@@ -564,54 +587,53 @@ export default function ReviewerQueue() {
                 {revokeMode === 'reassign' && (
                   <div style={{ marginBottom: 14 }}>
                     <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase', marginBottom: 5 }}>
-                      Select Replacement Agent in {currentManager?.department} *
+                      Select Active Agent to Assign *
                     </label>
                     <select
                       required
                       value={newAgentId}
                       onChange={e => setNewAgentId(e.target.value)}
-                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--nw-border-strong)', fontSize: 12.5, outline: 'none', cursor: 'pointer' }}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 12.5, outline: 'none', cursor: 'pointer' }}
                     >
-                      <option value="">-- Choose New Assignee --</option>
+                      <option value="">-- Choose Assignee --</option>
                       {deptAgents.filter(a => a.user_id !== selectedTicket?.assigned_agent_id).map(a => (
                         <option key={a.user_id} value={a.user_id}>
-                          {a.name} ({a.email})
+                          {a.name} ({a.email}) - {a.department || 'General'}
                         </option>
                       ))}
                     </select>
                   </div>
                 )}
 
-                {/* Mandatory Reason for Revocation */}
+                {/* Reason for Assignment / Revocation */}
                 <div style={{ marginBottom: 14 }}>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#E8758A', textTransform: 'uppercase', marginBottom: 5 }}>
-                    Mandatory Reason for Revocation & Removal *
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: selectedTicket?.assigned_agent_id ? '#E8758A' : 'var(--nw-accent)', textTransform: 'uppercase', marginBottom: 5 }}>
+                    {selectedTicket?.assigned_agent_id ? 'Mandatory Reason for Revocation & Removal *' : 'Assignment Notes / Triage Reason *'}
                   </label>
                   <textarea
                     required
                     rows={3}
                     value={revokeReason}
                     onChange={e => setRevokeReason(e.target.value)}
-                    placeholder="e.g. Non-compliance with Policy DEL-POL-04: Issued unverified discount exceeding 10% limit. Escalation required."
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(193,73,91,0.3)', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 12, outline: 'none', resize: 'vertical' }}
-
+                    placeholder={selectedTicket?.assigned_agent_id ? "e.g. Non-compliance with Policy DEL-POL-04: Issued unverified discount exceeding limit." : "e.g. Assigned to Clothes specialist after reviewing item exchange request."}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--nw-border-strong)', background: 'var(--nw-elevated)', color: 'var(--nw-text-primary)', fontSize: 12, outline: 'none', resize: 'vertical' }}
                   />
                   <p style={{ fontSize: 10.5, color: 'var(--nw-text-muted)', margin: '4px 0 0' }}>
-                    This explicit reason will be sent directly via email to the removed agent and permanently stamped in the audit trail.
+                    This reason will be recorded in the audit trail and emailed to the assigned agent.
                   </p>
                 </div>
 
                 {/* Email dispatch notice */}
                 <div style={{ background: 'var(--nw-info-dim)', padding: 10, borderRadius: 8, fontSize: 11, color: 'var(--nw-info)', marginBottom: 16 }}>
-                  📧 <strong>Automated Notifications:</strong> {revokeMode === 'pool' ? 'The removed agent will receive an immediate email stating the removal reason.' : 'Both the removed agent and the newly appointed agent will receive immediate email notifications.'}
+                  📧 <strong>Automated Notifications:</strong> {revokeMode === 'pool' ? 'The removed agent will receive an immediate email stating the removal reason.' : 'The assigned agent will receive an immediate email notification with complaint details.'}
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                   <button type="button" onClick={() => setShowRevoke(false)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--nw-border-strong)', background: 'transparent', color: 'var(--nw-text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                     Cancel
                   </button>
-                  <button type="submit" disabled={revokeLoading} style={{ padding: '8px 18px', borderRadius: 8, background: revokeMode === 'pool' ? '#D97706' : '#DC2626', color: 'white', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {revokeLoading ? <RefreshCw size={13} className="spin" /> : (revokeMode === 'pool' ? 'Confirm Removal & Release to Pool' : 'Confirm Revocation & Reassign')}
+                  <button type="submit" disabled={revokeLoading} style={{ padding: '8px 18px', borderRadius: 8, background: revokeMode === 'pool' ? 'var(--nw-warning)' : (!selectedTicket?.assigned_agent_id ? 'var(--nw-accent)' : 'var(--nw-danger)'), color: 'white', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {revokeLoading ? <RefreshCw size={13} className="spin" /> : (revokeMode === 'pool' ? 'Confirm Removal & Release to Pool' : (!selectedTicket?.assigned_agent_id ? 'Confirm & Assign to Agent' : 'Confirm Revocation & Reassign'))}
                   </button>
                 </div>
               </form>
@@ -882,11 +904,13 @@ export default function ReviewerQueue() {
                       onClick={() => openRevokeModal('reassign')}
                       style={{
                         padding: '8px 14px', borderRadius: 9, fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                        background: 'var(--nw-danger)', color: 'var(--nw-text-inverse)', border: 'none', display: 'flex', alignItems: 'center', gap: 6,
-                        boxShadow: '0 2px 10px rgba(193,73,91,0.25)'
+                        background: selectedTicket.assigned_agent_id ? 'var(--nw-danger)' : 'var(--nw-accent)',
+                        color: 'var(--nw-text-inverse)', border: 'none', display: 'flex', alignItems: 'center', gap: 6,
+                        boxShadow: selectedTicket.assigned_agent_id ? '0 2px 10px rgba(193,73,91,0.25)' : '0 2px 10px rgba(201,111,74,0.25)'
                       }}
                     >
-                      <UserX size={14} /> Revoke & Reassign
+                      {selectedTicket.assigned_agent_id ? <UserX size={14} /> : <UserCheck size={14} />}
+                      {selectedTicket.assigned_agent_id ? 'Revoke & Reassign' : 'Assign to Agent'}
                     </button>
                   </div>
                 </div>
@@ -1060,9 +1084,9 @@ export default function ReviewerQueue() {
                       <p style={{ fontSize: 11.5, color: 'var(--nw-text-muted)', fontStyle: 'italic' }}>No reassignment or claiming events logged yet.</p>
                     ) : (
                       history.slice().reverse().map((h, i) => (
-                        <div key={i} style={{ padding: '6px 10px', borderRadius: 6, background: h.action === 'REVOKED_AND_REASSIGNED' ? '#FEF2F2' : '#F8FAFC', border: '1px solid var(--nw-border)', fontSize: 11 }}>
+                        <div key={i} style={{ padding: '6px 10px', borderRadius: 6, background: h.action === 'REVOKED_AND_REASSIGNED' ? 'var(--nw-danger-dim)' : 'var(--nw-elevated)', border: '1px solid var(--nw-border)', fontSize: 11 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: 800, color: h.action === 'REVOKED_AND_REASSIGNED' ? '#DC2626' : '#7C3AED' }}>
+                            <span style={{ fontWeight: 800, color: h.action === 'REVOKED_AND_REASSIGNED' ? '#E8758A' : 'var(--nw-accent)' }}>
                               {h.action === 'REVOKED_AND_REASSIGNED' ? '⛔ ACCESS REVOKED & REASSIGNED' : h.action}
                             </span>
                             <span style={{ color: 'var(--nw-text-muted)', fontSize: 10 }}>{h.timestamp ? h.timestamp.slice(0, 16) : ''}</span>

@@ -1034,8 +1034,15 @@ async def reassign_ticket(ticket_id: str, req: ReassignTicketRequest):
 
     caller_role = (req.reassigned_by_role or "MANAGER").strip().upper()
 
-    # Department Boundary Validation for Manager
-    if caller_role == "MANAGER":
+    # Department Boundary Validation:
+    # Reviewers, Admins, or any ticket undergoing AI Review / Department Mismatch triage can be assigned
+    # across departments to the correct active agent. Normal managers on standard tickets are departmental.
+    is_mismatch_or_review = bool(
+        ticket.get("department_mismatch") or 
+        ticket.get("status") in ["AI Review", "NEEDS_REVIEW", "PENDING_REVIEW"] or 
+        caller_role in ["REVIEWER", "ADMIN"]
+    )
+    if caller_role == "MANAGER" and not is_mismatch_or_review:
         ticket_dept_id = ticket.get("department_id")
         ticket_dept_name = (ticket.get("department") or "").strip().lower()
         agent_dept_id = new_agent.get("department_id")
@@ -1097,8 +1104,18 @@ async def reassign_ticket(ticket_id: str, req: ReassignTicketRequest):
         "assignedAgentId": new_agent["user_id"],
         "assigned_agent": new_agent["name"],
         "assigned_agent_email": new_agent["email"],
+        "department": new_agent.get("department") or ticket.get("department"),
+        "department_id": new_agent.get("department_id") or ticket.get("department_id"),
+        "department_mismatch": False,
+        "match_status": True,
+        "reviewed_by_id": req.reassigned_by_id,
+        "reviewed_by_name": req.reassigned_by_name or "Reviewer / Manager",
+        "reviewer_override": True,
         "updated_at": datetime.utcnow()
     }
+
+    if ticket.get("status") in ["AI Review", "NEEDS_REVIEW", "PENDING_REVIEW"]:
+        update_fields["status"] = "In Progress"
 
     push_payload = {
         "assigned_agent_history": reassign_audit,
