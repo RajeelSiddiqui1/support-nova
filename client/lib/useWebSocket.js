@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { API_BASE } from '../app/lib/api'
 
 /**
  * Resolves the dynamic WebSocket URL from NEXT_PUBLIC_API_URL or current browser location.
@@ -8,10 +9,12 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 export function getWebSocketUrl(clientId = 'client', role = 'STAFF') {
   if (typeof window === 'undefined') return ''
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  let apiBase = API_BASE
+  if (!apiBase && typeof window !== 'undefined') {
+    apiBase = window.location.origin
+  }
+
   let wsUrl = apiBase.replace(/^http:\/\//, 'ws://').replace(/^https:\/\//, 'wss://')
-  
-  // Clean trailing slashes
   wsUrl = wsUrl.replace(/\/+$/, '')
   return `${wsUrl}/ws/${clientId}?role=${role}`
 }
@@ -26,9 +29,16 @@ export function useWebSocket(clientId = 'user', role = 'STAFF') {
   const listenersRef = useRef(new Map())
   const reconnectTimeoutRef = useRef(null)
   const pingIntervalRef = useRef(null)
+  const retryCountRef = useRef(0)
+  const MAX_RETRIES = 3
 
   const connect = useCallback(() => {
     if (typeof window === 'undefined') return
+
+    if (retryCountRef.current >= MAX_RETRIES) {
+      setIsConnected(false)
+      return
+    }
 
     const url = getWebSocketUrl(clientId, role)
     if (!url) return
@@ -39,7 +49,7 @@ export function useWebSocket(clientId = 'user', role = 'STAFF') {
 
       ws.onopen = () => {
         setIsConnected(true)
-        // Setup keepalive ping every 25 seconds
+        retryCountRef.current = 0
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current)
         pingIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
@@ -54,7 +64,6 @@ export function useWebSocket(clientId = 'user', role = 'STAFF') {
           const payload = JSON.parse(event.data)
           setLastMessage(payload)
 
-          // Dispatch to any registered listeners for this event type
           const eventType = payload.event
           if (eventType && listenersRef.current.has(eventType)) {
             const callbacks = listenersRef.current.get(eventType)
@@ -63,7 +72,6 @@ export function useWebSocket(clientId = 'user', role = 'STAFF') {
             })
           }
 
-          // Also trigger wildcard '*' listeners
           if (listenersRef.current.has('*')) {
             const wildcards = listenersRef.current.get('*')
             wildcards.forEach(cb => {
@@ -76,21 +84,27 @@ export function useWebSocket(clientId = 'user', role = 'STAFF') {
       ws.onclose = () => {
         setIsConnected(false)
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current)
-        // Auto-reconnect after 3 seconds with backoff
-        if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connect()
-        }, 3000)
+        retryCountRef.current += 1
+        
+        if (retryCountRef.current < MAX_RETRIES) {
+          if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connect()
+          }, 3000)
+        }
       }
 
       ws.onerror = () => {
-        ws.close()
+        try { ws.close() } catch (e) {}
       }
     } catch (e) {
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
-      reconnectTimeoutRef.current = setTimeout(() => {
-        connect()
-      }, 5000)
+      retryCountRef.current += 1
+      if (retryCountRef.current < MAX_RETRIES) {
+        if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = setTimeout(() => {
+          connect()
+        }, 5000)
+      }
     }
   }, [clientId, role])
 
