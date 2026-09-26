@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -88,12 +89,27 @@ async def root():
     }
 
 @app.get("/health")
+@app.get("/api/health")
 async def health_check():
+    db = get_database()
+    if db is None:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "database": "not_initialized"},
+        )
+
+    try:
+        await db.command("ping")
+    except Exception:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "database": "unreachable"},
+        )
+
     return {
         "status": "healthy",
-        "database": "MongoDB Async Motor Connected",
-        "ai_engine": "Groq LLM Pipeline Ready",
-        "websocket": f"Active connections: {len(ws_manager.active_connections)}"
+        "database": "connected",
+        "websocket_connections": len(ws_manager.active_connections),
     }
 
 # ── CENTRAL REAL-TIME WEBSOCKET ROUTE ──
