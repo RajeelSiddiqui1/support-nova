@@ -4,7 +4,7 @@ import urllib.parse
 from fastapi import APIRouter, HTTPException, status, Depends, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
