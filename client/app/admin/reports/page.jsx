@@ -36,6 +36,16 @@ const STATUS_COLOR = {
   'Closed':      '#9A9CA5',
 }
 
+const REPORT_TYPE_OPTIONS = [
+  { value: 'complaint_analysis', label: '📊 Complaint Analysis (34 Cols)' },
+  { value: 'genai_python_comparison', label: '🤖 GenAI vs Python Comparison' },
+  { value: 'escalations', label: '🚨 Safety & Legal Escalations' },
+  { value: 'sla_status', label: '⏱ SLA Status & Breach Risk' },
+  { value: 'policy_usage', label: '📜 Policy Usage & Citations' },
+  { value: 'resolution_compliance', label: '✅ Resolution Compliance' },
+  { value: 'manual_reviews', label: '🛡️ Manual Reviews & Overrides' },
+]
+
 function Pill({ label, color }) {
   return (
     <span style={{
@@ -49,6 +59,7 @@ function Pill({ label, color }) {
 
 export default function AdminReportsPage() {
   const [filters, setFilters] = useState({
+    report_type: 'complaint_analysis',
     from: '', to: '', status: '', department: '', category: '', priority: '', limit: '50'
   })
   const [preview, setPreview]       = useState([])
@@ -134,6 +145,20 @@ export default function AdminReportsPage() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+              {/* Report Type */}
+              <div style={{ gridColumn: 'span 2' }}>
+                <Label>Report Type</Label>
+                <select
+                  value={filters.report_type}
+                  onChange={e => handleFilter('report_type', e.target.value)}
+                  style={{ ...INPUT_STYLE, fontWeight: 700, borderColor: 'var(--nw-accent)' }}
+                >
+                  {REPORT_TYPE_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Date from */}
               <div>
                 <Label>From Date</Label>

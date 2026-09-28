@@ -803,49 +803,450 @@ async def get_analytics_trends(range: str = "30d"):
     }
 
 
-# ── Feature 6: Native MongoDB Aggregation Pipeline for Analytics Summary ──
+# ── Feature 14: Native MongoDB Aggregation Pipeline for Analytics Summary ──
 @router.get("/analytics/summary")
-async def get_analytics_summary_aggregated():
+async def get_analytics_summary_aggregated(
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    department: Optional[str] = Query(None)
+):
     """
-    Feature 6: Pure MongoDB Aggregation Pipeline for Analytics Summary.
-    Computes counts by category, sentiment, department, priority, escalation rate, and SLA risk count
-    directly within MongoDB Atlas engine — zero in-memory Python dataset iteration.
+    Feature 14: Pure MongoDB Aggregation Pipeline for Analytics Summary.
+    Computes counts by category, subcategory, department, priority, urgency, sentiment, channel,
+    status, escalation rate, SLA risk counts, repeat rate, avg resolution time, manual-review rate,
+    GenAI/Python mismatch rate, and avg verification score directly within MongoDB Atlas.
     """
     db = get_database()
+    match_query: Dict[str, Any] = {}
 
-    pipeline_category = [{"$group": {"_id": "$category", "count": {"$sum": 1}}}]
-    pipeline_sentiment = [{"$group": {"_id": "$sentiment", "count": {"$sum": 1}}}]
-    pipeline_department = [{"$group": {"_id": "$department", "count": {"$sum": 1}}}]
-    pipeline_priority = [{"$group": {"_id": "$priority", "count": {"$sum": 1}}}]
+    if department and department.strip():
+        match_query["department"] = {"$regex": f"^{department.strip()}$", "$options": "i"}
 
-    cat_res = await db.tickets.aggregate(pipeline_category).to_list(length=100)
-    sen_res = await db.tickets.aggregate(pipeline_sentiment).to_list(length=100)
-    dept_res = await db.tickets.aggregate(pipeline_department).to_list(length=100)
-    pri_res = await db.tickets.aggregate(pipeline_priority).to_list(length=100)
+    # Parse date filters if provided
+    dt_from = None
+    dt_to = None
+    if from_date:
+        try:
+            dt_from = datetime.fromisoformat(from_date.strip().replace("Z", "+00:00"))
+        except Exception:
+            try:
+                dt_from = datetime.strptime(from_date.strip()[:10], "%Y-%m-%d")
+            except Exception:
+                pass
+    if to_date:
+        try:
+            dt_to = datetime.fromisoformat(to_date.strip().replace("Z", "+00:00"))
+        except Exception:
+            try:
+                dt_to = datetime.strptime(to_date.strip()[:10], "%Y-%m-%d")
+                dt_to = dt_to.replace(hour=23, minute=59, second=59, microsecond=999999)
+            except Exception:
+                pass
 
-    total_tickets = await db.tickets.count_documents({})
-    escalated_count = await db.tickets.count_documents({"status": "Escalated"})
-    sla_risk_count = await db.tickets.count_documents({"$or": [{"sla_breach": True}, {"sla_hours_remaining": {"$lte": 4}}]})
+    if dt_from or dt_to:
+        date_q = {}
+        if dt_from:
+            date_q["$gte"] = dt_from
+        if dt_to:
+            date_q["$lte"] = dt_to
+        match_query["$or"] = [
+            {"created_at": date_q},
+            {"created_at": {
+                k: (v.isoformat() if isinstance(v, datetime) else v)
+                for k, v in date_q.items()
+            }}
+        ]
+
+    pipeline = [
+        {"$match": match_query} if match_query else {"$match": {}},
+        {
+            "$facet": {
+                "by_category": [
+                    {"$group": {"_id": {"$ifNull": ["$category", "Uncategorized"]}, "count": {"$sum": 1}}}
+                ],
+                "by_subcategory": [
+                    {
+                        "$project": {
+                            "sub": {
+                                "$ifNull": [
+                                    "$sub_category",
+                                    {"$ifNull": ["$genai_output.subcategory", "General"]}
+                                ]
+                            }
+                        }
+                    },
+                    {"$group": {"_id": "$sub", "count": {"$sum": 1}}}
+                ],
+                "by_department": [
+                    {"$group": {"_id": {"$ifNull": ["$department", "Unassigned"]}, "count": {"$sum": 1}}}
+                ],
+                "by_priority": [
+                    {"$group": {"_id": {"$ifNull": ["$priority", "P2"]}, "count": {"$sum": 1}}}
+                ],
+                "by_urgency": [
+                    {
+                        "$project": {
+                            "urg": {
+                                "$ifNull": [
+                                    "$urgency",
+                                    {"$ifNull": ["$genai_output.urgency", "Medium"]}
+                                ]
+                            }
+                        }
+                    },
+                    {"$group": {"_id": "$urg", "count": {"$sum": 1}}}
+                ],
+                "by_sentiment": [
+                    {
+                        "$project": {
+                            "sen": {
+                                "$ifNull": [
+                                    "$sentiment",
+                                    {"$ifNull": ["$genai_output.sentiment", "Neutral"]}
+                                ]
+                            }
+                        }
+                    },
+                    {"$group": {"_id": "$sen", "count": {"$sum": 1}}}
+                ],
+                "by_channel": [
+                    {"$group": {"_id": {"$ifNull": ["$channel", "Web Portal"]}, "count": {"$sum": 1}}}
+                ],
+                "by_status": [
+                    {"$group": {"_id": {"$ifNull": ["$status", "In Triage"]}, "count": {"$sum": 1}}}
+                ],
+                "metrics": [
+                    {
+                        "$group": {
+                            "_id": None,
+                            "total": {"$sum": 1},
+                            "escalated": {
+                                "$sum": {
+                                    "$cond": [
+                                        {"$or": [
+                                            {"$eq": ["$status", "Escalated"]},
+                                            {"$eq": ["$escalation_required", True]}
+                                        ]}, 1, 0
+                                    ]
+                                }
+                            },
+                            "sla_breached": {
+                                "$sum": {
+                                    "$cond": [
+                                        {"$or": [
+                                            {"$eq": ["$sla_breach", True]},
+                                            {"$eq": ["$sla_status", "breached"]}
+                                        ]}, 1, 0
+                                    ]
+                                }
+                            },
+                            "sla_approaching": {
+                                "$sum": {
+                                    "$cond": [
+                                        {"$or": [
+                                            {"$eq": ["$sla_status", "approaching"]},
+                                            {"$and": [
+                                                {"$ne": ["$sla_breach", True]},
+                                                {"$lte": ["$sla_hours_remaining", 4]},
+                                                {"$nin": ["$status", ["Resolved", "Closed"]]}
+                                            ]}
+                                        ]}, 1, 0
+                                    ]
+                                }
+                            },
+                            "repeat_count": {
+                                "$sum": {
+                                    "$cond": [
+                                        {"$or": [
+                                            {"$eq": ["$is_repeat", True]},
+                                            {"$ne": [{"$ifNull": ["$duplicate_of", None]}, None]}
+                                        ]}, 1, 0
+                                    ]
+                                }
+                            },
+                            "manual_review_count": {
+                                "$sum": {
+                                    "$cond": [
+                                        {"$or": [
+                                            {"$eq": ["$department_mismatch", True]},
+                                            {"$eq": ["$status", "AI Review"]},
+                                            {"$ne": [{"$ifNull": ["$reviewer_override", None]}, None]}
+                                        ]}, 1, 0
+                                    ]
+                                }
+                            },
+                            "mismatch_count": {
+                                "$sum": {
+                                    "$cond": [
+                                        {"$or": [
+                                            {"$eq": ["$department_mismatch", True]},
+                                            {"$ne": [{"$ifNull": ["$mismatch_type", None]}, None]}
+                                        ]}, 1, 0
+                                    ]
+                                }
+                            },
+                            "avg_verification_score": {"$avg": "$verification_score"}
+                        }
+                    }
+                ],
+                "resolved_durations": [
+                    {
+                        "$match": {
+                            "status": {"$in": ["Resolved", "Closed"]},
+                            "resolved_at": {"$exists": True, "$ne": None},
+                            "created_at": {"$exists": True, "$ne": None}
+                        }
+                    },
+                    {
+                        "$project": {
+                            "hours": {
+                                "$divide": [
+                                    {"$subtract": ["$resolved_at", "$created_at"]},
+                                    3600000
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "$group": {
+                            "_id": None,
+                            "avg_hours": {"$avg": "$hours"}
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+
+    try:
+        facet_res = await db.tickets.aggregate(pipeline).to_list(length=1)
+        res = facet_res[0] if facet_res else {}
+    except Exception as agg_err:
+        # Graceful fallback if aggregation facet encounters type difference on date math
+        res = {}
+
+    by_category = {item["_id"]: item["count"] for item in res.get("by_category", [])}
+    by_subcategory = {item["_id"]: item["count"] for item in res.get("by_subcategory", [])}
+    by_department = {item["_id"]: item["count"] for item in res.get("by_department", [])}
+    by_priority = {item["_id"]: item["count"] for item in res.get("by_priority", [])}
+    by_urgency = {item["_id"]: item["count"] for item in res.get("by_urgency", [])}
+    by_sentiment = {item["_id"]: item["count"] for item in res.get("by_sentiment", [])}
+    by_channel = {item["_id"]: item["count"] for item in res.get("by_channel", [])}
+    by_status = {item["_id"]: item["count"] for item in res.get("by_status", [])}
+
+    metrics_list = res.get("metrics", [])
+    m = metrics_list[0] if metrics_list else {}
+
+    total_tickets = m.get("total", 0)
+    escalated_count = m.get("escalated", 0)
+    sla_breached = m.get("sla_breached", 0)
+    sla_approaching = m.get("sla_approaching", 0)
+    repeat_count = m.get("repeat_count", 0)
+    manual_review_count = m.get("manual_review_count", 0)
+    mismatch_count = m.get("mismatch_count", 0)
+    avg_score = m.get("avg_verification_score")
+
+    # If facet didn't return (e.g. empty DB), compute fallback total
+    if total_tickets == 0 and not match_query:
+        total_tickets = await db.tickets.count_documents({})
 
     escalation_rate = round((escalated_count / total_tickets * 100), 1) if total_tickets > 0 else 0.0
+    sla_safe = max(0, total_tickets - (sla_breached + sla_approaching))
+    repeat_rate = round((repeat_count / total_tickets * 100), 1) if total_tickets > 0 else 0.0
+    manual_review_rate = round((manual_review_count / total_tickets * 100), 1) if total_tickets > 0 else 0.0
+    genai_python_mismatch_rate = round((mismatch_count / total_tickets * 100), 1) if total_tickets > 0 else 0.0
 
-    by_category = {item["_id"] or "Uncategorized": item["count"] for item in cat_res}
-    by_sentiment = {item["_id"] or "Neutral": item["count"] for item in sen_res}
-    by_department = {item["_id"] or "Unassigned": item["count"] for item in dept_res}
-    by_priority = {item["_id"] or "P2": item["count"] for item in pri_res}
+    dur_list = res.get("resolved_durations", [])
+    avg_res_time = round(dur_list[0].get("avg_hours", 0.0), 1) if dur_list and dur_list[0].get("avg_hours") is not None else 0.0
+    avg_verification_score = round(avg_score, 1) if avg_score is not None else 0.0
 
     return {
         "total_tickets": total_tickets,
         "by_category": by_category,
-        "by_sentiment": by_sentiment,
+        "by_subcategory": by_subcategory,
         "by_department": by_department,
         "by_priority": by_priority,
+        "by_urgency": by_urgency,
+        "by_sentiment": by_sentiment,
+        "by_channel": by_channel,
+        "by_status": by_status,
         "escalation_rate": escalation_rate,
-        "sla_risk_count": sla_risk_count
+        "escalated_count": escalated_count,
+        "sla_risk_counts": {
+            "safe": sla_safe,
+            "approaching": sla_approaching,
+            "breached": sla_breached
+        },
+        "sla_risk_count": sla_breached + sla_approaching,
+        "repeat_rate": repeat_rate,
+        "repeat_count": repeat_count,
+        "avg_resolution_time": avg_res_time,
+        "manual_review_rate": manual_review_rate,
+        "manual_review_count": manual_review_count,
+        "genai_python_mismatch_rate": genai_python_mismatch_rate,
+        "mismatch_count": mismatch_count,
+        "avg_verification_score": avg_verification_score
     }
 
 
-# ── Feature 7: Reports Generation & Export Endpoint ──
+# ── Feature 14: Deterministic Trend Alerts (Zero LLM) ──
+@router.get("/analytics/alerts")
+async def get_analytics_alerts():
+    """
+    Feature 14: Deterministic trend detection (Volume spike > +30% & >=5 tickets,
+    recurring product in >=3 tickets, escalation spike > 20%, high mismatch rate > 25%).
+    Zero LLM calls — 100% deterministic MongoDB aggregations and statistical checks.
+    """
+    db = get_database()
+    now = datetime.utcnow()
+    day_ago = now - timedelta(days=1)
+    two_days_ago = now - timedelta(days=2)
+    seven_days_ago = now - timedelta(days=7)
+
+    alerts = []
+
+    # 1. Volume Spike: Last 24 hours vs previous 24 hours
+    current_count = await db.tickets.count_documents({"created_at": {"$gte": day_ago}})
+    prev_count = await db.tickets.count_documents({"created_at": {"$gte": two_days_ago, "$lt": day_ago}})
+
+    if current_count >= 5 and prev_count > 0:
+        increase_pct = round(((current_count - prev_count) / prev_count) * 100, 1)
+        if increase_pct >= 30.0:
+            alerts.append({
+                "alert_id": "ALERT-VOL-SPIKE",
+                "type": "VOLUME_SPIKE",
+                "severity": "HIGH",
+                "title": "Complaint Volume Spike Detected",
+                "message": f"Inflow increased by {increase_pct}% in the last 24 hours ({current_count} tickets vs {prev_count} in previous 24h).",
+                "metrics": {
+                    "current_24h_tickets": current_count,
+                    "previous_24h_tickets": prev_count,
+                    "increase_percentage": increase_pct
+                },
+                "triggered_at": now.isoformat()
+            })
+
+    # 2. Recurring Product / Defect Issue (>= 3 complaints on same order_id or subcategory in last 7 days)
+    rec_pipeline = [
+        {"$match": {"created_at": {"$gte": seven_days_ago}}},
+        {
+            "$group": {
+                "_id": {
+                    "category": "$category",
+                    "sub_category": {"$ifNull": ["$sub_category", "$genai_output.subcategory"]}
+                },
+                "count": {"$sum": 1},
+                "tickets": {"$push": "$ticket_id"}
+            }
+        },
+        {"$match": {"count": {"$gte": 3}}}
+    ]
+    recurring_items = await db.tickets.aggregate(rec_pipeline).to_list(length=10)
+    for item in recurring_items:
+        cat_info = item["_id"]
+        cat_name = cat_info.get("category") or "General"
+        sub_name = cat_info.get("sub_category") or "Unknown"
+        count = item["count"]
+        alerts.append({
+            "alert_id": f"ALERT-REC-{cat_name.replace(' ', '_')}-{sub_name.replace(' ', '_')}",
+            "type": "RECURRING_DEFECT",
+            "severity": "MEDIUM",
+            "title": f"Recurring Issue: {cat_name} ({sub_name})",
+            "message": f"Cluster of {count} complaints detected for {cat_name} / {sub_name} in the past 7 days.",
+            "metrics": {
+                "category": cat_name,
+                "subcategory": sub_name,
+                "count": count,
+                "sample_tickets": item.get("tickets", [])[:5]
+            },
+            "triggered_at": now.isoformat()
+        })
+
+    # 3. Escalation Spike in Last 24 Hours (> 20% and >= 5 tickets)
+    if current_count >= 5:
+        esc_count_24h = await db.tickets.count_documents({
+            "created_at": {"$gte": day_ago},
+            "$or": [{"status": "Escalated"}, {"escalation_required": True}]
+        })
+        esc_rate_24h = round((esc_count_24h / current_count) * 100, 1)
+        if esc_rate_24h >= 20.0:
+            alerts.append({
+                "alert_id": "ALERT-ESC-SPIKE",
+                "type": "ESCALATION_SPIKE",
+                "severity": "HIGH",
+                "title": "High Escalation Spike",
+                "message": f"Escalation rate is {esc_rate_24h}% ({esc_count_24h} of {current_count} tickets in the past 24 hours).",
+                "metrics": {
+                    "escalated_count": esc_count_24h,
+                    "total_tickets": current_count,
+                    "escalation_rate": esc_rate_24h
+                },
+                "triggered_at": now.isoformat()
+            })
+
+    # 4. AI Routing Mismatch Spike (> 25% and >= 5 tickets)
+    if current_count >= 5:
+        mismatch_count_24h = await db.tickets.count_documents({
+            "created_at": {"$gte": day_ago},
+            "$or": [{"department_mismatch": True}, {"status": "AI Review"}]
+        })
+        mismatch_rate_24h = round((mismatch_count_24h / current_count) * 100, 1)
+        if mismatch_rate_24h >= 25.0:
+            alerts.append({
+                "alert_id": "ALERT-MISMATCH-SPIKE",
+                "type": "HIGH_MISMATCH_RATE",
+                "severity": "MEDIUM",
+                "title": "Elevated AI/Policy Mismatch Rate",
+                "message": f"AI Review quarantine rate is {mismatch_rate_24h}% ({mismatch_count_24h} tickets). Reviewer triage required.",
+                "metrics": {
+                    "mismatch_count": mismatch_count_24h,
+                    "total_tickets": current_count,
+                    "mismatch_rate": mismatch_rate_24h
+                },
+                "triggered_at": now.isoformat()
+            })
+
+    return {
+        "alerts": alerts,
+        "total_active_alerts": len(alerts),
+        "evaluated_at": now.isoformat()
+    }
+
+
+# ── Feature 16: Universal System Audit Logs Endpoint ──
+@router.get("/audit-logs")
+async def get_system_audit_logs(
+    ticket_id: Optional[str] = Query(None),
+    event_type: Optional[str] = Query(None),
+    user_id: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0)
+):
+    """
+    Feature 16: Unified immutable system audit trail.
+    Queries system_audit_logs collection with pagination and filtering.
+    """
+    db = get_database()
+    query: Dict[str, Any] = {}
+    if ticket_id and ticket_id.strip():
+        query["ticket_id"] = ticket_id.strip()
+    if event_type and event_type.strip():
+        query["event_type"] = event_type.strip()
+    if user_id and user_id.strip():
+        query["actor.user_id"] = user_id.strip()
+
+    total = await db.system_audit_logs.count_documents(query)
+    cursor = db.system_audit_logs.find(query).sort("timestamp", -1).skip(skip).limit(limit)
+    logs = await cursor.to_list(length=limit)
+    for l in logs:
+        l["_id"] = str(l["_id"])
+        if isinstance(l.get("timestamp"), datetime):
+            l["timestamp"] = l["timestamp"].isoformat()
+
+    return {"logs": logs, "total": total, "limit": limit, "skip": skip}
+
+
+# ── Feature 15: Reports Generation & Multi-Format Export Engine ──
 import io
 import csv
 from fastapi.responses import StreamingResponse
@@ -881,7 +1282,6 @@ def _build_ticket_report_query(
     if c_category:
         query["category"] = {"$regex": c_category, "$options": "i"}
 
-    # Resolve date inputs from either standard or alias params
     raw_from = _clean_str(from_date) or _clean_str(from_param)
     raw_to = _clean_str(to_date) or _clean_str(to_param)
 
@@ -913,62 +1313,253 @@ def _build_ticket_report_query(
             date_q["$gte"] = dt_from
         if dt_to:
             date_q["$lte"] = dt_to
-        query["created_at"] = date_q
+        query["$or"] = [
+            {"created_at": date_q},
+            {"created_at": {
+                k: (v.isoformat() if isinstance(v, datetime) else v)
+                for k, v in date_q.items()
+            }}
+        ]
 
     return query
 
 
-@router.get("/reports/preview")
-async def get_report_preview(
-    from_date: Optional[str] = Query(None),
-    to_date: Optional[str] = Query(None),
-    from_param: Optional[str] = Query(None, alias="from"),
-    to_param: Optional[str] = Query(None, alias="to"),
-    status: Optional[str] = Query(None),
-    department: Optional[str] = Query(None),
-    priority: Optional[str] = Query(None),
-    category: Optional[str] = Query(None),
-    limit: int = Query(50)
-):
-    """Returns report preview matching filters."""
-    db = get_database()
-    query = _build_ticket_report_query(
-        from_date=from_date, to_date=to_date, from_param=from_param, to_param=to_param,
-        status=status, department=department, priority=priority, category=category
-    )
-    cursor = db.tickets.find(query).sort("created_at", -1).limit(limit)
-    tickets = await cursor.to_list(length=limit)
-    for t in tickets:
-        t["_id"] = str(t["_id"])
-    return {"tickets": tickets, "total": len(tickets)}
-
-
-@router.get("/reports/export")
-async def export_reports(
-    format: str = Query("csv"),  # csv | pdf | xlsx
-    from_date: Optional[str] = Query(None),
-    to_date: Optional[str] = Query(None),
-    from_param: Optional[str] = Query(None, alias="from"),
-    to_param: Optional[str] = Query(None, alias="to"),
-    status: Optional[str] = Query(None),
-    department: Optional[str] = Query(None),
-    priority: Optional[str] = Query(None),
-    category: Optional[str] = Query(None)
-):
+def _build_report_rows(tickets: List[Dict[str, Any]], report_type: str = "complaint_analysis"):
     """
-    Feature 7: Export complaint reports in CSV, Excel (XLSX), or PDF format.
-    Includes comprehensive full details for each complaint.
+    Transforms MongoDB ticket documents into structured report rows and column specifications.
+    Supports report types: complaint_analysis (34 cols), genai_python_comparison (14 cols),
+    escalations, sla_status, policy_usage, resolution_compliance, manual_reviews.
     """
-    db = get_database()
-    query = _build_ticket_report_query(
-        from_date=from_date, to_date=to_date, from_param=from_param, to_param=to_param,
-        status=status, department=department, priority=priority, category=category
-    )
+    r_type = (report_type or "complaint_analysis").strip().lower()
 
-    cursor = db.tickets.find(query).sort("created_at", -1)
-    tickets = await cursor.to_list(length=5000)
+    if r_type == "genai_python_comparison":
+        specs = [
+            ("ticket_id", "Ticket ID"),
+            ("created_at", "Date Created"),
+            ("category", "Category"),
+            ("genai_dept", "GenAI Proposed Dept"),
+            ("python_dept", "Python Rule Dept"),
+            ("dept_match", "Dept Match"),
+            ("genai_priority", "GenAI Priority"),
+            ("python_priority", "Python Priority"),
+            ("priority_match", "Priority Match"),
+            ("genai_escalation", "GenAI Escalation"),
+            ("python_escalation", "Python Escalation"),
+            ("escalation_match", "Escalation Match"),
+            ("verification_score", "Verification Score"),
+            ("final_routing", "Final Routing Decision")
+        ]
+        rows = []
+        for t in tickets:
+            created = t.get("created_at")
+            c_str = created.strftime("%Y-%m-%d %H:%M") if isinstance(created, datetime) else str(created or "")[:16]
+            genai = t.get("genai_output") or {}
+            py_rule = t.get("python_rule_output") or {}
 
-    COLUMN_SPECS = [
+            g_dept = str(genai.get("department") or t.get("recommended_department") or "")
+            p_dept = str(t.get("department") or py_rule.get("primary_department") or "")
+            dept_m = "MATCH" if (g_dept.lower() == p_dept.lower() and g_dept) else "MISMATCH"
+
+            g_pri = str(genai.get("priority") or "")
+            p_pri = str(t.get("priority") or py_rule.get("priority") or "P2")
+            pri_m = "MATCH" if (g_pri.upper() == p_pri.upper() and g_pri) else "MISMATCH"
+
+            g_esc = "YES" if genai.get("escalation_required") else "NO"
+            p_esc = "YES" if (t.get("escalation_required") or py_rule.get("escalation_required")) else "NO"
+            esc_m = "MATCH" if g_esc == p_esc else "MISMATCH"
+
+            routing = "AI Review Quarantine" if t.get("department_mismatch") or t.get("status") == "AI Review" else "Agent Pool"
+
+            rows.append({
+                "ticket_id": str(t.get("ticket_id") or ""),
+                "created_at": c_str,
+                "category": str(t.get("category") or ""),
+                "genai_dept": g_dept,
+                "python_dept": p_dept,
+                "dept_match": dept_m,
+                "genai_priority": g_pri,
+                "python_priority": p_pri,
+                "priority_match": pri_m,
+                "genai_escalation": g_esc,
+                "python_escalation": p_esc,
+                "escalation_match": esc_m,
+                "verification_score": str(t.get("verification_score") or ""),
+                "final_routing": routing
+            })
+        return specs, rows
+
+    elif r_type == "escalations":
+        specs = [
+            ("ticket_id", "Ticket ID"),
+            ("created_at", "Date Created"),
+            ("customer_name", "Customer Name"),
+            ("category", "Category"),
+            ("department", "Department"),
+            ("priority", "Priority"),
+            ("escalation_level", "Escalation Level"),
+            ("escalation_source", "Escalation Source"),
+            ("triggered_rules", "Triggered Rules"),
+            ("status", "Status"),
+            ("assigned_agent", "Assigned Agent"),
+            ("assigned_reviewer", "Assigned Reviewer")
+        ]
+        rows = []
+        for t in tickets:
+            if not (t.get("status") == "Escalated" or t.get("escalation_required") or (t.get("python_rule_output") or {}).get("escalation_required")):
+                continue
+            created = t.get("created_at")
+            c_str = created.strftime("%Y-%m-%d %H:%M") if isinstance(created, datetime) else str(created or "")[:16]
+            py_rule = t.get("python_rule_output") or {}
+            trig = py_rule.get("triggered_rules") or t.get("escalation_rules_triggered") or []
+            trig_str = "; ".join(trig) if isinstance(trig, list) else str(trig)
+
+            rows.append({
+                "ticket_id": str(t.get("ticket_id") or ""),
+                "created_at": c_str,
+                "customer_name": str(t.get("customer_name") or "Customer"),
+                "category": str(t.get("category") or ""),
+                "department": str(t.get("department") or ""),
+                "priority": str(t.get("priority") or "P0"),
+                "escalation_level": str(t.get("escalation_level") or py_rule.get("escalation_level") or "LEVEL_1"),
+                "escalation_source": str(t.get("escalation_source") or "PYTHON_RULE"),
+                "triggered_rules": trig_str,
+                "status": str(t.get("status") or ""),
+                "assigned_agent": str(t.get("assigned_agent") or "Unassigned"),
+                "assigned_reviewer": str(t.get("assigned_reviewer_name") or "")
+            })
+        return specs, rows
+
+    elif r_type == "sla_status":
+        specs = [
+            ("ticket_id", "Ticket ID"),
+            ("created_at", "Date Created"),
+            ("priority", "Priority"),
+            ("status", "Status"),
+            ("sla_status", "SLA Status"),
+            ("sla_hours_remaining", "Hours Remaining"),
+            ("sla_risk_pct", "Risk %"),
+            ("department", "Department"),
+            ("assigned_agent", "Assigned Agent")
+        ]
+        rows = []
+        for t in tickets:
+            created = t.get("created_at")
+            c_str = created.strftime("%Y-%m-%d %H:%M") if isinstance(created, datetime) else str(created or "")[:16]
+            rows.append({
+                "ticket_id": str(t.get("ticket_id") or ""),
+                "created_at": c_str,
+                "priority": str(t.get("priority") or "P2"),
+                "status": str(t.get("status") or ""),
+                "sla_status": str(t.get("sla_status") or ("breached" if t.get("sla_breach") else "safe")),
+                "sla_hours_remaining": str(t.get("sla_hours_remaining") if t.get("sla_hours_remaining") is not None else ""),
+                "sla_risk_pct": str(t.get("sla_risk_pct") or 0.0),
+                "department": str(t.get("department") or ""),
+                "assigned_agent": str(t.get("assigned_agent") or "Unassigned")
+            })
+        return specs, rows
+
+    elif r_type in ["policy_usage", "policy-usage"]:
+        specs = [
+            ("ticket_id", "Ticket ID"),
+            ("created_at", "Date Created"),
+            ("policy_id", "Cited Policy ID"),
+            ("category", "Category"),
+            ("department", "Department"),
+            ("match_status", "Policy Verified"),
+            ("hallucination_flag", "Hallucinated Citation"),
+            ("assigned_agent", "Handling Agent"),
+            ("status", "Ticket Status")
+        ]
+        rows = []
+        for t in tickets:
+            created = t.get("created_at")
+            c_str = created.strftime("%Y-%m-%d %H:%M") if isinstance(created, datetime) else str(created or "")[:16]
+            py_rule = t.get("python_rule_output") or {}
+            genai = t.get("genai_output") or {}
+            pol_id = t.get("policy_id") or genai.get("policy_id") or py_rule.get("matched_rule_id") or "None"
+            h_flags = t.get("hallucination_flags") or []
+            is_hallucinated = any(f.get("type") in ["FABRICATED_POLICY", "INVALID_POLICY_CITATION"] for f in h_flags) if isinstance(h_flags, list) else False
+
+            rows.append({
+                "ticket_id": str(t.get("ticket_id") or ""),
+                "created_at": c_str,
+                "policy_id": pol_id,
+                "category": str(t.get("category") or ""),
+                "department": str(t.get("department") or ""),
+                "match_status": "YES" if (t.get("match_status") is True and not is_hallucinated) else "NO",
+                "hallucination_flag": "YES (Invalid)" if is_hallucinated else "NO (Valid)",
+                "assigned_agent": str(t.get("assigned_agent") or "Unassigned"),
+                "status": str(t.get("status") or "")
+            })
+        return specs, rows
+
+    elif r_type in ["resolution_compliance", "resolution-compliance"]:
+        specs = [
+            ("ticket_id", "Ticket ID"),
+            ("created_at", "Date Created"),
+            ("category", "Category"),
+            ("priority", "Priority"),
+            ("status", "Status"),
+            ("sla_breach", "SLA Breached"),
+            ("verification_score", "Verification Score"),
+            ("policy_compliant", "Policy Compliant"),
+            ("mandatory_actions_taken", "Actions Completed"),
+            ("assigned_agent", "Agent")
+        ]
+        rows = []
+        for t in tickets:
+            created = t.get("created_at")
+            c_str = created.strftime("%Y-%m-%d %H:%M") if isinstance(created, datetime) else str(created or "")[:16]
+            comp = t.get("policy_compliance") or {}
+            is_comp = comp.get("status") == "COMPLIANT" or (not t.get("department_mismatch") and not t.get("hallucination_flags"))
+            rows.append({
+                "ticket_id": str(t.get("ticket_id") or ""),
+                "created_at": c_str,
+                "category": str(t.get("category") or ""),
+                "priority": str(t.get("priority") or "P2"),
+                "status": str(t.get("status") or ""),
+                "sla_breach": "YES" if t.get("sla_breach") else "NO",
+                "verification_score": str(t.get("verification_score") if t.get("verification_score") is not None else ""),
+                "policy_compliant": "YES" if is_comp else "NO",
+                "mandatory_actions_taken": "YES" if t.get("agent_notes") or t.get("status") == "Resolved" else "PENDING",
+                "assigned_agent": str(t.get("assigned_agent") or "Unassigned")
+            })
+        return specs, rows
+
+    elif r_type in ["manual_reviews", "manual-reviews"]:
+        specs = [
+            ("ticket_id", "Ticket ID"),
+            ("created_at", "Date Created"),
+            ("mismatch_type", "Mismatch / Reason"),
+            ("original_dept", "Customer / GenAI Dept"),
+            ("active_dept", "Assigned Dept"),
+            ("assigned_reviewer", "Reviewer"),
+            ("status", "Status"),
+            ("reviewer_action", "Action Taken"),
+            ("assigned_agent", "Reassigned Agent")
+        ]
+        rows = []
+        for t in tickets:
+            if not (t.get("department_mismatch") or t.get("status") in ["AI Review", "Escalated"] or t.get("reviewer_override") or t.get("assigned_reviewer_id")):
+                continue
+            created = t.get("created_at")
+            c_str = created.strftime("%Y-%m-%d %H:%M") if isinstance(created, datetime) else str(created or "")[:16]
+            act = "REASSIGNED" if t.get("reviewer_override") else ("IN_REVIEW" if t.get("assigned_reviewer_id") else "PENDING_CLAIM")
+            rows.append({
+                "ticket_id": str(t.get("ticket_id") or ""),
+                "created_at": c_str,
+                "mismatch_type": str(t.get("mismatch_type") or "DEPARTMENT_OR_POLICY_MISMATCH"),
+                "original_dept": str(t.get("customer_department") or (t.get("genai_output") or {}).get("department") or ""),
+                "active_dept": str(t.get("department") or ""),
+                "assigned_reviewer": str(t.get("assigned_reviewer_name") or t.get("reviewed_by_name") or "Unclaimed"),
+                "status": str(t.get("status") or ""),
+                "reviewer_action": act,
+                "assigned_agent": str(t.get("assigned_agent") or "Unassigned")
+            })
+        return specs, rows
+
+    # Default: complaint_analysis (Original 27 columns + 7 new columns = 34 columns)
+    specs = [
         ("ticket_id", "Ticket ID"),
         ("created_at", "Date Created"),
         ("customer_name", "Customer Name"),
@@ -995,37 +1586,32 @@ async def export_reports(
         ("agent_notes", "Agent Resolution Notes"),
         ("draft_response", "AI Recommended Response"),
         ("resolution_steps", "Resolution Steps"),
-        ("updated_at", "Last Updated")
+        ("updated_at", "Last Updated"),
+        # ── 7 New Enterprise Extension Columns ──
+        ("secondary_issues", "Secondary Issues"),
+        ("supporting_departments", "Supporting Departments"),
+        ("verification_score", "Verification Score"),
+        ("escalation_level", "Escalation Level"),
+        ("is_repeat", "Repeat Complaint"),
+        ("missing_fields", "Missing Fields"),
+        ("hallucination_flags_count", "Hallucination Flags Count")
     ]
 
     rows = []
     for t in tickets:
         created = t.get("created_at")
-        if isinstance(created, datetime):
-            created_str = created.strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            created_str = str(created or "")
-
+        created_str = created.strftime("%Y-%m-%d %H:%M:%S") if isinstance(created, datetime) else str(created or "")
         updated = t.get("updated_at")
-        if isinstance(updated, datetime):
-            updated_str = updated.strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            updated_str = str(updated or "")
+        updated_str = updated.strftime("%Y-%m-%d %H:%M:%S") if isinstance(updated, datetime) else str(updated or "")
 
         genai = t.get("genai_output") or {}
         py_rule = t.get("python_rule_output") or {}
 
-        # Resolution steps & mandatory actions
         raw_steps = genai.get("resolution_steps") or py_rule.get("mandatory_actions") or []
-        if isinstance(raw_steps, list):
-            res_steps = "; ".join(str(s).strip() for s in raw_steps if str(s).strip())
-        else:
-            res_steps = str(raw_steps or "")
+        res_steps = "; ".join(str(s).strip() for s in raw_steps if str(s).strip()) if isinstance(raw_steps, list) else str(raw_steps or "")
 
-        # Policy Reference
         policy = t.get("policy_id") or genai.get("policy_id") or py_rule.get("matched_rule_id") or ""
 
-        # Match status
         if t.get("reviewer_override"):
             match_status = "Reviewer Triaged & Approved"
         elif t.get("department_mismatch") or (t.get("match_status") is False):
@@ -1033,13 +1619,27 @@ async def export_reports(
         else:
             match_status = "Verified Match"
 
-        # Escalation
         is_escalated = bool(
             t.get("status") == "Escalated" or
             t.get("escalation_required") or
             genai.get("escalation_required") or
             py_rule.get("escalation_required")
         )
+
+        sec_issues = genai.get("secondary_issues") or t.get("secondary_issues") or []
+        sec_str = "; ".join(f"{s.get('category')}: {s.get('summary')}" if isinstance(s, dict) else str(s) for s in sec_issues) if sec_issues else "None"
+
+        sup_depts = t.get("supporting_departments") or genai.get("supporting_departments") or []
+        sup_str = ", ".join(sup_depts) if isinstance(sup_depts, list) and sup_depts else "None"
+
+        missing = t.get("missing_fields") or []
+        missing_str = ", ".join(missing) if isinstance(missing, list) and missing else "None"
+
+        h_flags = t.get("hallucination_flags") or []
+        h_count = str(len(h_flags)) if isinstance(h_flags, list) else "0"
+
+        is_repeat_str = "YES" if (t.get("is_repeat") or t.get("duplicate_of")) else "NO"
+        esc_level = str(t.get("escalation_level") or (py_rule.get("escalation_level") if is_escalated else "NONE"))
 
         rows.append({
             "ticket_id": str(t.get("ticket_id") or ""),
@@ -1068,30 +1668,102 @@ async def export_reports(
             "agent_notes": str(t.get("agent_notes") or ""),
             "draft_response": str(t.get("draft_response") or genai.get("draft_response") or ""),
             "resolution_steps": res_steps,
-            "updated_at": updated_str
+            "updated_at": updated_str,
+            # ── 7 New Enterprise Extension Columns ──
+            "secondary_issues": sec_str,
+            "supporting_departments": sup_str,
+            "verification_score": str(t.get("verification_score") if t.get("verification_score") is not None else ""),
+            "escalation_level": esc_level,
+            "is_repeat": is_repeat_str,
+            "missing_fields": missing_str,
+            "hallucination_flags_count": h_count
         })
 
+    return specs, rows
+
+
+@router.get("/reports/preview")
+async def get_report_preview(
+    report_type: str = Query("complaint_analysis"),
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    from_param: Optional[str] = Query(None, alias="from"),
+    to_param: Optional[str] = Query(None, alias="to"),
+    status: Optional[str] = Query(None),
+    department: Optional[str] = Query(None),
+    priority: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    limit: int = Query(50)
+):
+    """
+    Feature 15: Returns report preview matching filters and selected report type.
+    """
+    db = get_database()
+    query = _build_ticket_report_query(
+        from_date=from_date, to_date=to_date, from_param=from_param, to_param=to_param,
+        status=status, department=department, priority=priority, category=category
+    )
+    cursor = db.tickets.find(query).sort("created_at", -1).limit(limit)
+    tickets = await cursor.to_list(length=limit)
+
+    specs, rows = _build_report_rows(tickets, report_type=report_type)
+    return {
+        "report_type": report_type,
+        "columns": [label for _, label in specs],
+        "rows": rows,
+        "total": len(rows)
+    }
+
+
+@router.get("/reports/export")
+async def export_reports(
+    report_type: str = Query("complaint_analysis"),
+    format: str = Query("csv"),  # csv | pdf | xlsx
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    from_param: Optional[str] = Query(None, alias="from"),
+    to_param: Optional[str] = Query(None, alias="to"),
+    status: Optional[str] = Query(None),
+    department: Optional[str] = Query(None),
+    priority: Optional[str] = Query(None),
+    category: Optional[str] = Query(None)
+):
+    """
+    Feature 15: Export complaint reports in CSV, Excel (XLSX), or PDF format.
+    Supports complaint_analysis (34 columns: 27 original + 7 new), genai_python_comparison,
+    escalations, sla_status, policy_usage, resolution_compliance, and manual_reviews.
+    """
+    db = get_database()
+    query = _build_ticket_report_query(
+        from_date=from_date, to_date=to_date, from_param=from_param, to_param=to_param,
+        status=status, department=department, priority=priority, category=category
+    )
+
+    cursor = db.tickets.find(query).sort("created_at", -1)
+    tickets = await cursor.to_list(length=5000)
+
+    column_specs, rows = _build_report_rows(tickets, report_type=report_type)
     fmt = (_clean_str(format) or "csv").lower()
     timestamp_suffix = datetime.utcnow().strftime("%Y%m%d_%H%M")
+    file_prefix = f"novawear-{report_type.replace('_', '-')}"
 
     # ─── 1. CSV EXPORT ───────────────────────────────────────────────────────────
     if fmt == "csv":
         output = io.StringIO()
-        field_keys = [k for k, _ in COLUMN_SPECS]
-        field_labels = [label for _, label in COLUMN_SPECS]
+        field_keys = [k for k, _ in column_specs]
+        field_labels = [label for _, label in column_specs]
 
         writer = csv.writer(output)
         writer.writerow(field_labels)
         for r in rows:
-            writer.writerow([r[k] for k in field_keys])
+            writer.writerow([r.get(k, "") for k in field_keys])
 
         output.seek(0)
-        # UTF-8 BOM (\xef\xbb\xbf) ensures Microsoft Excel properly renders special characters
         csv_bytes = b"\xef\xbb\xbf" + output.getvalue().encode("utf-8")
         return StreamingResponse(
             io.BytesIO(csv_bytes),
             media_type="text/csv; charset=utf-8",
-            headers={"Content-Disposition": f"attachment; filename=novawear-complaints-report-{timestamp_suffix}.csv"}
+            headers={"Content-Disposition": f"attachment; filename={file_prefix}-{timestamp_suffix}.csv"}
         )
 
     # ─── 2. EXCEL (XLSX) EXPORT ─────────────────────────────────────────────────
@@ -1103,10 +1775,11 @@ async def export_reports(
 
             wb = openpyxl.Workbook()
             ws = wb.active
-            ws.title = "Complaints Audit Report"
+            sheet_title = report_type.replace("_", " ").title()[:30]
+            ws.title = sheet_title
 
-            field_keys = [k for k, _ in COLUMN_SPECS]
-            field_labels = [label for _, label in COLUMN_SPECS]
+            field_keys = [k for k, _ in column_specs]
+            field_labels = [label for _, label in column_specs]
 
             # Write header row
             ws.append(field_labels)
@@ -1128,12 +1801,11 @@ async def export_reports(
                 cell.border = thin_border
             ws.row_dimensions[1].height = 28
 
-            # Data rows with zebra striping
             zebra_fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
             regular_font = Font(name="Calibri", size=10, color="0F172A")
 
             for row_idx, r in enumerate(rows, start=2):
-                ws.append([r[k] for k in field_keys])
+                ws.append([r.get(k, "") for k in field_keys])
                 is_even = (row_idx % 2 == 0)
                 ws.row_dimensions[row_idx].height = 20
                 for col_idx in range(1, len(field_keys) + 1):
@@ -1162,10 +1834,10 @@ async def export_reports(
             return StreamingResponse(
                 bio,
                 media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                headers={"Content-Disposition": f"attachment; filename=novawear-complaints-report-{timestamp_suffix}.xlsx"}
+                headers={"Content-Disposition": f"attachment; filename={file_prefix}-{timestamp_suffix}.xlsx"}
             )
         except ImportError:
-            raise HTTPException(status_code=500, detail="OpenPyXL library is required for XLSX export. Please install openpyxl.")
+            raise HTTPException(status_code=500, detail="OpenPyXL library is required for XLSX export.")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Excel generation error: {str(e)}")
 
@@ -1187,47 +1859,129 @@ async def export_reports(
             elements = []
             styles = getSampleStyleSheet()
 
-            title_style = ParagraphStyle("ReportTitle", parent=styles["Heading1"], fontSize=16, leading=20, textColor=colors.HexColor("#0B0E14"))
-            meta_style = ParagraphStyle("ReportMeta", parent=styles["Normal"], fontSize=8.5, leading=12, textColor=colors.HexColor("#64748B"))
+            title_style = ParagraphStyle("ReportTitle", parent=styles["Heading1"], fontSize=15, leading=19, textColor=colors.HexColor("#0B0E14"))
+            meta_style = ParagraphStyle("ReportMeta", parent=styles["Normal"], fontSize=8, leading=11, textColor=colors.HexColor("#64748B"))
             th_style = ParagraphStyle("ReportTh", parent=styles["Normal"], fontSize=8, leading=10, fontName="Helvetica-Bold", textColor=colors.HexColor("#FFFFFF"))
             td_style = ParagraphStyle("ReportTd", parent=styles["Normal"], fontSize=7.5, leading=9.5, textColor=colors.HexColor("#1E293B"))
             td_bold = ParagraphStyle("ReportTdBold", parent=td_style, fontName="Helvetica-Bold")
 
-            elements.append(Paragraph("NovaWear Apparel — Complaint Intelligence Audit Report", title_style))
+            report_display_title = report_type.replace("_", " ").title()
+            elements.append(Paragraph(f"NovaWear Apparel — {report_display_title} Report", title_style))
             elements.append(Spacer(1, 3))
 
-            resolved_count = sum(1 for r in rows if r["status"] == "Resolved")
-            breach_count = sum(1 for r in rows if "YES" in r["sla_breach"])
             elements.append(Paragraph(
                 f"Generated on {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')} | "
-                f"Total Records: {len(rows)} | Resolved: {resolved_count} | SLA Breaches: {breach_count}",
+                f"Total Records: {len(rows)} | Report Type: {report_type}",
                 meta_style
             ))
             elements.append(Spacer(1, 10))
 
-            pdf_headers = ["Ticket ID", "Customer", "Title & Description", "Dept", "Category", "Priority", "Status", "Agent", "Date"]
-            col_widths = [65, 85, 185, 65, 75, 45, 65, 85, 70] # fits 740pt printable landscape width
+            # Select appropriate concise columns for PDF landscape layout
+            if report_type == "genai_python_comparison":
+                pdf_cols = [
+                    ("ticket_id", "Ticket ID", 65),
+                    ("category", "Category", 85),
+                    ("genai_dept", "GenAI Dept", 80),
+                    ("python_dept", "Python Dept", 80),
+                    ("dept_match", "Dept Match", 65),
+                    ("genai_priority", "GenAI Pri", 55),
+                    ("python_priority", "Py Pri", 50),
+                    ("verification_score", "Score", 45),
+                    ("final_routing", "Final Routing", 100),
+                    ("created_at", "Date", 70)
+                ]
+            elif report_type == "escalations":
+                pdf_cols = [
+                    ("ticket_id", "Ticket ID", 65),
+                    ("customer_name", "Customer", 85),
+                    ("category", "Category", 80),
+                    ("department", "Dept", 75),
+                    ("priority", "Pri", 40),
+                    ("escalation_level", "Level", 60),
+                    ("escalation_source", "Source", 75),
+                    ("triggered_rules", "Triggered Rules", 140),
+                    ("status", "Status", 65)
+                ]
+            elif report_type == "sla_status":
+                pdf_cols = [
+                    ("ticket_id", "Ticket ID", 70),
+                    ("priority", "Priority", 50),
+                    ("status", "Status", 75),
+                    ("sla_status", "SLA Status", 75),
+                    ("sla_hours_remaining", "Remaining (h)", 75),
+                    ("sla_risk_pct", "Risk %", 60),
+                    ("department", "Department", 85),
+                    ("assigned_agent", "Agent", 85),
+            elif report_type in ["policy_usage", "policy-usage"]:
+                pdf_cols = [
+                    ("ticket_id", "Ticket ID", 70),
+                    ("policy_id", "Policy ID", 85),
+                    ("category", "Category", 85),
+                    ("department", "Department", 80),
+                    ("match_status", "Verified", 55),
+                    ("hallucination_flag", "Citation Validity", 95),
+                    ("assigned_agent", "Agent", 80),
+                    ("created_at", "Date", 70)
+                ]
+            elif report_type in ["resolution_compliance", "resolution-compliance"]:
+                pdf_cols = [
+                    ("ticket_id", "Ticket ID", 65),
+                    ("category", "Category", 75),
+                    ("priority", "Pri", 40),
+                    ("status", "Status", 65),
+                    ("sla_breach", "SLA Breach", 65),
+                    ("verification_score", "Score", 45),
+                    ("policy_compliant", "Compliant", 60),
+                    ("mandatory_actions_taken", "Actions", 60),
+                    ("assigned_agent", "Agent", 75),
+                    ("created_at", "Date", 70)
+                ]
+            elif report_type in ["manual_reviews", "manual-reviews"]:
+                pdf_cols = [
+                    ("ticket_id", "Ticket ID", 65),
+                    ("mismatch_type", "Mismatch Reason", 110),
+                    ("original_dept", "Original Dept", 75),
+                    ("active_dept", "Assigned Dept", 75),
+                    ("assigned_reviewer", "Reviewer", 75),
+                    ("reviewer_action", "Action", 75),
+                    ("assigned_agent", "Assigned Agent", 75),
+                    ("created_at", "Date", 70)
+                ]
+            else:
+                # Default complaint summary
+                pdf_cols = [
+                    ("ticket_id", "Ticket ID", 65),
+                    ("customer_name", "Customer", 80),
+                    ("title", "Complaint Title", 160),
+                    ("department", "Dept", 65),
+                    ("category", "Category", 75),
+                    ("priority", "Pri", 40),
+                    ("status", "Status", 60),
+                    ("verification_score", "Score", 40),
+                    ("assigned_agent", "Agent", 80),
+                    ("created_at", "Date", 65)
+                ]
 
-            # Limit PDF rows to 300 to avoid serverless memory limits
+            pdf_headers = [label for _, label, _ in pdf_cols]
+            col_widths = [w for _, _, w in pdf_cols]
+
             pdf_rows = rows[:300]
             table_data = [[Paragraph(h, th_style) for h in pdf_headers]]
 
             for r in pdf_rows:
-                cust_desc = f"{r['customer_name']}<br/><font color='#64748B'>{r['customer_email']}</font>" if r['customer_email'] else r['customer_name']
-                desc_snippet = (r['description'][:100] + '...') if len(r['description']) > 100 else r['description']
-                title_desc = f"<b>{r['title']}</b><br/><font color='#475569'>{desc_snippet}</font>"
-
-                table_data.append([
-                    Paragraph(r["ticket_id"], td_bold),
-                    Paragraph(cust_desc, td_style),
-                    Paragraph(title_desc, td_style),
-                    Paragraph(r["department"], td_style),
-                    Paragraph(r["category"], td_style),
-                    Paragraph(r["priority"], td_bold),
-                    Paragraph(r["status"], td_style),
-                    Paragraph(r["assigned_agent"], td_style),
-                    Paragraph(r["created_at"][:10], td_style),
-                ])
+                row_cells = []
+                for key, _, _ in pdf_cols:
+                    val = str(r.get(key, ""))
+                    if key in ["ticket_id", "priority", "dept_match", "escalation_level"]:
+                        row_cells.append(Paragraph(val, td_bold))
+                    elif key in ["title", "description"]:
+                        snippet = (val[:80] + "...") if len(val) > 80 else val
+                        row_cells.append(Paragraph(snippet, td_style))
+                    elif key == "created_at":
+                        row_cells.append(Paragraph(val[:10], td_style))
+                    else:
+                        row_cells.append(Paragraph(val, td_style))
+                table_data.append(row_cells)
 
             t_table = Table(table_data, colWidths=col_widths, repeatRows=1)
             t_table.setStyle(TableStyle([
@@ -1246,7 +2000,7 @@ async def export_reports(
             if len(rows) > 300:
                 elements.append(Spacer(1, 8))
                 elements.append(Paragraph(
-                    f"<i>Note: PDF Executive Digest displays top 300 of {len(rows)} matching complaints. For full dataset with all 27 audit fields, please export as Excel (XLSX) or CSV.</i>",
+                    f"<i>Note: PDF Executive Digest displays top 300 of {len(rows)} matching complaints. For complete dataset with all columns, please export as Excel (XLSX) or CSV.</i>",
                     meta_style
                 ))
 
@@ -1255,15 +2009,16 @@ async def export_reports(
             return StreamingResponse(
                 bio,
                 media_type="application/pdf",
-                headers={"Content-Disposition": f"attachment; filename=novawear-complaints-report-{timestamp_suffix}.pdf"}
+                headers={"Content-Disposition": f"attachment; filename={file_prefix}-{timestamp_suffix}.pdf"}
             )
         except ImportError:
-            raise HTTPException(status_code=500, detail="ReportLab library is required for PDF export. Please install reportlab.")
+            raise HTTPException(status_code=500, detail="ReportLab library is required for PDF export.")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"PDF generation error: {str(e)}")
 
     else:
         raise HTTPException(status_code=400, detail="Invalid format. Supported formats: csv, xlsx, pdf.")
+
 
 
 

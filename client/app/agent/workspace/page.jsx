@@ -11,6 +11,11 @@ import {
 } from 'lucide-react'
 
 import { API_BASE } from '../../lib/api'
+import ComplaintSummary from '../../components/ComplaintSummary'
+import IssueBadges from '../../components/IssueBadges'
+import RepeatBadge from '../../components/RepeatBadge'
+import DeptRouting from '../../components/DeptRouting'
+import FollowUpTimeline from '../../components/FollowUpTimeline'
 
 const glass = { background: 'var(--nw-surface)', border: '1px solid var(--nw-border)', borderRadius: 16, boxShadow: '0 4px 24px rgba(11,14,20,0.3)' }
 
@@ -288,7 +293,7 @@ export default function AgentWorkspace() {
     }
   }
 
-  const selectedTicket = tickets.find(t => t.ticket_id === selectedId) || tickets[0]
+  const selectedTicket = tickets.find(t => t.ticket_id === selectedId) || null
 
   useEffect(() => {
     if (selectedTicket) {
@@ -734,8 +739,23 @@ export default function AgentWorkspace() {
                       {t.title}
                     </h4>
 
+                    {/* Issue Badges */}
+                    <div style={{ marginBottom: 6 }}>
+                      <IssueBadges
+                        primaryIssue={t.category || t.primary_issue || ''}
+                        secondaryIssues={t.secondary_issues || (t.genai_output?.secondary_issues) || []}
+                      />
+                    </div>
+                    {/* Repeat Badge */}
+                    {(t.is_repeat || t.duplicate_of) && (
+                      <div style={{ marginBottom: 4 }}>
+                        <RepeatBadge duplicateOf={t.duplicate_of} priorCount={t.repeat_count || 0} />
+                      </div>
+                    )}
+
                     {/* Assignment Pill */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10.5 }}>
+
                       {isRevokedForMe ? (
                         <span style={{ color: 'var(--nw-danger)', background: 'var(--nw-danger-dim)', padding: '1px 6px', borderRadius: 4, fontWeight: 700, border: '1px solid rgba(193,73,91,0.3)' }}>
                           ⛔ Access Revoked (In History)
@@ -809,8 +829,76 @@ export default function AgentWorkspace() {
                 </div>
               )}
 
+              {/* ── AI Escalation Banner ── */}
+              {selectedTicket.escalation_required && (
+                <div style={{
+                  background: 'var(--nw-danger-dim)',
+                  border: '1px solid rgba(193,73,91,0.35)',
+                  borderRadius: 12,
+                  padding: '12px 18px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 12,
+                }}>
+                  <span style={{ fontSize: 20 }}>🚨</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#E8758A', marginBottom: 2 }}>
+                      ESCALATION REQUIRED — Level {selectedTicket.escalation_level || 'L1'}
+                    </div>
+                    {selectedTicket.escalation_notes && (
+                      <div style={{ fontSize: 12, color: 'var(--nw-text-secondary)', lineHeight: 1.5 }}>
+                        {selectedTicket.escalation_notes}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── SLA Risk Banner ── */}
+              {(selectedTicket.sla_risk === 'HIGH' || selectedTicket.sla_risk === 'CRITICAL') && (
+                <div style={{
+                  background: selectedTicket.sla_risk === 'CRITICAL' ? 'var(--nw-danger-dim)' : 'var(--nw-warning-dim)',
+                  border: `1px solid ${selectedTicket.sla_risk === 'CRITICAL' ? 'rgba(193,73,91,0.35)' : 'rgba(217,164,65,0.35)'}`,
+                  borderRadius: 10,
+                  padding: '10px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: selectedTicket.sla_risk === 'CRITICAL' ? '#E8758A' : '#E8B56B',
+                }}>
+                  ⏱ SLA Risk: {selectedTicket.sla_risk} — This ticket may breach SLA if not actioned within 2 hours
+                </div>
+              )}
+
+              {/* ── Hallucination Warning (disables reply) ── */}
+              {(selectedTicket.hallucination_flags?.length > 0 || selectedTicket.unsupported_promises?.length > 0) && (
+                <div style={{
+                  background: 'rgba(193,73,91,0.12)',
+                  border: '1.5px solid rgba(193,73,91,0.5)',
+                  borderRadius: 12,
+                  padding: '14px 18px',
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#E8758A', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    ⚠️ AI HALLUCINATION FLAGS DETECTED — Reply Blocked
+                  </div>
+                  {selectedTicket.hallucination_flags?.map((f, i) => (
+                    <div key={i} style={{ fontSize: 11.5, color: 'var(--nw-text-secondary)', marginBottom: 4, paddingLeft: 8, borderLeft: '2px solid rgba(193,73,91,0.4)' }}>
+                      <strong style={{ color: '#E8758A' }}>{f.type}</strong>: {f.description}
+                    </div>
+                  ))}
+                  {selectedTicket.unsupported_promises?.map((p, i) => (
+                    <div key={`p-${i}`} style={{ fontSize: 11.5, color: 'var(--nw-text-secondary)', marginBottom: 4, paddingLeft: 8, borderLeft: '2px solid rgba(217,164,65,0.4)' }}>
+                      <strong style={{ color: '#E8B56B' }}>UNAUTHORIZED PROMISE</strong>: {p.description || p}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Ticket Summary Bar */}
               <div style={{ ...glass, background: 'var(--nw-surface)', padding: 18 }}>
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#7C3AED', fontWeight: 800 }}>{selectedTicket.ticket_id}</span>
@@ -868,6 +956,17 @@ export default function AgentWorkspace() {
                   <div>Incident Date: <strong>{selectedTicket.incident_date || 'Today'}</strong></div>
                 </div>
               </div>
+
+              {/* ── Complaint Summary Card ── */}
+              <ComplaintSummary ticket={selectedTicket} variant="agent" />
+
+              {/* ── Department Routing ── */}
+              {(selectedTicket.primary_department || selectedTicket.department) && (
+                <DeptRouting
+                  primaryDept={selectedTicket.primary_department || selectedTicket.department}
+                  supportingDepts={selectedTicket.supporting_departments || []}
+                />
+              )}
 
               {/* Department Comparison & Mismatch Banner */}
               <div style={{
@@ -1069,6 +1168,9 @@ export default function AgentWorkspace() {
           {/* ── RIGHT: Agent Response & Status Update Control Panel ── */}
           <div style={{ width: 300, borderLeft: '1px solid var(--nw-border)', overflowY: 'auto', padding: 16, background: 'var(--nw-surface)', display: 'flex', flexDirection: 'column', gap: 16, flexShrink: 0 }}>
 
+            {/* ── Follow-Up Timeline ── */}
+            <FollowUpTimeline ticket={selectedTicket} />
+
             {/* Status Update & Email Dispatch Control Box */}
             <div style={{ background: 'var(--nw-elevated)', padding: 16, borderRadius: 12, border: '1px solid var(--nw-border)' }}>
               <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--nw-text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
@@ -1128,17 +1230,22 @@ export default function AgentWorkspace() {
               {/* General Send Email Reply Button */}
               <button
                 onClick={() => handleStatusUpdate(selectedTicket?.status || 'In Progress')}
-                disabled={statusUpdating || isRevoked || isOtherAssigned}
+                disabled={statusUpdating || isRevoked || isOtherAssigned || (selectedTicket?.hallucination_flags?.length > 0)}
                 style={{
                   width: '100%', padding: '10px', borderRadius: 9, border: 'none',
-                  background: (isRevoked || isOtherAssigned) ? 'var(--nw-elevated)' : 'var(--nw-accent)', color: 'var(--nw-text-inverse)',
-                  fontSize: 12, fontWeight: 700, cursor: (isRevoked || isOtherAssigned) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  opacity: statusUpdating ? 0.7 : 1, marginBottom: 8
+                  background: (isRevoked || isOtherAssigned || selectedTicket?.hallucination_flags?.length > 0) ? 'var(--nw-elevated)' : 'var(--nw-accent)', color: 'var(--nw-text-inverse)',
+                  fontSize: 12, fontWeight: 700, cursor: (isRevoked || isOtherAssigned || selectedTicket?.hallucination_flags?.length > 0) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  opacity: statusUpdating ? 0.7 : 1, marginBottom: 4
                 }}
               >
                 {statusUpdating ? <RefreshCw size={14} className="spin" /> : <Send size={14} />}
                 Send Email Reply
               </button>
+              {selectedTicket?.hallucination_flags?.length > 0 && (
+                <span style={{ fontSize: 10.5, color: '#E8758A', fontWeight: 600, display: 'block', marginBottom: 8 }}>
+                  ⛔ Reply blocked: AI hallucination flags detected. Contact reviewer.
+                </span>
+              )}
 
               {/* Direct Resolve & Send Email Button */}
               <button

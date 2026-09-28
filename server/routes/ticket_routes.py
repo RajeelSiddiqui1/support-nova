@@ -12,9 +12,12 @@ from ai.rag import rag_engine
 from ai.qdrant_rag import qdrant_rag
 from lib.dept_resolver import resolve_ai_department, get_active_department_names
 from services.complaint_intelligence import ComplaintIntelligenceService
+from services.audit_service import AuditService
+from services.config_service import ConfigService
 from models.ticket import (
     GenerateFollowUpRequest, ClarificationReplyRequest,
-    EscalationRequest, StructuredComplaintSummary, StructuredEscalationNotes
+    EscalationRequest, StructuredComplaintSummary, StructuredEscalationNotes,
+    FollowUpItem, FollowUpUpdateRequest, ClarificationAnswerItem
 )
 
 ci_service = ComplaintIntelligenceService()
@@ -518,6 +521,36 @@ async def submit_complaint(data: TicketSubmission):
     if not data.department_id or not data.department_id.strip():
         raise HTTPException(status_code=400, detail="Department foreign key is mandatory.")
 
+    # ── Feature 4: Deterministic Validation & Pre-Processing (Pipeline 2) ──
+    prep = ComplaintIntelligenceService.validate_and_preprocess_complaint(
+        title=data.title,
+        description=data.description,
+        order_id=data.order_id,
+        customer_id=clean_quotes_py(data.customer_id, "anonymous"),
+        attachments=data.attachments
+    )
+    if not prep["is_valid"]:
+        raise HTTPException(status_code=400, detail=prep["error"])
+
+    # ── Feature 4: Exact Deduplication Check (Pipeline 2) ──
+    if prep["content_hash"]:
+        existing_dup = await db.tickets.find_one({
+            "content_hash": prep["content_hash"],
+            "status": {"$ne": "Closed"}
+        })
+        if existing_dup:
+            return {
+                "status": "success",
+                "ticket_id": existing_dup["ticket_id"],
+                "is_duplicate": True,
+                "duplicate_of": existing_dup["ticket_id"],
+                "message": f"Identical complaint detected. Linked to active ticket {existing_dup['ticket_id']}."
+            }
+
+    # ── Feature 5: Adversarial & Prompt Injection Scan (Pipeline 2) ──
+    adv_rules = await ConfigService.get_adversarial_rules(db)
+    adv_flags = ComplaintIntelligenceService.detect_adversarial_patterns(prep["normalized_description"], rules=adv_rules)
+
     department = await db.departments.find_one({"dept_id": data.department_id.strip()})
     if not department:
         raise HTTPException(status_code=400, detail="Selected department does not exist.")
@@ -550,130 +583,231 @@ async def submit_complaint(data: TicketSubmission):
 
     ticket_id = f"CMP-{int(datetime.utcnow().timestamp())}"
 
-    # 1. Retrieve RAG policy context via Qdrant Cloud (Token Optimization!)
-    relevant_chunks = qdrant_rag.retrieve_relevant_chunks(data.description, top_k=2)
+    # 1. Retrieve RAG policy context
+    relevant_chunks = qdrant_rag.retrieve_relevant_chunks(prep["normalized_description"], top_k=2)
     if not relevant_chunks:
-        # Fallback to local RAG engine
-        all_docs = await db.kb_docs.find({"status": "Active"}).to_list(length=100)
+        all_docs = await db.kb_docs.find({"status": {"$in": ["Active", "ACTIVE"]}}).to_list(length=100)
         all_chunks = []
         for doc in all_docs:
             all_chunks.extend(doc.get("chunks", []))
         rag_engine.load_chunks(all_chunks)
-        relevant_chunks = rag_engine.retrieve_relevant_chunks(data.description, top_k=2)
+        relevant_chunks = rag_engine.retrieve_relevant_chunks(prep["normalized_description"], top_k=2)
 
     policy_context = rag_engine.format_context_for_prompt(relevant_chunks)
 
-    # 2. AI Pipeline 1: Groq GenAI Analysis with Active Departments
+    # 2. AI Pipeline 1: Groq GenAI Analysis with Active Departments & Versioned Prompt (F1, F2)
     available_depts = await get_active_department_names(db)
-    genai_output = groq_client.analyze_complaint(
+    genai_output, analysis_meta = groq_client.analyze_complaint(
         complaint_id=ticket_id,
-        title=data.title,
-        description=data.description,
-        order_id=data.order_id,
+        title=prep["normalized_title"],
+        description=prep["normalized_description"],
+        order_id=prep.get("effective_order_id") or data.order_id,
         policy_context=policy_context,
         available_departments=available_depts
     )
 
     user_selected_dept = data.customer_department.strip()
     ai_raw_dept = genai_output.get("department", user_selected_dept)
-    
-    # Resolve AI Department foreign key (dept_id)
     ai_dept_id, ai_dept = await resolve_ai_department(db, ai_raw_dept, fallback_dept=user_selected_dept)
 
-    # Department mismatch check
-    department_mismatch = (
-        ai_dept.lower() not in user_selected_dept.lower() and
-        user_selected_dept.lower() not in ai_dept.lower()
+    # ── Feature 6: Multi-Department Routing Check (Pipeline 2) ──
+    matrix_cursor = db.rule_matrix.find({"is_active": True})
+    matrix_rules = await matrix_cursor.to_list(length=100)
+
+    routing_res = ComplaintIntelligenceService.validate_multi_department_routing(
+        primary_issue=genai_output.get("primary_issue"),
+        secondary_issues=genai_output.get("secondary_issues", []),
+        genai_primary_dept=ai_dept,
+        genai_supporting_depts=genai_output.get("supporting_departments", []),
+        rule_matrix=matrix_rules
     )
 
-    # 3. Multi-Department Routing (Feature 10) & Python Rule Verification
-    primary_dept = ai_dept
-    supporting_depts = [d for d in genai_output.get("supporting_departments", []) if d.lower() != primary_dept.lower()]
+    primary_dept = routing_res["verified_primary_department"] or ai_dept
+    supporting_depts = routing_res["verified_supporting_departments"]
+    department_mismatch = (
+        routing_res["department_mismatch"] or
+        (ai_dept.lower() not in user_selected_dept.lower() and user_selected_dept.lower() not in ai_dept.lower())
+    )
+    mismatch_type = "DEPARTMENT_MISMATCH" if department_mismatch else None
 
+    # ── Feature 12: Repeat Complaint Check (Pipeline 2) ──
+    prior_cursor = db.tickets.find({"customer_id": customer_id})
+    prior_tickets = await prior_cursor.to_list(length=50)
+    is_repeat, related_ticket_ids, repeat_count, repeat_score = ComplaintIntelligenceService.check_repeat_complaint(
+        current_title=prep["normalized_title"],
+        current_description=prep["normalized_description"],
+        order_id=prep.get("effective_order_id") or data.order_id,
+        customer_id=customer_id,
+        prior_tickets=prior_tickets
+    )
+
+    # ── Feature 7: Deterministic Escalation Evaluation (Pipeline 2) ──
+    esc_rules = await ConfigService.get_escalation_rules(db)
+    esc_eval = ComplaintIntelligenceService.evaluate_escalation_rules(
+        ticket_data={"title": prep["normalized_title"], "description": prep["normalized_description"]},
+        entities=genai_output.get("entities"),
+        repeat_count=repeat_count,
+        rules=esc_rules
+    )
+
+    escalation_required = esc_eval["escalation_required"] or genai_output.get("escalation_required", False)
+    escalation_level = esc_eval["escalation_level"]
+    escalation_source = esc_eval["escalation_source"]
+
+    # Crucial Ground Rule: If Python says escalate and GenAI said no -> Python wins!
+    if esc_eval["escalation_required"] and not genai_output.get("escalation_required"):
+        department_mismatch = True
+        mismatch_type = "ESCALATION_MISMATCH"
+        await AuditService.log_event(
+            event_type="ESCALATION_OVERRIDE",
+            ticket_id=ticket_id,
+            actor="SYSTEM_PYTHON_RULE",
+            actor_id="SYSTEM",
+            original_value={"escalation_required": False},
+            new_value={"escalation_required": True, "level": escalation_level},
+            reason=f"Python rule override triggered by: {', '.join(esc_eval['triggered_rules'])}",
+            db=db
+        )
+
+    # ── Feature 8: Deterministic Hallucination Detection (Pipeline 2) ──
+    kb_cursor = db.kb_docs.find({"status": {"$in": ["Active", "ACTIVE"]}})
+    active_kb_docs = await kb_cursor.to_list(length=100)
+    active_policy_ids = [doc.get("doc_id") or doc.get("policy_id") for doc in active_kb_docs if doc.get("doc_id") or doc.get("policy_id")]
+    
+    has_hallucination, hallucination_flags, unsupported_promises = ComplaintIntelligenceService.detect_hallucinations(
+        genai_output=genai_output,
+        complaint_text=prep["normalized_description"],
+        retrieved_chunks=relevant_chunks,
+        rule_matrix=matrix_rules,
+        active_policy_ids=active_policy_ids
+    )
+
+    if has_hallucination:
+        mismatch_type = "HALLUCINATION"
+        # Suppress draft response from customer
+        genai_output["draft_response"] = ""
+        await AuditService.log_event(
+            event_type="HALLUCINATION_DETECTED",
+            ticket_id=ticket_id,
+            actor="SYSTEM_PYTHON_RULE",
+            actor_id="SYSTEM",
+            original_value={},
+            new_value={"flags": hallucination_flags, "unsupported_promises": unsupported_promises},
+            reason="Unverified policy or promise detected in GenAI response.",
+            db=db
+        )
+
+    # If adversarial injection was detected, quarantine to reviewer queue
+    if adv_flags:
+        department_mismatch = True
+        mismatch_type = "ADVERSARIAL"
+
+    # Python Rule Output definition
     python_rule_output = {
         "matched_rule_id": genai_output.get("policy_id", "DEL-POL-04"),
         "category_verified": True,
-        "escalation_required": genai_output.get("escalation_required", False),
-        "refund_eligible": "refund" in data.description.lower() or "delay" in data.description.lower(),
+        "escalation_required": escalation_required,
+        "refund_eligible": "refund" in prep["normalized_description"].lower() or "delay" in prep["normalized_description"].lower(),
         "verified_primary_department": primary_dept,
         "verified_secondary_departments": supporting_depts,
-        "mandatory_actions": genai_output.get("resolution_steps", ["Verify details", "Escalate if needed"]),
+        "mandatory_actions": genai_output.get("resolution_steps", ["Verify details", "Check policy"]),
         "prohibited_actions": ["Issue unauthorized cash refund > 50% without manager review"],
         "policy_reference": f"{genai_output.get('policy_id', 'POL-01')} §{genai_output.get('policy_section', '1.0')}",
-        "confidence_score": 96.5 if not department_mismatch else 82.0
+        "confidence_score": 96.5 if not department_mismatch else 80.0
     }
 
-    # ── Feature 2: Missing Information Detection & Clarifications ──
-    missing_fields = ComplaintIntelligenceService.detect_missing_fields(
-        category=category_name,
-        title=data.title,
-        description=data.description,
-        order_id=data.order_id,
-        attachments=data.attachments
+    # ── Feature 9: Transparent Verification Score (Pipeline 2) ──
+    verification_score, score_breakdown = ComplaintIntelligenceService.calculate_verification_score(
+        genai_output=genai_output,
+        python_output=python_rule_output,
+        has_hallucination=has_hallucination
     )
-    clarification_questions = ci_service.generate_clarification_questions(missing_fields, data.title, data.description) if missing_fields else []
+
+    # ── Feature 3: Deterministic Missing Info & GenAI Clarification Questions ──
+    req_map = await ConfigService.get_required_fields_map(db)
+    missing_eval = ComplaintIntelligenceService.detect_missing_info(
+        ticket_data={
+            "title": prep["normalized_title"],
+            "description": prep["normalized_description"],
+            "order_id": prep.get("effective_order_id") or data.order_id,
+            "product_service": data.product_service,
+            "attachments": data.attachments
+        },
+        entities=genai_output.get("entities"),
+        category=category_name,
+        required_fields_map=req_map
+    )
+    missing_fields = missing_eval["missing_fields"]
+    clarification_questions = ci_service.generate_clarification_questions(
+        missing_fields, prep["normalized_title"], prep["normalized_description"]
+    ) if missing_fields else []
     clarification_status = "pending" if missing_fields else "none"
 
     # ── Feature 3: Complaint Summary ──
     complaint_summary = ci_service.generate_complaint_summary(
         ticket_id=ticket_id,
-        title=data.title,
-        description=data.description,
+        title=prep["normalized_title"],
+        description=prep["normalized_description"],
         category=category_name
     )
 
-    # ── Feature 8: Repeat Complaint Check ──
-    prior_cursor = db.tickets.find({"customer_id": customer_id})
-    prior_tickets = await prior_cursor.to_list(length=50)
-    is_repeat, related_ticket_ids, repeat_score = ComplaintIntelligenceService.check_repeat_complaint(
-        current_title=data.title,
-        current_description=data.description,
-        prior_tickets=prior_tickets
+    # ── Feature 7: Escalation Notes ──
+    escalation_notes = None
+    if escalation_required:
+        escalation_notes = ci_service.generate_escalation_notes(
+            ticket_id=ticket_id,
+            title=prep["normalized_title"],
+            description=prep["normalized_description"],
+            category=category_name,
+            escalation_reason=esc_eval.get("primary_trigger") or "Compliance rule trigger",
+            actions_taken=["Quarantined from agent pool for manager review"],
+            policy_id=genai_output.get("policy_id")
+        )
+
+    # ── Feature 13: SLA Risk Engine (Pipeline 2) ──
+    sla_eval = ComplaintIntelligenceService.evaluate_sla_risk(
+        created_at=datetime.utcnow(),
+        priority=genai_output.get("priority", "P2")
     )
 
-    # ── Feature 9: Hallucination Detection ──
-    kb_cursor = db.kb_docs.find({"status": "Active"})
-    active_kb_docs = await kb_cursor.to_list(length=100)
-    active_policy_ids = [doc.get("policy_id") for doc in active_kb_docs if doc.get("policy_id")]
-    has_hallucination, hallucination_flags = ComplaintIntelligenceService.detect_hallucinations(
-        genai_output=genai_output,
-        known_policy_ids=active_policy_ids,
-        complaint_text=data.description
-    )
+    # Determine initial status
+    if adv_flags or department_mismatch or has_hallucination:
+        initial_status = "AI Review"
+    elif missing_fields:
+        initial_status = "Awaiting Customer"
+    else:
+        initial_status = "In Triage"
 
-    # ── Feature 11: Verification Score Calculation ──
-    verification_score, score_breakdown = ComplaintIntelligenceService.calculate_verification_score(
-        genai_output=genai_output,
-        python_output=python_rule_output,
-        actual_category=category_name,
-        has_hallucination=has_hallucination
-    )
-
-    initial_status = "AI Review" if (has_hallucination or department_mismatch) else "In Triage"
-
+    # Assemble complete ticket document
     new_ticket = {
         "ticket_id": ticket_id,
-        "title": data.title.strip(),
-        "description": data.description.strip(),
+        "title": prep["normalized_title"],
+        "description": prep["normalized_description"],
         "product_service": data.product_service.strip(),
-        "order_id": data.order_id.strip(),
+        "order_id": prep.get("effective_order_id") or data.order_id.strip(),
         "channel": data.channel or "Web Form",
         "customer_id": customer_id,
-        "customer_name": data.customer_name or "Valued Customer",
-        "customer_email": data.customer_email,
+        "customer_name": customer_name,
+        "customer_email": customer_email,
         "department_id": ai_dept_id,
         "customer_department_id": department.get("dept_id") if department else ai_dept_id,
         "customer_department": user_selected_dept,
-        "department": ai_dept,
-        "department_name": ai_dept,
-        "recommended_department": ai_dept,
+        "department": primary_dept,
+        "department_name": primary_dept,
+        "recommended_department": primary_dept,
         "primary_department": primary_dept,
         "supporting_departments": supporting_depts,
-        "primary_issue": {"category": category_name, "department": primary_dept},
+        "secondary_issue_departments": routing_res.get("secondary_issue_departments", []),
+        "routing_match": routing_res.get("routing_match", "full"),
+        "primary_issue": genai_output.get("primary_issue") or {"category": category_name, "department": primary_dept},
         "secondary_issues": genai_output.get("secondary_issues", []),
+        "entities": genai_output.get("entities"),
+        "emotion_indicators": genai_output.get("emotion_indicators", []),
+        "agent_guidance": genai_output.get("agent_guidance", []),
         "assigned_agent_id": None,
         "assignedAgentId": None,
         "department_mismatch": department_mismatch,
+        "mismatch_type": mismatch_type,
         "incident_date": data.incident_date or datetime.utcnow().strftime("%Y-%m-%d"),
         "category_id": category_id,
         "category": category_name,
@@ -684,10 +818,14 @@ async def submit_complaint(data: TicketSubmission):
         "urgency": genai_output.get("urgency", "Medium"),
         "status": initial_status,
         "assigned_agent": None,
-        "sla_hours_remaining": 4.0 if genai_output.get("priority") == "P0" else 24.0,
-        "sla_risk_percentage": 15.0 if not department_mismatch else 65.0,
+        "sla_hours_remaining": sla_eval["sla_hours_remaining"],
+        "sla_risk_percentage": sla_eval["sla_risk_percentage"],
+        "sla_risk": sla_eval["sla_risk"],
+        "sla_response_target_at": sla_eval["sla_response_target_at"],
+        "sla_resolution_target_at": sla_eval["sla_resolution_target_at"],
         "genai_output": genai_output,
         "python_rule_output": python_rule_output,
+        "analysis_meta": analysis_meta,
         "match_status": not department_mismatch and not has_hallucination,
         "attachments": data.attachments or [],
         "agent_notes": "",
@@ -695,17 +833,31 @@ async def submit_complaint(data: TicketSubmission):
         "missing_fields": missing_fields,
         "clarification_questions": clarification_questions,
         "clarification_status": clarification_status,
+        "clarification_history": [],
         "complaint_summary": complaint_summary,
+        "escalation_required": escalation_required,
+        "escalation_level": escalation_level,
+        "escalation_source": escalation_source,
+        "escalation_rules_triggered": esc_eval.get("triggered_rules", []),
+        "escalation_notes": escalation_notes,
+        "content_hash": prep.get("content_hash"),
+        "duplicate_of": None,
+        "duplicate_score": repeat_score,
+        "is_duplicate": False,
+        "adversarial_flags": adv_flags,
         "is_repeat": is_repeat,
         "related_ticket_ids": related_ticket_ids,
+        "repeat_count": repeat_count,
         "repeat_similarity_score": repeat_score,
         "has_hallucination": has_hallucination,
         "hallucination_flags": hallucination_flags,
+        "unsupported_promises": unsupported_promises,
         "verification_score": verification_score,
+        "verification_breakdown": score_breakdown,
+        "audit_trail": [],
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow()
     }
-
 
     await db.tickets.insert_one(new_ticket)
     new_ticket["_id"] = str(new_ticket["_id"])
@@ -722,9 +874,10 @@ async def submit_complaint(data: TicketSubmission):
     EmailService.send_ticket_created_notification(
         to_email=data.customer_email,
         ticket_id=ticket_id,
-        title=data.title,
+        title=prep["normalized_title"],
         department=user_selected_dept
     )
+
 
     return {
         "status": "success",
@@ -1570,24 +1723,56 @@ async def dispatch_email_reply(ticket_id: str, req: EmailReplyRequest):
     return result
 
 
-# ── Feature 1: Follow-Up Communication Endpoints ──
+# ── Feature 1 & 11: Follow-Up Communication Endpoints ──
 @router.post("/{ticket_id}/follow-ups/generate")
-async def generate_follow_up_endpoint(ticket_id: str, body: GenerateFollowUpRequest):
-    """Generates a follow-up communication item and adds it to the ticket's follow-up schedule."""
+@router.post("/{ticket_id}/follow-ups")
+async def create_or_generate_follow_up(ticket_id: str, body: Dict[str, Any]):
+    """
+    F11: Creates or generates a follow-up item.
+    If 'type' is provided, generates message via Pipeline 1 and verifies with F8 hallucination check.
+    If manual 'message' is provided, schedules directly.
+    """
     db = get_database()
     ticket = await db.tickets.find_one({"ticket_id": ticket_id})
     if not ticket:
         raise HTTPException(status_code=404, detail="Complaint ticket not found.")
 
-    item = ci_service.generate_follow_up_message(
-        ticket_id=ticket_id,
-        title=ticket.get("title", ""),
-        customer_name=ticket.get("customer_name", "Valued Customer"),
-        category=ticket.get("category", "General"),
-        status=ticket.get("status", "In Triage"),
-        follow_up_type=body.type,
-        custom_delay_hours=body.custom_delay_hours or 24
+    follow_up_type = body.get("type", "resolution-confirmation")
+    delay_hours = int(body.get("custom_delay_hours") or body.get("delay_hours") or 24)
+
+    if body.get("message"):
+        # Manual follow-up message provided
+        item = {
+            "id": f"FOL-{uuid.uuid4().hex[:6].upper()}",
+            "follow_up_id": f"FOL-{uuid.uuid4().hex[:6].upper()}",
+            "type": follow_up_type,
+            "message": body["message"].strip(),
+            "scheduled_at": datetime.utcnow() + timedelta(hours=delay_hours),
+            "sent_at": None,
+            "status": "SCHEDULED",
+            "approved_by": body.get("approved_by", "AGENT")
+        }
+    else:
+        # Generate via Pipeline 1
+        item = ci_service.generate_follow_up_message(
+            ticket_id=ticket_id,
+            title=ticket.get("title", ""),
+            customer_name=ticket.get("customer_name", "Valued Customer"),
+            category=ticket.get("category", "General"),
+            status=ticket.get("status", "In Triage"),
+            follow_up_type=follow_up_type,
+            custom_delay_hours=delay_hours
+        )
+        item["approved_by"] = body.get("approved_by", "SYSTEM")
+
+    # Pass through F8 hallucination check
+    has_hallucination, flags, promises = ComplaintIntelligenceService.detect_hallucinations(
+        genai_output={"draft_response": item["message"]},
+        complaint_text=ticket.get("description", "")
     )
+    if has_hallucination:
+        item["status"] = "CANCELLED"
+        item["hallucination_warning"] = "Suppressed due to unverified promises in follow-up message."
 
     await db.tickets.update_one(
         {"ticket_id": ticket_id},
@@ -1606,46 +1791,218 @@ async def get_follow_ups_endpoint(ticket_id: str):
     return {"ticket_id": ticket_id, "follow_ups": ticket.get("follow_ups", [])}
 
 
-# ── Feature 2: Clarification Reply Endpoint ──
-@router.post("/{ticket_id}/clarification-reply")
-async def reply_clarification_endpoint(ticket_id: str, body: ClarificationReplyRequest):
-    """Customer submits answers to missing information clarification questions."""
+@router.patch("/{ticket_id}/follow-ups/{fid}")
+async def update_follow_up_endpoint(ticket_id: str, fid: str, body: Dict[str, Any]):
+    """Agents or Reviewers edit, cancel, or approve scheduled follow-up items."""
     db = get_database()
     ticket = await db.tickets.find_one({"ticket_id": ticket_id})
     if not ticket:
         raise HTTPException(status_code=404, detail="Complaint ticket not found.")
 
-    reply_text = body.reply.strip()
-    if not reply_text:
-        raise HTTPException(status_code=400, detail="Clarification reply text cannot be empty.")
+    follow_ups = ticket.get("follow_ups", [])
+    target = None
+    target_idx = -1
+    for idx, f in enumerate(follow_ups):
+        if f.get("id") == fid or f.get("follow_up_id") == fid:
+            target = f
+            target_idx = idx
+            break
 
-    updated_desc = f"{ticket.get('description', '')}\n\n[Customer Clarification Response]: {reply_text}"
+    if not target or target_idx == -1:
+        raise HTTPException(status_code=404, detail=f"Follow-up '{fid}' not found on this ticket.")
 
-    missing = ci_service.detect_missing_fields(
-        category=ticket.get("category", "General"),
-        title=ticket.get("title", ""),
-        description=updated_desc,
-        order_id=ticket.get("order_id"),
-        attachments=ticket.get("attachments")
-    )
-    status_val = "answered" if len(missing) == 0 else "pending"
+    if "message" in body and body["message"]:
+        target["message"] = body["message"].strip()
+    if "status" in body and body["status"]:
+        target["status"] = body["status"].upper().strip()
+    if "scheduled_at" in body and body["scheduled_at"]:
+        target["scheduled_at"] = datetime.fromisoformat(body["scheduled_at"].replace("Z", "+00:00"))
 
     await db.tickets.update_one(
         {"ticket_id": ticket_id},
-        {
-            "$set": {
-                "description": updated_desc,
-                "missing_fields": missing,
-                "clarification_status": status_val,
-                "updated_at": datetime.utcnow()
+        {"$set": {f"follow_ups.{target_idx}": target, "updated_at": datetime.utcnow()}}
+    )
+    return {"status": "success", "updated_follow_up": target}
+
+
+# ── F11: Internal Cron Endpoint to Run Due Follow-Ups ──
+@router.post("/internal/follow-ups/run")
+@router.get("/internal/follow-ups/run")
+async def run_due_follow_ups():
+    """
+    Cron / Background execution runner for due follow-up communications.
+    Can be scheduled or triggered by serverless cron jobs.
+    """
+    db = get_database()
+    now = datetime.utcnow()
+    # Find tickets containing scheduled follow-ups that are due
+    cursor = db.tickets.find({
+        "follow_ups": {
+            "$elemMatch": {
+                "status": "SCHEDULED",
+                "scheduled_at": {"$lte": now}
             }
         }
+    })
+    tickets = await cursor.to_list(length=100)
+    sent_count = 0
+
+    for t in tickets:
+        tid = t.get("ticket_id")
+        follow_ups = t.get("follow_ups", [])
+        modified = False
+
+        for f in follow_ups:
+            if f.get("status") == "SCHEDULED":
+                sched = f.get("scheduled_at")
+                if isinstance(sched, datetime) and sched <= now:
+                    to_email = t.get("customer_email")
+                    if to_email and "@" in to_email:
+                        EmailService.send_email(
+                            to_email=to_email,
+                            subject=f"Update regarding your NovaWear complaint ({tid})",
+                            html_content=f"<p>{f.get('message')}</p>"
+                        )
+                    f["status"] = "SENT"
+                    f["sent_at"] = datetime.utcnow()
+                    modified = True
+                    sent_count += 1
+                    await AuditService.log_event(
+                        event_type="FOLLOW_UP_SENT",
+                        ticket_id=tid,
+                        actor="SYSTEM_CRON",
+                        actor_id="CRON_WORKER",
+                        original_value={"status": "SCHEDULED"},
+                        new_value={"status": "SENT", "follow_up_id": f.get("id") or f.get("follow_up_id")},
+                        reason="Follow-up scheduled time elapsed and sent to customer.",
+                        db=db
+                    )
+
+        if modified:
+            await db.tickets.update_one(
+                {"ticket_id": tid},
+                {"$set": {"follow_ups": follow_ups, "updated_at": datetime.utcnow()}}
+            )
+
+    return {"status": "success", "processed_tickets": len(tickets), "sent_count": sent_count}
+
+
+# ── Feature 3: Clarifications Endpoints ──
+@router.get("/{ticket_id}/clarifications")
+async def get_clarifications_endpoint(ticket_id: str):
+    """Fetches missing fields, clarification questions, and answer status for a ticket."""
+    db = get_database()
+    ticket = await db.tickets.find_one({"ticket_id": ticket_id})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Complaint ticket not found.")
+
+    return {
+        "ticket_id": ticket_id,
+        "missing_fields": ticket.get("missing_fields", []),
+        "clarification_questions": ticket.get("clarification_questions", []),
+        "clarification_status": ticket.get("clarification_status", "none"),
+        "history": ticket.get("clarification_history", [])
+    }
+
+
+@router.post("/{ticket_id}/clarifications/answer")
+@router.post("/{ticket_id}/clarification-reply")
+async def answer_clarifications_endpoint(ticket_id: str, body: Dict[str, Any]):
+    """
+    F3: Customer answers clarification questions.
+    Merges answers into entities, re-evaluates missing fields, writes to audit log,
+    and updates ticket status.
+    """
+    db = get_database()
+    ticket = await db.tickets.find_one({"ticket_id": ticket_id})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Complaint ticket not found.")
+
+    answers = body.get("answers") or []
+    reply_text = body.get("reply", "").strip()
+
+    if not answers and not reply_text:
+        raise HTTPException(status_code=400, detail="Clarification response or answer list cannot be empty.")
+
+    entities = ticket.get("entities") or {}
+    clarification_history = ticket.get("clarification_history", [])
+    answer_summary_lines = []
+
+    if answers:
+        for a in answers:
+            field = a.get("field")
+            val = str(a.get("value", "")).strip()
+            if field:
+                entities[field] = val
+                answer_summary_lines.append(f"{field}: {val}")
+                clarification_history.append({
+                    "field": field,
+                    "value": val,
+                    "answered_at": datetime.utcnow().isoformat()
+                })
+    elif reply_text:
+        answer_summary_lines.append(reply_text)
+        clarification_history.append({
+            "field": "general_reply",
+            "value": reply_text,
+            "answered_at": datetime.utcnow().isoformat()
+        })
+
+    updated_desc = f"{ticket.get('description', '')}\n\n[Customer Clarification Response]:\n" + "\n".join(answer_summary_lines)
+
+    # Re-evaluate missing fields deterministically
+    req_map = await ConfigService.get_required_fields_map(db)
+    missing_eval = ComplaintIntelligenceService.detect_missing_info(
+        ticket_data={"title": ticket.get("title", ""), "description": updated_desc, "order_id": entities.get("order_id") or ticket.get("order_id")},
+        entities=entities,
+        category=ticket.get("category", "General"),
+        required_fields_map=req_map
     )
+    new_missing = missing_eval["missing_fields"]
+    status_val = "answered" if len(new_missing) == 0 else "pending"
+
+    # Status transition: if answered and previously awaiting customer, move to In Triage or In Progress
+    new_ticket_status = ticket.get("status", "In Triage")
+    if status_val == "answered" and new_ticket_status == "Awaiting Customer":
+        new_ticket_status = "In Triage"
+
+    update_payload = {
+        "description": updated_desc,
+        "entities": entities,
+        "missing_fields": new_missing,
+        "clarification_status": status_val,
+        "clarification_history": clarification_history,
+        "status": new_ticket_status,
+        "updated_at": datetime.utcnow()
+    }
+    if entities.get("order_id"):
+        update_payload["order_id"] = entities["order_id"]
+
+    await db.tickets.update_one({"ticket_id": ticket_id}, {"$set": update_payload})
+
+    await AuditService.log_event(
+        event_type="CLARIFICATION_ANSWERED",
+        ticket_id=ticket_id,
+        actor="CUSTOMER",
+        actor_id=ticket.get("customer_id", "CUSTOMER"),
+        original_value={"clarification_status": "pending", "missing_fields": ticket.get("missing_fields", [])},
+        new_value={"clarification_status": status_val, "missing_fields": new_missing},
+        reason="Customer submitted clarification answers.",
+        db=db
+    )
+
+    try:
+        from lib.websocket_manager import ws_manager
+        await ws_manager.broadcast("TICKET_UPDATED", {"ticket_id": ticket_id, "clarification_status": status_val, "status": new_ticket_status})
+    except Exception:
+        pass
 
     return {
         "status": "success",
-        "updated_description": updated_desc,
-        "clarification_status": status_val
+        "ticket_id": ticket_id,
+        "clarification_status": status_val,
+        "missing_fields": new_missing,
+        "new_status": new_ticket_status
     }
 
 
@@ -1673,7 +2030,7 @@ async def regenerate_summary_endpoint(ticket_id: str):
     return {"status": "success", "summary": summary}
 
 
-# ── Feature 5: Escalation Endpoint ──
+# ── Feature 7: Escalation Notes & Trigger Endpoint ──
 @router.post("/{ticket_id}/escalate")
 async def escalate_ticket_endpoint(ticket_id: str, body: EscalationRequest):
     """Escalates a ticket and generates structured manager-level escalation notes."""
@@ -1692,17 +2049,89 @@ async def escalate_ticket_endpoint(ticket_id: str, body: EscalationRequest):
         policy_id=(ticket.get("python_rule_output") or {}).get("matched_rule_id")
     )
 
+    level = body.escalation_level or "DEPARTMENT_MANAGER"
+
     await db.tickets.update_one(
         {"ticket_id": ticket_id},
         {
             "$set": {
                 "status": "Escalated",
+                "escalation_required": True,
+                "escalation_level": level,
+                "escalation_source": "MANUAL_ESCALATION",
                 "escalation_notes": notes,
                 "updated_at": datetime.utcnow()
             }
         }
     )
 
+    await AuditService.log_event(
+        event_type="MANUAL_ESCALATION",
+        ticket_id=ticket_id,
+        actor="STAFF",
+        actor_id="STAFF",
+        original_value={"status": ticket.get("status")},
+        new_value={"status": "Escalated", "escalation_level": level},
+        reason=body.escalation_reason,
+        db=db
+    )
+
     return {"status": "success", "escalation_notes": notes}
+
+
+@router.get("/{ticket_id}/escalation-notes")
+async def get_escalation_notes_endpoint(ticket_id: str):
+    """Fetches manager-level escalation notes (visible to MANAGER, ADMIN, REVIEWER)."""
+    db = get_database()
+    ticket = await db.tickets.find_one({"ticket_id": ticket_id})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Complaint ticket not found.")
+    return {
+        "ticket_id": ticket_id,
+        "escalation_required": ticket.get("escalation_required", False),
+        "escalation_level": ticket.get("escalation_level", "NONE"),
+        "escalation_source": ticket.get("escalation_source", "SYSTEM_DEFAULT"),
+        "escalation_notes": ticket.get("escalation_notes")
+    }
+
+
+# ── Feature 12: Customer Complaint History & Repeat Stats ──
+@router.get("/{ticket_id}/history")
+async def get_ticket_customer_history(ticket_id: str):
+    """
+    F12: Fetches customer complaint history, prior tickets, and repeat statistics.
+    """
+    db = get_database()
+    ticket = await db.tickets.find_one({"ticket_id": ticket_id})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Complaint ticket not found.")
+
+    cid = ticket.get("customer_id")
+    cursor = db.tickets.find({"customer_id": cid}).sort("created_at", -1)
+    history_tickets = await cursor.to_list(length=50)
+
+    clean_history = []
+    for h in history_tickets:
+        if h.get("ticket_id") != ticket_id:
+            clean_history.append({
+                "ticket_id": h.get("ticket_id"),
+                "title": h.get("title"),
+                "category": h.get("category"),
+                "status": h.get("status"),
+                "created_at": h.get("created_at"),
+                "order_id": h.get("order_id")
+            })
+
+    return {
+        "ticket_id": ticket_id,
+        "customer_id": cid,
+        "customer_name": ticket.get("customer_name"),
+        "is_repeat": ticket.get("is_repeat", False),
+        "repeat_count": ticket.get("repeat_count", len(clean_history)),
+        "related_ticket_ids": ticket.get("related_ticket_ids", []),
+        "prior_tickets_count": len(clean_history),
+        "history": clean_history
+    }
+
 
 

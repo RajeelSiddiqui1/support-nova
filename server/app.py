@@ -34,6 +34,15 @@ async def lifespan(app: FastAPI):
     # Startup: Connect to MongoDB Atlas (Unified Primary Database)
     try:
         await connect_to_mongo()
+        db = get_database()
+        if db is not None:
+            try:
+                from ai.prompt_service import PromptService
+                from services.config_service import ConfigService
+                await PromptService.seed_default_prompts(db)
+                await ConfigService.seed_all_configs(db)
+            except Exception as se:
+                print(f"[LIFESPAN SEED NOTICE] {se}")
     except Exception as e:
         print(f"[LIFESPAN DB NOTICE] {e}")
 

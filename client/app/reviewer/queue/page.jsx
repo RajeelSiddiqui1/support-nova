@@ -12,6 +12,11 @@ import {
 import { useRealtimeRefresh } from '../../lib/useWebSocket'
 
 import { API_BASE } from '../../lib/api'
+import VerificationScore from '../../components/VerificationScore'
+import ComplaintSummary from '../../components/ComplaintSummary'
+import IssueBadges from '../../components/IssueBadges'
+import RepeatBadge from '../../components/RepeatBadge'
+import DeptRouting from '../../components/DeptRouting'
 
 const glass = { background: 'var(--nw-surface)', border: '1px solid var(--nw-border)', borderRadius: 16, boxShadow: '0 4px 24px rgba(11,14,20,0.3)' }
 
@@ -23,7 +28,7 @@ const P_COLORS = {
 }
 
 
-const FILTERS = ['All', 'Mismatches / AI Review', 'Violations', 'Warnings', 'Compliant', 'Active Queue', 'Unassigned']
+const FILTERS = ['All', 'Mismatches / AI Review', 'Escalation Mismatch', 'Dept Mismatch', 'Violations', 'Warnings', 'Compliant', 'Active Queue', 'Unassigned']
 
 export default function ReviewerQueue() {
   const [managers, setManagers]           = useState([])
@@ -359,6 +364,8 @@ export default function ReviewerQueue() {
   const filteredTickets = tickets.filter(t => {
     const compStatus = t.policy_compliance?.status || 'COMPLIANT'
     if (filter === 'Mismatches / AI Review') return t.status === 'AI Review' || t.status === 'NEEDS_REVIEW' || t.department_mismatch || t.match_status === false
+    if (filter === 'Escalation Mismatch') return t.mismatch_type === 'ESCALATION_MISMATCH' || (t.department_mismatch && t.escalation_required)
+    if (filter === 'Dept Mismatch') return t.department_mismatch === true
     if (filter === 'Violations') return compStatus === 'VIOLATION'
     if (filter === 'Warnings') return compStatus === 'RISK_WARNING'
     if (filter === 'Compliant') return compStatus === 'COMPLIANT'
@@ -825,6 +832,24 @@ export default function ReviewerQueue() {
                         {t.title}
                       </h4>
 
+                      {/* Issue Badges */}
+                      <div style={{ marginBottom: 5 }}>
+                        <IssueBadges
+                          primaryIssue={t.category || t.primary_issue || ''}
+                          secondaryIssues={t.secondary_issues || t.genai_output?.secondary_issues || []}
+                        />
+                      </div>
+                      {(t.is_repeat || t.duplicate_of) && (
+                        <div style={{ marginBottom: 4 }}>
+                          <RepeatBadge duplicateOf={t.duplicate_of} priorCount={t.repeat_count || 0} />
+                        </div>
+                      )}
+                      {t.department_mismatch && (
+                        <span style={{ fontSize: 9.5, fontWeight: 800, padding: '1px 7px', borderRadius: 4, background: 'var(--nw-danger-dim)', color: '#E8758A', border: '1px solid rgba(193,73,91,0.35)' }}>
+                          ⚡ {t.mismatch_type || 'MISMATCH'}
+                        </span>
+                      )}
+
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10.5 }}>
                         <span style={{ color: t.assigned_agent_id ? '#059669' : '#D97706', fontWeight: 700 }}>
                           👤 {t.assigned_agent || '⚡ Unassigned Pool'}
@@ -915,7 +940,128 @@ export default function ReviewerQueue() {
                   </div>
                 </div>
 
+                {/* ── Complaint Summary ── */}
+                <ComplaintSummary ticket={selectedTicket} variant="agent" />
+
+                {/* ── Dept Routing ── */}
+                {(selectedTicket.primary_department || selectedTicket.department) && (
+                  <DeptRouting
+                    primaryDept={selectedTicket.primary_department || selectedTicket.department}
+                    supportingDepts={selectedTicket.supporting_departments || []}
+                  />
+                )}
+
+                {/* ── AI Verification Score ── */}
+                <VerificationScore
+                  matchStatus={selectedTicket.routing_match !== false && !selectedTicket.department_mismatch}
+                  confidenceScore={selectedTicket.verification_score}
+                />
+
+                {/* ── Side-by-side GenAI vs Python Comparison ── */}
+                {(selectedTicket.genai_output || selectedTicket.python_output) && (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: 12,
+                  }}>
+                    {/* GenAI Output */}
+                    <div style={{
+                      background: 'var(--nw-elevated)',
+                      border: '1px solid rgba(74,155,201,0.25)',
+                      borderRadius: 10,
+                      padding: '12px 14px',
+                    }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: '#72B4D8', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.06em' }}>
+                        🤖 GenAI Pipeline 1
+                      </div>
+                      {[
+                        ['Category', selectedTicket.genai_output?.issue_category || selectedTicket.category],
+                        ['Department', selectedTicket.genai_output?.department || selectedTicket.department],
+                        ['Priority', selectedTicket.genai_output?.priority || selectedTicket.priority],
+                        ['Sentiment', selectedTicket.genai_output?.sentiment || selectedTicket.sentiment],
+                        ['Urgency', selectedTicket.genai_output?.urgency || selectedTicket.urgency],
+                        ['Policy ID', selectedTicket.genai_output?.policy_id || selectedTicket.policy_id],
+                      ].map(([label, value]) => value ? (
+                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
+                          <span style={{ color: 'var(--nw-text-muted)' }}>{label}</span>
+                          <span style={{ color: 'var(--nw-text-primary)', fontWeight: 600 }}>{value}</span>
+                        </div>
+                      ) : null)}
+                    </div>
+
+                    {/* Python Deterministic Output */}
+                    <div style={{
+                      background: 'var(--nw-elevated)',
+                      border: `1px solid ${selectedTicket.department_mismatch ? 'rgba(193,73,91,0.35)' : 'rgba(79,166,137,0.25)'}`,
+                      borderRadius: 10,
+                      padding: '12px 14px',
+                    }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: selectedTicket.department_mismatch ? '#E8758A' : '#4FA689', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.06em' }}>
+                        🐍 Python Pipeline 2 {selectedTicket.department_mismatch ? '⚡ MISMATCH' : '✓ Match'}
+                      </div>
+                      {[
+                        ['Department', selectedTicket.python_output?.department || selectedTicket.primary_department],
+                        ['Priority', selectedTicket.python_output?.priority],
+                        ['Escalation', selectedTicket.escalation_required ? `Required (${selectedTicket.escalation_level || 'L1'})` : 'Not Required'],
+                        ['Mismatch Type', selectedTicket.mismatch_type],
+                        ['Routing Match', selectedTicket.routing_match === false ? '❌ No' : '✓ Yes'],
+                        ['SLA Risk', selectedTicket.sla_risk],
+                      ].map(([label, value]) => value ? (
+                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
+                          <span style={{ color: 'var(--nw-text-muted)' }}>{label}</span>
+                          <span style={{
+                            color: (label === 'Mismatch Type' || (label === 'Routing Match' && value.includes('❌'))) ? '#E8758A' : 'var(--nw-text-primary)',
+                            fontWeight: 600
+                          }}>{value}</span>
+                        </div>
+                      ) : null)}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Hallucination Flags ── */}
+                {(selectedTicket.hallucination_flags?.length > 0) && (
+                  <div style={{
+                    background: 'rgba(193,73,91,0.1)',
+                    border: '1.5px solid rgba(193,73,91,0.45)',
+                    borderRadius: 10,
+                    padding: '12px 16px',
+                  }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#E8758A', marginBottom: 8 }}>⚠️ Hallucination Flags</div>
+                    {selectedTicket.hallucination_flags.map((f, i) => (
+                      <div key={i} style={{ fontSize: 11.5, color: 'var(--nw-text-secondary)', marginBottom: 4, paddingLeft: 8, borderLeft: '2px solid rgba(193,73,91,0.4)' }}>
+                        <strong style={{ color: '#E8758A' }}>{f.type}</strong>: {f.description}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ── Policy Applicability Chips ── */}
+                {selectedTicket.policy_id && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--nw-text-muted)', textTransform: 'uppercase' }}>Policy:</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 6, background: 'var(--nw-info-dim)', color: '#72B4D8', border: '1px solid rgba(74,155,201,0.3)' }}>
+                      {selectedTicket.policy_id}
+                    </span>
+                  </div>
+                )}
+
+                {/* ── Escalation Notes Panel ── */}
+                {selectedTicket.escalation_required && selectedTicket.escalation_notes && (
+                  <div style={{
+                    background: 'var(--nw-danger-dim)',
+                    border: '1px solid rgba(193,73,91,0.35)',
+                    borderRadius: 10,
+                    padding: '12px 16px',
+                  }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#E8758A', marginBottom: 6 }}>🚨 Escalation Notes</div>
+                    <div style={{ fontSize: 12, color: 'var(--nw-text-secondary)', lineHeight: 1.6 }}>{selectedTicket.escalation_notes}</div>
+                    <div style={{ marginTop: 8, fontSize: 11, color: 'var(--nw-text-muted)' }}>Level: <strong style={{ color: '#E8758A' }}>{selectedTicket.escalation_level}</strong></div>
+                  </div>
+                )}
+
                 {/* 0. REVIEWER WORKSPACE ACTIONS & OWNERSHIP */}
+
                 <div style={{ padding: '12px 16px', borderRadius: 10, background: 'var(--nw-accent-dim)', border: '1px solid rgba(201,111,74,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--nw-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--nw-text-inverse)', flexShrink: 0 }}>
