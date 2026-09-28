@@ -850,10 +850,80 @@ import io
 import csv
 from fastapi.responses import StreamingResponse
 
+def _clean_str(val: Any) -> Optional[str]:
+    if val is None or not isinstance(val, str):
+        return None
+    s = val.strip()
+    return s if s else None
+
+def _build_ticket_report_query(
+    from_date: Any = None,
+    to_date: Any = None,
+    from_param: Any = None,
+    to_param: Any = None,
+    status: Any = None,
+    department: Any = None,
+    priority: Any = None,
+    category: Any = None
+) -> dict:
+    query = {}
+    c_status = _clean_str(status)
+    c_department = _clean_str(department)
+    c_priority = _clean_str(priority)
+    c_category = _clean_str(category)
+
+    if c_status:
+        query["status"] = c_status
+    if c_department:
+        query["department"] = {"$regex": c_department, "$options": "i"}
+    if c_priority:
+        query["priority"] = c_priority
+    if c_category:
+        query["category"] = {"$regex": c_category, "$options": "i"}
+
+    # Resolve date inputs from either standard or alias params
+    raw_from = _clean_str(from_date) or _clean_str(from_param)
+    raw_to = _clean_str(to_date) or _clean_str(to_param)
+
+    dt_from = None
+    dt_to = None
+
+    if raw_from:
+        try:
+            dt_from = datetime.fromisoformat(raw_from.replace("Z", "+00:00"))
+        except Exception:
+            try:
+                dt_from = datetime.strptime(raw_from[:10], "%Y-%m-%d")
+            except Exception:
+                dt_from = None
+
+    if raw_to:
+        try:
+            dt_to = datetime.fromisoformat(raw_to.replace("Z", "+00:00"))
+        except Exception:
+            try:
+                dt_to = datetime.strptime(raw_to[:10], "%Y-%m-%d")
+                dt_to = dt_to.replace(hour=23, minute=59, second=59, microsecond=999999)
+            except Exception:
+                dt_to = None
+
+    if dt_from or dt_to:
+        date_q = {}
+        if dt_from:
+            date_q["$gte"] = dt_from
+        if dt_to:
+            date_q["$lte"] = dt_to
+        query["created_at"] = date_q
+
+    return query
+
+
 @router.get("/reports/preview")
 async def get_report_preview(
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
+    from_param: Optional[str] = Query(None, alias="from"),
+    to_param: Optional[str] = Query(None, alias="to"),
     status: Optional[str] = Query(None),
     department: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
@@ -862,23 +932,10 @@ async def get_report_preview(
 ):
     """Returns report preview matching filters."""
     db = get_database()
-    query = {}
-    if status:
-        query["status"] = status
-    if department:
-        query["department"] = {"$regex": department, "$options": "i"}
-    if priority:
-        query["priority"] = priority
-    if category:
-        query["category"] = {"$regex": category, "$options": "i"}
-    if from_date or to_date:
-        date_q = {}
-        if from_date:
-            date_q["$gte"] = from_date
-        if to_date:
-            date_q["$lte"] = to_date
-        query["created_at"] = date_q
-
+    query = _build_ticket_report_query(
+        from_date=from_date, to_date=to_date, from_param=from_param, to_param=to_param,
+        status=status, department=department, priority=priority, category=category
+    )
     cursor = db.tickets.find(query).sort("created_at", -1).limit(limit)
     tickets = await cursor.to_list(length=limit)
     for t in tickets:
@@ -891,6 +948,8 @@ async def export_reports(
     format: str = Query("csv"),  # csv | pdf | xlsx
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
+    from_param: Optional[str] = Query(None, alias="from"),
+    to_param: Optional[str] = Query(None, alias="to"),
     status: Optional[str] = Query(None),
     department: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
@@ -898,122 +957,310 @@ async def export_reports(
 ):
     """
     Feature 7: Export complaint reports in CSV, Excel (XLSX), or PDF format.
-    PDF generated via ReportLab (pure Python). XLSX generated via OpenPyXL. CSV via native csv module.
+    Includes comprehensive full details for each complaint.
     """
     db = get_database()
-    query = {}
-    if status:
-        query["status"] = status
-    if department:
-        query["department"] = {"$regex": department, "$options": "i"}
-    if priority:
-        query["priority"] = priority
-    if category:
-        query["category"] = {"$regex": category, "$options": "i"}
+    query = _build_ticket_report_query(
+        from_date=from_date, to_date=to_date, from_param=from_param, to_param=to_param,
+        status=status, department=department, priority=priority, category=category
+    )
 
     cursor = db.tickets.find(query).sort("created_at", -1)
     tickets = await cursor.to_list(length=5000)
 
-    headers = ["ticket_id", "title", "category", "department", "priority", "sentiment", "match_status", "escalation_status", "status", "created_at"]
+    COLUMN_SPECS = [
+        ("ticket_id", "Ticket ID"),
+        ("created_at", "Date Created"),
+        ("customer_name", "Customer Name"),
+        ("customer_email", "Customer Email"),
+        ("order_id", "Order ID"),
+        ("channel", "Channel"),
+        ("title", "Complaint Title"),
+        ("description", "Complaint Description"),
+        ("customer_department", "Customer Department"),
+        ("department", "Active Department"),
+        ("category", "Issue Category"),
+        ("sub_category", "Subcategory"),
+        ("priority", "Priority"),
+        ("urgency", "Urgency"),
+        ("sentiment", "Sentiment"),
+        ("status", "Ticket Status"),
+        ("match_status", "Policy / Dept Match"),
+        ("assigned_agent", "Assigned Agent"),
+        ("assigned_agent_email", "Agent Email"),
+        ("assigned_reviewer", "Reviewer / Manager"),
+        ("policy_id", "Policy Reference"),
+        ("escalation_status", "Escalation Status"),
+        ("sla_breach", "SLA Breached"),
+        ("agent_notes", "Agent Resolution Notes"),
+        ("draft_response", "AI Recommended Response"),
+        ("resolution_steps", "Resolution Steps"),
+        ("updated_at", "Last Updated")
+    ]
 
     rows = []
     for t in tickets:
-        created_str = t.get("created_at").strftime("%Y-%m-%d %H:%M") if isinstance(t.get("created_at"), datetime) else str(t.get("created_at") or "")
+        created = t.get("created_at")
+        if isinstance(created, datetime):
+            created_str = created.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            created_str = str(created or "")
+
+        updated = t.get("updated_at")
+        if isinstance(updated, datetime):
+            updated_str = updated.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            updated_str = str(updated or "")
+
+        genai = t.get("genai_output") or {}
+        py_rule = t.get("python_rule_output") or {}
+
+        # Resolution steps & mandatory actions
+        raw_steps = genai.get("resolution_steps") or py_rule.get("mandatory_actions") or []
+        if isinstance(raw_steps, list):
+            res_steps = "; ".join(str(s).strip() for s in raw_steps if str(s).strip())
+        else:
+            res_steps = str(raw_steps or "")
+
+        # Policy Reference
+        policy = t.get("policy_id") or genai.get("policy_id") or py_rule.get("matched_rule_id") or ""
+
+        # Match status
+        if t.get("reviewer_override"):
+            match_status = "Reviewer Triaged & Approved"
+        elif t.get("department_mismatch") or (t.get("match_status") is False):
+            match_status = "Mismatch Detected"
+        else:
+            match_status = "Verified Match"
+
+        # Escalation
+        is_escalated = bool(
+            t.get("status") == "Escalated" or
+            t.get("escalation_required") or
+            genai.get("escalation_required") or
+            py_rule.get("escalation_required")
+        )
+
         rows.append({
-            "ticket_id": t.get("ticket_id", ""),
-            "title": t.get("title", ""),
-            "category": t.get("category", ""),
-            "department": t.get("department", ""),
-            "priority": t.get("priority", ""),
-            "sentiment": t.get("sentiment", ""),
-            "match_status": "Verified Match" if t.get("match_status", True) else "Mismatch Detected",
-            "escalation_status": "Escalated" if t.get("status") == "Escalated" or (t.get("genai_output") or {}).get("escalation_required") else "Standard",
-            "status": t.get("status", ""),
-            "created_at": created_str
+            "ticket_id": str(t.get("ticket_id") or ""),
+            "created_at": created_str,
+            "customer_name": str(t.get("customer_name") or t.get("customer_id") or "Customer"),
+            "customer_email": str(t.get("customer_email") or ""),
+            "order_id": str(t.get("order_id") or ""),
+            "channel": str(t.get("channel") or "Web Portal"),
+            "title": str(t.get("title") or ""),
+            "description": str(t.get("description") or ""),
+            "customer_department": str(t.get("customer_department") or t.get("department") or ""),
+            "department": str(t.get("department") or ""),
+            "category": str(t.get("category") or ""),
+            "sub_category": str(t.get("sub_category") or genai.get("subcategory") or ""),
+            "priority": str(t.get("priority") or "P2"),
+            "urgency": str(t.get("urgency") or genai.get("urgency") or "Medium"),
+            "sentiment": str(t.get("sentiment") or genai.get("sentiment") or "Neutral"),
+            "status": str(t.get("status") or "In Triage"),
+            "match_status": match_status,
+            "assigned_agent": str(t.get("assigned_agent") or t.get("assigned_agent_id") or "Unassigned"),
+            "assigned_agent_email": str(t.get("assigned_agent_email") or ""),
+            "assigned_reviewer": str(t.get("assigned_reviewer_name") or t.get("reviewed_by_name") or ""),
+            "policy_id": str(policy),
+            "escalation_status": "Escalated" if is_escalated else "Standard",
+            "sla_breach": "YES (Breached)" if t.get("sla_breach") else "NO (Within SLA)",
+            "agent_notes": str(t.get("agent_notes") or ""),
+            "draft_response": str(t.get("draft_response") or genai.get("draft_response") or ""),
+            "resolution_steps": res_steps,
+            "updated_at": updated_str
         })
 
-    fmt = format.lower()
+    fmt = (_clean_str(format) or "csv").lower()
+    timestamp_suffix = datetime.utcnow().strftime("%Y%m%d_%H%M")
 
+    # ─── 1. CSV EXPORT ───────────────────────────────────────────────────────────
     if fmt == "csv":
         output = io.StringIO()
-        writer = csv.DictWriter(output, fieldnames=headers)
-        writer.writeheader()
-        writer.writerows(rows)
+        field_keys = [k for k, _ in COLUMN_SPECS]
+        field_labels = [label for _, label in COLUMN_SPECS]
+
+        writer = csv.writer(output)
+        writer.writerow(field_labels)
+        for r in rows:
+            writer.writerow([r[k] for k in field_keys])
+
         output.seek(0)
+        # UTF-8 BOM (\xef\xbb\xbf) ensures Microsoft Excel properly renders special characters
+        csv_bytes = b"\xef\xbb\xbf" + output.getvalue().encode("utf-8")
         return StreamingResponse(
-            io.BytesIO(output.getvalue().encode("utf-8")),
-            media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=novawear-complaints-report.csv"}
+            io.BytesIO(csv_bytes),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f"attachment; filename=novawear-complaints-report-{timestamp_suffix}.csv"}
         )
 
+    # ─── 2. EXCEL (XLSX) EXPORT ─────────────────────────────────────────────────
     elif fmt == "xlsx":
-        import openpyxl
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Complaints Report"
-        ws.append(headers)
-        for r in rows:
-            ws.append([r[h] for h in headers])
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            from openpyxl.utils import get_column_letter
 
-        bio = io.BytesIO()
-        wb.save(bio)
-        bio.seek(0)
-        return StreamingResponse(
-            bio,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": "attachment; filename=novawear-complaints-report.xlsx"}
-        )
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Complaints Audit Report"
 
+            field_keys = [k for k, _ in COLUMN_SPECS]
+            field_labels = [label for _, label in COLUMN_SPECS]
+
+            # Write header row
+            ws.append(field_labels)
+
+            header_fill = PatternFill(start_color="151922", end_color="151922", fill_type="solid")
+            header_font = Font(name="Calibri", size=11, bold=True, color="F2EFEA")
+            thin_border = Border(
+                left=Side(style="thin", color="CBD5E1"),
+                right=Side(style="thin", color="CBD5E1"),
+                top=Side(style="thin", color="CBD5E1"),
+                bottom=Side(style="thin", color="CBD5E1")
+            )
+
+            for col_idx in range(1, len(field_labels) + 1):
+                cell = ws.cell(row=1, column=col_idx)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
+                cell.border = thin_border
+            ws.row_dimensions[1].height = 28
+
+            # Data rows with zebra striping
+            zebra_fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+            regular_font = Font(name="Calibri", size=10, color="0F172A")
+
+            for row_idx, r in enumerate(rows, start=2):
+                ws.append([r[k] for k in field_keys])
+                is_even = (row_idx % 2 == 0)
+                ws.row_dimensions[row_idx].height = 20
+                for col_idx in range(1, len(field_keys) + 1):
+                    cell = ws.cell(row=row_idx, column=col_idx)
+                    cell.font = regular_font
+                    cell.border = thin_border
+                    if is_even:
+                        cell.fill = zebra_fill
+                    cell.alignment = Alignment(vertical="center")
+
+            # Auto-fit column widths
+            for col in ws.columns:
+                max_len = 0
+                col_letter = get_column_letter(col[0].column)
+                for cell in col:
+                    val_str = str(cell.value or "")
+                    if len(val_str) > max_len:
+                        max_len = len(val_str)
+                ws.column_dimensions[col_letter].width = max(12, min(max_len + 3, 50))
+
+            ws.freeze_panes = "A2"
+
+            bio = io.BytesIO()
+            wb.save(bio)
+            bio.seek(0)
+            return StreamingResponse(
+                bio,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": f"attachment; filename=novawear-complaints-report-{timestamp_suffix}.xlsx"}
+            )
+        except ImportError:
+            raise HTTPException(status_code=500, detail="OpenPyXL library is required for XLSX export. Please install openpyxl.")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Excel generation error: {str(e)}")
+
+    # ─── 3. PDF EXPORT ──────────────────────────────────────────────────────────
     elif fmt == "pdf":
-        from reportlab.lib.pagesizes import letter, landscape
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib import colors
+        try:
+            from reportlab.lib.pagesizes import letter, landscape
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib import colors
 
-        bio = io.BytesIO()
-        doc = SimpleDocTemplate(bio, pagesize=landscape(letter), rightMargin=20, leftMargin=20, topMargin=20, bottomMargin=20)
-        elements = []
-        styles = getSampleStyleSheet()
+            bio = io.BytesIO()
+            doc = SimpleDocTemplate(
+                bio,
+                pagesize=landscape(letter),
+                rightMargin=24, leftMargin=24,
+                topMargin=24, bottomMargin=24
+            )
+            elements = []
+            styles = getSampleStyleSheet()
 
-        title_style = ParagraphStyle("ReportTitle", parent=styles["Heading1"], fontSize=16, textColor=colors.HexColor("#0B0E14"), spaceAfter=12)
-        elements.append(Paragraph("NovaWear Apparel — Complaint Intelligence Report", title_style))
-        elements.append(Paragraph(f"Generated on {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')} | Total Records: {len(rows)}", styles["Normal"]))
-        elements.append(Spacer(1, 12))
+            title_style = ParagraphStyle("ReportTitle", parent=styles["Heading1"], fontSize=16, leading=20, textColor=colors.HexColor("#0B0E14"))
+            meta_style = ParagraphStyle("ReportMeta", parent=styles["Normal"], fontSize=8.5, leading=12, textColor=colors.HexColor("#64748B"))
+            th_style = ParagraphStyle("ReportTh", parent=styles["Normal"], fontSize=8, leading=10, fontName="Helvetica-Bold", textColor=colors.HexColor("#FFFFFF"))
+            td_style = ParagraphStyle("ReportTd", parent=styles["Normal"], fontSize=7.5, leading=9.5, textColor=colors.HexColor("#1E293B"))
+            td_bold = ParagraphStyle("ReportTdBold", parent=td_style, fontName="Helvetica-Bold")
 
-        table_data = [[h.replace("_", " ").title() for h in headers]]
-        for r in rows:
-            table_data.append([
-                r["ticket_id"],
-                r["title"][:25] + "..." if len(r["title"]) > 25 else r["title"],
-                r["category"],
-                r["department"],
-                r["priority"],
-                r["sentiment"],
-                r["match_status"],
-                r["escalation_status"],
-                r["status"],
-                r["created_at"][:10]
-            ])
+            elements.append(Paragraph("NovaWear Apparel — Complaint Intelligence Audit Report", title_style))
+            elements.append(Spacer(1, 3))
 
-        t = Table(table_data)
-        t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#151922')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#F2EFEA')),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F8FAFC')),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
-        ]))
-        elements.append(t)
-        doc.build(elements)
-        bio.seek(0)
-        return StreamingResponse(
-            bio,
-            media_type="application/pdf",
-            headers={"Content-Disposition": "attachment; filename=novawear-complaints-report.pdf"}
-        )
+            resolved_count = sum(1 for r in rows if r["status"] == "Resolved")
+            breach_count = sum(1 for r in rows if "YES" in r["sla_breach"])
+            elements.append(Paragraph(
+                f"Generated on {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')} | "
+                f"Total Records: {len(rows)} | Resolved: {resolved_count} | SLA Breaches: {breach_count}",
+                meta_style
+            ))
+            elements.append(Spacer(1, 10))
+
+            pdf_headers = ["Ticket ID", "Customer", "Title & Description", "Dept", "Category", "Priority", "Status", "Agent", "Date"]
+            col_widths = [65, 85, 185, 65, 75, 45, 65, 85, 70] # fits 740pt printable landscape width
+
+            # Limit PDF rows to 300 to avoid serverless memory limits
+            pdf_rows = rows[:300]
+            table_data = [[Paragraph(h, th_style) for h in pdf_headers]]
+
+            for r in pdf_rows:
+                cust_desc = f"{r['customer_name']}<br/><font color='#64748B'>{r['customer_email']}</font>" if r['customer_email'] else r['customer_name']
+                desc_snippet = (r['description'][:100] + '...') if len(r['description']) > 100 else r['description']
+                title_desc = f"<b>{r['title']}</b><br/><font color='#475569'>{desc_snippet}</font>"
+
+                table_data.append([
+                    Paragraph(r["ticket_id"], td_bold),
+                    Paragraph(cust_desc, td_style),
+                    Paragraph(title_desc, td_style),
+                    Paragraph(r["department"], td_style),
+                    Paragraph(r["category"], td_style),
+                    Paragraph(r["priority"], td_bold),
+                    Paragraph(r["status"], td_style),
+                    Paragraph(r["assigned_agent"], td_style),
+                    Paragraph(r["created_at"][:10], td_style),
+                ])
+
+            t_table = Table(table_data, colWidths=col_widths, repeatRows=1)
+            t_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#151922')),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#FFFFFF'), colors.HexColor('#F8FAFC')]),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
+            ]))
+            elements.append(t_table)
+
+            if len(rows) > 300:
+                elements.append(Spacer(1, 8))
+                elements.append(Paragraph(
+                    f"<i>Note: PDF Executive Digest displays top 300 of {len(rows)} matching complaints. For full dataset with all 27 audit fields, please export as Excel (XLSX) or CSV.</i>",
+                    meta_style
+                ))
+
+            doc.build(elements)
+            bio.seek(0)
+            return StreamingResponse(
+                bio,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename=novawear-complaints-report-{timestamp_suffix}.pdf"}
+            )
+        except ImportError:
+            raise HTTPException(status_code=500, detail="ReportLab library is required for PDF export. Please install reportlab.")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"PDF generation error: {str(e)}")
 
     else:
         raise HTTPException(status_code=400, detail="Invalid format. Supported formats: csv, xlsx, pdf.")

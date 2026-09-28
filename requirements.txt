@@ -16,3 +16,5 @@ imap-tools>=1.5.0
 httpx>=0.27.0
 bcrypt>=4.1.0
 requests>=2.31.0
+openpyxl>=3.1.5
+reportlab>=4.0.0

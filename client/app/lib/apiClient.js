@@ -33,7 +33,14 @@ async function apiFetch(path, options = {}) {
 /** Download helper — returns a Blob for file export */
 async function apiDownload(path) {
   const res = await fetch(`${BASE}${path}`)
-  if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`)
+  if (!res.ok) {
+    let detail = `Download failed: HTTP ${res.status}`
+    try {
+      const j = await res.json()
+      if (j.detail) detail = j.detail
+    } catch {}
+    throw new Error(detail)
+  }
   return res.blob()
 }
 
@@ -56,12 +63,29 @@ export const getAnalyticsSummary = () =>
 // ─── Admin Reports ────────────────────────────────────────────────────────────
 
 /**
+ * @typedef {Object} ReportFilters
+ * @property {string} [from]
+ * @property {string} [to]
+ * @property {string} [from_date]
+ * @property {string} [to_date]
+ * @property {string} [status]
+ * @property {string} [department]
+ * @property {string} [category]
+ * @property {string} [priority]
+ * @property {number} [limit]
+ */
+
+/**
  * @param {ReportFilters} filters
  * @returns {Promise<{tickets: Ticket[], total: number}>}
  */
 export const getReportPreview = (filters = {}) => {
+  const cleanFilters = { ...filters }
+  if (cleanFilters.from && !cleanFilters.from_date) cleanFilters.from_date = cleanFilters.from
+  if (cleanFilters.to && !cleanFilters.to_date) cleanFilters.to_date = cleanFilters.to
+
   const params = new URLSearchParams()
-  Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, String(v)) })
+  Object.entries(cleanFilters).forEach(([k, v]) => { if (v) params.set(k, String(v)) })
   return apiFetch(`/api/admin/reports/preview?${params}`)
 }
 
@@ -72,10 +96,15 @@ export const getReportPreview = (filters = {}) => {
  * @param {Ticket[]} [fallbackRows] — used for client-side CSV if backend returns 404/500
  */
 export async function exportReport(format, filters = {}, fallbackRows = []) {
-  const params = new URLSearchParams({ format, ...filters })
+  const cleanFilters = { ...filters }
+  if (cleanFilters.from && !cleanFilters.from_date) cleanFilters.from_date = cleanFilters.from
+  if (cleanFilters.to && !cleanFilters.to_date) cleanFilters.to_date = cleanFilters.to
+
+  const params = new URLSearchParams({ format, ...cleanFilters })
   try {
     const blob = await apiDownload(`/api/admin/reports/export?${params}`)
-    triggerDownload(blob, `novawear-report.${format}`)
+    const ext = format === 'xlsx' ? 'xlsx' : format === 'pdf' ? 'pdf' : 'csv'
+    triggerDownload(blob, `novawear-complaints-report-${Date.now()}.${ext}`)
   } catch (err) {
     // Fallback: client-side CSV generation
     if (format === 'csv' && fallbackRows.length) {
@@ -95,14 +124,44 @@ function triggerDownload(blob, filename) {
 
 function clientCsvExport(rows) {
   if (!rows.length) return
-  const keys = ['ticket_id', 'title', 'status', 'priority', 'category', 'department', 'customer_name', 'created_at', 'sla_breach']
-  const header = keys.join(',')
+  const cols = [
+    { key: 'ticket_id', label: 'Ticket ID' },
+    { key: 'created_at', label: 'Date Created' },
+    { key: 'customer_name', label: 'Customer Name' },
+    { key: 'customer_email', label: 'Customer Email' },
+    { key: 'order_id', label: 'Order ID' },
+    { key: 'channel', label: 'Channel' },
+    { key: 'title', label: 'Complaint Title' },
+    { key: 'description', label: 'Complaint Description' },
+    { key: 'customer_department', label: 'Customer Department' },
+    { key: 'department', label: 'Active Department' },
+    { key: 'category', label: 'Issue Category' },
+    { key: 'sub_category', label: 'Subcategory' },
+    { key: 'priority', label: 'Priority' },
+    { key: 'urgency', label: 'Urgency' },
+    { key: 'sentiment', label: 'Sentiment' },
+    { key: 'status', label: 'Ticket Status' },
+    { key: 'match_status', label: 'Policy / Dept Match' },
+    { key: 'assigned_agent', label: 'Assigned Agent' },
+    { key: 'assigned_agent_email', label: 'Agent Email' },
+    { key: 'policy_id', label: 'Policy Reference' },
+    { key: 'sla_breach', label: 'SLA Breached' },
+    { key: 'agent_notes', label: 'Agent Resolution Notes' },
+    { key: 'draft_response', label: 'AI Recommended Response' },
+  ]
+  const header = cols.map(c => `"${c.label}"`).join(',')
   const lines = rows.map(r =>
-    keys.map(k => `"${String(r[k] ?? '').replace(/"/g, '""')}"`).join(',')
+    cols.map(c => {
+      let val = r[c.key]
+      if (val === undefined || val === null) val = ''
+      if (typeof val === 'boolean') val = val ? 'Yes' : 'No'
+      if (typeof val === 'object') val = JSON.stringify(val)
+      return `"${String(val).replace(/"/g, '""')}"`
+    }).join(',')
   )
   const csv = [header, ...lines].join('\n')
-  const blob = new Blob([csv], { type: 'text/csv' })
-  triggerDownload(blob, `novawear-report-${Date.now()}.csv`)
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
+  triggerDownload(blob, `novawear-complaints-report-${Date.now()}.csv`)
 }
 
 // ─── Tickets ──────────────────────────────────────────────────────────────────
