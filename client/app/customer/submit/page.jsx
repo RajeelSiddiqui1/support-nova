@@ -135,6 +135,9 @@ export default function SubmitPage() {
           customer_name: cleanQuotes(u.name || u.full_name) || prev.customer_name || 'Valued Customer',
           customer_email: cleanQuotes(u.email) || prev.customer_email || 'customer@gmail.com'
         }))
+      } else {
+        // Enforce Google Sign-In requirement for submission
+        window.location.href = '/login?error=customer_login_required'
       }
     } catch (e) {
       console.log('Session user error:', e)

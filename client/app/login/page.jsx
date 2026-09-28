@@ -45,6 +45,8 @@ export default function LoginPage() {
         )
       } else if (error === 'google_access_denied') {
         setErrorMsg('Google Sign-In was cancelled or failed. Please try again.')
+      } else if (error === 'customer_login_required') {
+        setErrorMsg('Please sign in with Google to access the customer portal or submit a complaint.')
       }
     }
   }, [])

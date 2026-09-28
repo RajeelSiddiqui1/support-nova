@@ -127,11 +127,12 @@ export default function CustomerDashboard() {
         setUser({ ...resolvedUser, name, email, user_id: uId })
         fetchCustomerTickets(uId, email)
       } else {
-        fetchCustomerTickets('', '')
+        // Strict guard: unauthenticated users redirect to /login
+        window.location.href = '/login?error=customer_login_required'
       }
     } catch (e) {
       console.error('Customer dashboard session error:', e)
-      fetchCustomerTickets('', '')
+      window.location.href = '/login?error=customer_login_required'
     }
   }, [])
 
