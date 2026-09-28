@@ -1911,7 +1911,8 @@ async def export_reports(
                     ("sla_hours_remaining", "Remaining (h)", 75),
                     ("sla_risk_pct", "Risk %", 60),
                     ("department", "Department", 85),
-                    ("assigned_agent", "Agent", 85),
+                    ("assigned_agent", "Agent", 85)
+                ]
             elif report_type in ["policy_usage", "policy-usage"]:
                 pdf_cols = [
                     ("ticket_id", "Ticket ID", 70),
