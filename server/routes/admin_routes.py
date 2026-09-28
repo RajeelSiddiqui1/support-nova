@@ -1913,6 +1913,7 @@ async def export_reports(
                     ("department", "Department", 85),
                     ("assigned_agent", "Agent", 85)
                 ]
+                
             elif report_type in ["policy_usage", "policy-usage"]:
                 pdf_cols = [
                     ("ticket_id", "Ticket ID", 70),
