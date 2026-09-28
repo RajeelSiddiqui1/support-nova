@@ -11,6 +11,7 @@
 
 ## 📌 Executive Summary
 
+
 **NovaWear Apparel Complaint Intelligence Platform (SupportNova)** is an enterprise-grade dual-pipeline complaints intelligence and triage system. It reconciles probabilistic generative AI extraction (Pipeline 1) with strict, deterministic Python ground-truth compliance rules (Pipeline 2). This architecture eliminates LLM hallucinations, enforces corporate warranty and refund policies, detects missing submission data, computes 0–100 verification confidence scores, routes multi-department complaints, enforces 6-tier safety/legal escalation hierarchies, and provides frontline agents, judicial reviewers, department managers, and administrators with 360° operational visibility and immutable auditability.
 
 The persistence and transactional audit tier is **100% unified on MongoDB Atlas (Motor Async)** with automated compound indexing, semver versioned prompts, configurable enterprise rule matrixes, and a fully passing **39/39 automated test suite**.
