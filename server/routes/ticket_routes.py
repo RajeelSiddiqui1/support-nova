@@ -187,8 +187,18 @@ async def list_tickets(
     cursor = db.tickets.find(query).sort("created_at", -1)
     tickets = await cursor.to_list(length=200)
 
+    SAFETY_KWS = ["smoke", "spark", "sparks", "fire", "burning", "short circuit", "electrical", "explosion", "hazard", "chemical leak", "dhuan", "aag"]
+
     for t in tickets:
         t["_id"] = str(t["_id"])
+        title_desc = f"{t.get('title', '')} {t.get('description', '')}".lower()
+        if any(kw in title_desc for kw in SAFETY_KWS):
+            t["priority"] = "P0"
+            t["urgency"] = "Critical"
+            t["escalation_required"] = True
+            if not t.get("mismatch_type"):
+                t["mismatch_type"] = "SAFETY_LEGAL_ESCALATION"
+                t["department_mismatch"] = True
 
     return tickets
 
@@ -495,6 +505,17 @@ async def get_ticket(ticket_id: str):
         raise HTTPException(status_code=404, detail="Complaint ticket not found.")
 
     ticket["_id"] = str(ticket["_id"])
+
+    SAFETY_KWS = ["smoke", "spark", "sparks", "fire", "burning", "short circuit", "electrical", "explosion", "hazard", "chemical leak", "dhuan", "aag"]
+    title_desc = f"{ticket.get('title', '')} {ticket.get('description', '')}".lower()
+    if any(kw in title_desc for kw in SAFETY_KWS):
+        ticket["priority"] = "P0"
+        ticket["urgency"] = "Critical"
+        ticket["escalation_required"] = True
+        if not ticket.get("mismatch_type"):
+            ticket["mismatch_type"] = "SAFETY_LEGAL_ESCALATION"
+            ticket["department_mismatch"] = True
+
     ticket["policy_compliance"] = evaluate_policy_compliance(ticket)
     return ticket
 
