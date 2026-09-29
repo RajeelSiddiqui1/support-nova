@@ -88,8 +88,9 @@ export default function AdminReportsPage() {
         setPreview(res)
         setTotal(res.length)
       } else {
-        setPreview(res.tickets || [])
-        setTotal(res.total ?? (res.tickets?.length ?? 0))
+        const rows = res.rows || res.tickets || []
+        setPreview(rows)
+        setTotal(res.total ?? rows.length)
       }
     } catch (e) {
       setPreviewErr(e.message || 'Failed to load preview.')
@@ -99,6 +100,11 @@ export default function AdminReportsPage() {
       setLoadPrev(false)
     }
   }, [filters])
+
+  // Automatically fetch reports preview on page load
+  useEffect(() => {
+    runPreview()
+  }, [])
 
   const handleExport = async (format) => {
     setLoadExp(prev => ({ ...prev, [format]: true }))
