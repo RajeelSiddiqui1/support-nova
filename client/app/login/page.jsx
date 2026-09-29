@@ -122,7 +122,7 @@ export default function LoginPage() {
         return
       }
 
-      const role = data.user?.role || 'CUSTOMER'
+      const role = String(data.user?.role || userInfo?.role || 'CUSTOMER').toUpperCase()
       const loggedInUser = data.user || { email, role }
       localStorage.setItem('user', JSON.stringify(loggedInUser))
       sessionStorage.setItem('user', JSON.stringify(loggedInUser))
@@ -140,9 +140,16 @@ export default function LoginPage() {
         ADMIN: '/admin/dashboard',
       }
 
-      window.location.href = redirects[role] || '/customer/dashboard'
+      const params = new URLSearchParams(window.location.search)
+      const redirectParam = params.get('redirect')
+      let targetUrl = redirects[role] || '/customer/dashboard'
+      if (redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('/login')) {
+        targetUrl = redirectParam
+      }
+
+      window.location.href = targetUrl
     } catch (err) {
-      window.location.href = '/admin/dashboard'
+      window.location.href = '/login'
     } finally {
       setLoading(false)
     }
