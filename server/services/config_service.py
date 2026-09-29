@@ -169,6 +169,14 @@ DEFAULT_ESCALATION_RULES: List[Dict[str, Any]] = [
         "department": "Quality Assurance",
         "description": "Flammability issue or hazardous toxic fumes"
     },
+    {
+        "rule_id": "ESC-SAFE-05",
+        "trigger": "safety_emergency",
+        "keywords": ["smoke", "spark", "sparks", "fire", "burning", "short circuit", "electrical failure", "explosion", "warehouse fire", "chemical leak", "hazardous smoke", "smell of burning", "blaze", "dhuan", "aag"],
+        "level": "CRITICAL_MANAGEMENT",
+        "department": "Safety & Legal Escalations",
+        "description": "Critical physical safety hazard, electrical sparks, smoke, or fire emergency in facility/warehouse"
+    },
     
     # Group B: Legal Threat & Compliance (COMPLIANCE_REVIEW)
     {

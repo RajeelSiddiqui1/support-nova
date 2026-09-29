@@ -654,8 +654,32 @@ async def submit_complaint(data: TicketSubmission):
     escalation_level = esc_eval["escalation_level"]
     escalation_source = esc_eval["escalation_source"]
 
+    # ── Physical Safety Hazard & Fire Emergency Deterministic Override ──
+    safety_keywords = ["smoke", "spark", "sparks", "fire", "burning", "short circuit", "electrical", "explosion", "hazard", "chemical leak", "dhuan", "aag"]
+    combined_text_safety = f"{prep['normalized_title']} {prep['normalized_description']}".lower()
+    is_safety_emergency = any(kw in combined_text_safety for kw in safety_keywords) or any("ESC-SAFE" in r for r in esc_eval.get("triggered_rules", []))
+
+    if is_safety_emergency:
+        genai_output["priority"] = "P0"
+        genai_output["urgency"] = "Critical"
+        genai_output["escalation_required"] = True
+        escalation_required = True
+        escalation_level = "CRITICAL_MANAGEMENT"
+        escalation_source = "PYTHON_SAFETY_RULE"
+        department_mismatch = True
+        mismatch_type = "SAFETY_LEGAL_ESCALATION"
+        await AuditService.log_event(
+            event_type="SAFETY_EMERGENCY_OVERRIDE",
+            ticket_id=ticket_id,
+            actor="SYSTEM_SAFETY_RULE",
+            actor_id="SYSTEM",
+            original_value={"priority": genai_output.get("priority"), "urgency": genai_output.get("urgency")},
+            new_value={"priority": "P0", "urgency": "Critical", "escalation_required": True, "level": "CRITICAL_MANAGEMENT"},
+            reason="Physical safety emergency detected (smoke, sparks, fire, electrical hazard). Forced P0 Critical escalation.",
+            db=db
+        )
     # Crucial Ground Rule: If Python says escalate and GenAI said no -> Python wins!
-    if esc_eval["escalation_required"] and not genai_output.get("escalation_required"):
+    elif esc_eval["escalation_required"] and not genai_output.get("escalation_required"):
         department_mismatch = True
         mismatch_type = "ESCALATION_MISMATCH"
         await AuditService.log_event(
@@ -964,14 +988,25 @@ async def submit_chat_complaint(data: ChatSubmission):
         }
 
     ai_raw_dept = genai_output.get("department", user_selected_dept)
-
-    # Resolve AI Department foreign key (dept_id)
     ai_dept_id, ai_dept = await resolve_ai_department(db, ai_raw_dept, fallback_dept=user_selected_dept)
 
     department_mismatch = (
         ai_dept.lower() not in user_selected_dept.lower() and
         user_selected_dept.lower() not in ai_dept.lower()
     )
+
+    # Deterministic Physical Safety Hazard Check
+    safety_keywords = ["smoke", "spark", "sparks", "fire", "burning", "short circuit", "electrical", "explosion", "hazard", "chemical leak", "dhuan", "aag"]
+    combined_chat_text = f"{title_text} {data.description}".lower()
+    is_chat_safety = any(kw in combined_chat_text for kw in safety_keywords)
+
+    if is_chat_safety:
+        genai_output["priority"] = "P0"
+        genai_output["urgency"] = "Critical"
+        genai_output["escalation_required"] = True
+        department_mismatch = True
+
+    initial_chat_status = "AI Review" if department_mismatch or is_chat_safety else "In Triage"
 
     # 3. Python Deterministic Rule Verification
     python_rule_output = {
@@ -1012,7 +1047,7 @@ async def submit_chat_complaint(data: ChatSubmission):
         "priority": genai_output.get("priority", "P2"),
         "sentiment": genai_output.get("sentiment", "Negative"),
         "urgency": genai_output.get("urgency", "Medium"),
-        "status": "In Triage",
+        "status": initial_chat_status,
         "assigned_agent": None,
         "sla_hours_remaining": 4.0 if genai_output.get("priority") == "P0" else 24.0,
         "sla_risk_percentage": 15.0 if not department_mismatch else 65.0,

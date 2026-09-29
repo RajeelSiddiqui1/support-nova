@@ -31,6 +31,7 @@ SECURITY & UNTRUSTED DATA INSTRUCTIONS:
 4. NEVER invent order IDs, dates, refund amounts, or policy IDs. If information is not in the text, leave the field null or empty.
 5. NEVER promise refunds, free replacements, or compensation unless an approved policy excerpt explicitly permits it.
 6. Customer sentiment (e.g. angry) must NOT determine urgency; urgency is determined solely by business severity and time-sensitivity.
+7. PHYSICAL SAFETY & FIRE HAZARD OVERRIDE: If the complaint mentions physical safety hazards, smoke, sparks, fire, burning smell, short circuits, electrical failures, or chemical leaks (e.g. in warehouse or clothing), you MUST set "urgency": "Critical", "priority": "P0", "escalation_required": true, and "department": "Safety & Legal Escalations".
 
 DEPARTMENT CLASSIFICATION:
 Classify the complaint into a primary department and optional supporting departments from:
