@@ -739,8 +739,38 @@ export default function ReviewerQueue() {
             </div>
           )}
 
+          {/* Mobile Tab Switcher (Visible on small screens) */}
+          <div className="show-on-mobile-flex" style={{ gap: 8, marginBottom: 4 }}>
+            <button
+              onClick={() => setMobileTab('queue')}
+              style={{
+                flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                border: 'none', cursor: 'pointer',
+                background: mobileTab === 'queue' ? 'var(--nw-accent)' : 'var(--nw-elevated)',
+                color: mobileTab === 'queue' ? '#FFF' : 'var(--nw-text-muted)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                transition: 'all 0.15s'
+              }}
+            >
+              📋 Queue ({filteredTickets.length})
+            </button>
+            <button
+              onClick={() => setMobileTab('workbench')}
+              style={{
+                flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                border: 'none', cursor: 'pointer',
+                background: mobileTab === 'workbench' ? 'var(--nw-accent)' : 'var(--nw-elevated)',
+                color: mobileTab === 'workbench' ? '#FFF' : 'var(--nw-text-muted)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                transition: 'all 0.15s'
+              }}
+            >
+              ⚖️ Workbench {selectedTicket ? `[${selectedTicket.ticket_id}]` : ''}
+            </button>
+          </div>
+
           {/* Two-Column Audit Workbench: Left Tickets List, Right Detail Audit */}
-          <div className="responsive-split-stack" style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 16, alignItems: 'flex-start', flex: 1, minHeight: 0 }}>
+          <div className="responsive-split-stack" style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)', gap: 16, alignItems: 'flex-start', flex: 1, minHeight: 0, width: '100%' }}>
             
             {/* ── LEFT: Department Ticket Queue ── */}
             <div className={`agent-queue-col ${mobileTab === 'workbench' ? 'hide-on-mobile' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -871,7 +901,7 @@ export default function ReviewerQueue() {
             {selectedTicket ? (
               <div
                 className={`agent-workbench-col ${mobileTab === 'queue' ? 'hide-on-mobile' : ''}`}
-                style={{ ...glass, padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}
+                style={{ ...glass, padding: 22, display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0, overflow: 'hidden' }}
               >
                 {/* Back to Queue Button for Mobile */}
                 <button
